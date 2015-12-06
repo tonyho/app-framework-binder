@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="97">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="ResourceFiles"
+                   displayName="Resource Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <itemPath>src/afbs-api.c</itemPath>
+      <itemPath>src/alsa-api.c</itemPath>
+      <itemPath>src/config.c</itemPath>
+      <itemPath>src/dbus-api.c</itemPath>
+      <itemPath>src/http-svc.c</itemPath>
+      <itemPath>src/main.c</itemPath>
+      <itemPath>src/rest-api.c</itemPath>
+      <itemPath>src/session.c</itemPath>
+    </logicalFolder>
+    <logicalFolder name="TestFiles"
+                   displayName="Test Files"
+                   projectFiles="false"
+                   kind="TEST_LOGICAL_FOLDER">
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Debug" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <incDir>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerOptionItem>`pkg-config --libs libmicrohttpd`</linkerOptionItem>
+            <linkerOptionItem>`pkg-config --libs json-c`</linkerOptionItem>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <item path="src/afbs-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/alsa-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/config.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/dbus-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/http-svc.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/main.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/rest-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/session.c" ex="false" tool="0" flavor2="0">
+      </item>
+    </conf>
+    <conf name="Release" type="1">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>true</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <compileType>
+        <cTool>
+          <developmentMode>5</developmentMode>
+        </cTool>
+        <ccTool>
+          <developmentMode>5</developmentMode>
+        </ccTool>
+        <fortranCompilerTool>
+          <developmentMode>5</developmentMode>
+        </fortranCompilerTool>
+        <asmTool>
+          <developmentMode>5</developmentMode>
+        </asmTool>
+      </compileType>
+      <item path="src/afbs-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/alsa-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/config.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/dbus-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/http-svc.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/main.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/rest-api.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/session.c" ex="false" tool="0" flavor2="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
