@@ -52,6 +52,7 @@
           <linkerLibItems>
             <linkerOptionItem>`pkg-config --libs libmicrohttpd`</linkerOptionItem>
             <linkerOptionItem>`pkg-config --libs json-c`</linkerOptionItem>
+            <linkerLibLibItem>magic</linkerLibLibItem>
           </linkerLibItems>
         </linkerTool>
       </compileType>

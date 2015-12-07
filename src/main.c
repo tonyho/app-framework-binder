@@ -88,7 +88,7 @@ static  AFB_options cliOptions [] = {
 
   {SET_TCP_PORT     ,1,"port"            , "HTTP listening TCP port  [default 1234]"},
   {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB"},
-  {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /"},
+  {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api"},
 
   {SET_CACHE_TO     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
@@ -227,7 +227,7 @@ static void closeSession (AFB_session *session) {
  |   Main listening HTTP loop
  +--------------------------------------------------------- */
 static void listenLoop (AFB_session *session) {
-  AFB_ERROR  err;
+  AFB_error  err;
 
   if (signal (SIGABRT, signalFail) == SIG_ERR) {
         fprintf (stderr, "%s ERR: main fail to install Signal handler\n", configTime());

@@ -33,8 +33,8 @@
 PUBLIC  char *ERROR_LABEL[]=ERROR_LABEL_DEF;
 
 PUBLIC int verbose;
-STATIC AFB_ErrorT  AFB_Error [AFB_SUCCESS+1];
-STATIC json_object *AFBJsonType;
+STATIC AFB_errorT   AFBerr [AFB_SUCCESS+1];
+STATIC json_object *jTypeStatic;
 
 /* ------------------------------------------------------------------------------
  * Get localtime and return in a string
@@ -56,15 +56,11 @@ PUBLIC char * configTime (void) {
 }
 
 // load config from disk and merge with CLI option
-PUBLIC AFB_ERROR configLoadFile (AFB_session * session, AFB_config *cliconfig) {
+PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    static char cacheTimeout [10];
    int fd;
    json_object * AFBConfig, *value;
    
-   // fix config redirect message
-   session->config->html5.msg = "Angular/HTML5 redirect";
-   session->config->html5.len = strlen(session->config->html5.msg);
-
    // default HTTP port
    if (cliconfig->httpdPort == 0) session->config->httpdPort=1234;
    else session->config->httpdPort=cliconfig->httpdPort;
@@ -88,16 +84,27 @@ PUBLIC AFB_ERROR configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    
    // if no Angular/HTML5 rootbase let's try '/' as default
    if  (cliconfig->rootbase == NULL) {
-       session->config->rootbase = "/";
+       session->config->rootbase = "/opa";
    } else {
-       session->config->console= cliconfig->console;
+       session->config->rootbase= cliconfig->rootbase;
    }
    
-   // if no rootapi use '/api'
-   if  (cliconfig->rootbase == NULL) {
-       session->config->rootbase = "/api";
+   if  (cliconfig->rootapi == NULL) {
+       session->config->rootapi = "/api";
    } else {
-       session->config->console= cliconfig->console;
+       session->config->rootapi= cliconfig->rootapi;
+   }
+
+   if  (cliconfig->smack == NULL) {
+       session->config->smack = "demo";
+   } else {
+       session->config->smack= cliconfig->smack;
+   }
+
+   if  (cliconfig->smack == NULL) {
+       session->config->plugins = "all";
+   } else {
+       session->config->plugins= cliconfig->plugins;
    }
 
 
@@ -204,6 +211,8 @@ PUBLIC AFB_ERROR configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    session->cacheTimeout = cacheTimeout; // httpd uses cacheTimeout string version
    json_object_put   (AFBConfig);    // decrease reference count to free the json object
 
+ 
+   
    return AFB_SUCCESS;
 }
 
@@ -258,29 +267,31 @@ PUBLIC AFB_session *configInit () {
   // stack config handle into session
   session->config = config;
 
-  AFBJsonType = json_object_new_string ("AFB_message");
+  jTypeStatic = json_object_new_string ("AFB_message");
 
   // initialise JSON constant messages and increase reference count to make them permanent
   verbosesav = verbose;
   verbose = 0;  // run initialisation in silent mode
 
 
-
   for (idx = 0; idx <= AFB_SUCCESS; idx++) {
-     AFB_Error[idx].level = idx;
-     AFB_Error[idx].label = ERROR_LABEL [idx];
-     AFB_Error[idx].json  = jsonNewMessage (idx, NULL);
+     AFBerr[idx].level = idx;
+     AFBerr[idx].label = ERROR_LABEL [idx];
+     AFBerr[idx].json  = jsonNewMessage (idx, NULL);
   }
   verbose = verbosesav;
+  
+  // Load Plugins
+  initPlugins (session);
   
   return (session);
 }
 
 
 // get JSON object from error level and increase its reference count
-PUBLIC json_object *jsonNewStatus (AFB_ERROR level) {
+PUBLIC json_object *jsonNewStatus (AFB_error level) {
 
-  json_object *target =  AFB_Error[level].json;
+  json_object *target =  AFBerr[level].json;
   json_object_get (target);
 
   return (target);
@@ -288,12 +299,12 @@ PUBLIC json_object *jsonNewStatus (AFB_ERROR level) {
 
 // get AFB object type with adequate usage count
 PUBLIC json_object *jsonNewjtype (void) {
-  json_object_get (AFBJsonType); // increase reference count
-  return (AFBJsonType);
+  json_object_get (jTypeStatic); // increase reference count
+  return (jTypeStatic);
 }
 
 // build an ERROR message and return it as a valid json object
-PUBLIC  json_object *jsonNewMessage (AFB_ERROR level, char* format, ...) {
+PUBLIC  json_object *jsonNewMessage (AFB_error level, char* format, ...) {
    static int count = 0;
    json_object * AFBResponse;
    va_list args;
@@ -313,7 +324,7 @@ PUBLIC  json_object *jsonNewMessage (AFB_ERROR level, char* format, ...) {
         json_object_object_add (AFBResponse, "info"   , json_object_new_string (message));
    }
    if (verbose) {
-        fprintf (stderr, "AFB:%-6s [%3d]: ", AFB_Error [level].label, count++);
+        fprintf (stderr, "AFB:%-6s [%3d]: ", AFBerr [level].label, count++);
         if (format != NULL) {
             fprintf (stderr, "%s", message);
         } else {

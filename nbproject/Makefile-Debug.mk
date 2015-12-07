@@ -59,7 +59,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=`pkg-config --libs libmicrohttpd` `pkg-config --libs json-c`  
+LDLIBSOPTIONS=`pkg-config --libs libmicrohttpd` `pkg-config --libs json-c` -lmagic  
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}

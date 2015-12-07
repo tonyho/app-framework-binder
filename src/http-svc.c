@@ -31,16 +31,43 @@
 
 
 #include <microhttpd.h>
+
 #include <sys/stat.h>
 #include "../include/local-def.h"
+
+// let's compute fixed URL length only once
+static apiUrlLen=0;
+static baseUrlLen=0;
 
 // proto missing from GCC
 char *strcasestr(const char *haystack, const char *needle);
 
 static int rqtcount = 0;  // dummy request rqtcount to make each message be different
 static int postcount = 0;
-static int aipUrlLen=0;  // do not compute apiurl for each call
-static int baseUrlLen=0; // do not compute baseurl for each call
+
+// try to open libmagic to handle mine types
+static AFB_error initLibMagic (AFB_session *session) {
+  const char *magic_full;
+  
+    /*MAGIC_MIME tells magic to return a mime of the file, but you can specify different things*/
+    if (verbose) printf("Loading mimetype default magic database\n");
+  
+    session->magic = magic_open(MAGIC_MIME);
+    if (session->magic == NULL) {
+        fprintf(stderr,"ERROR: unable to initialize magic library\n");
+        return AFB_FAIL;
+    }
+    if (magic_load(session->magic, NULL) != 0) {
+        fprintf(stderr,"cannot load magic database - %s\n", magic_error(session->magic));
+        magic_close(session->magic);
+        return AFB_FAIL;
+    }
+    
+    //usage
+    //magic_full = magic_file(magic_cookie, actual_file);
+    //printf("%s\n", magic_full);  
+    return AFB_SUCCESS;
+}
 
 // Because of POST call multiple time requestApi we need to free POST handle here
 static void endRequest (void *cls, struct MHD_Connection *connection, void **con_cls, enum MHD_RequestTerminationCode toe) {
@@ -62,86 +89,93 @@ STATIC void computeEtag(char *etag, int maxlen, struct stat *sbuf) {
     snprintf(etag, maxlen, "%d", time);
 }
 
-STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, const char *url, char *filepath, int fd) {
-    const char *etagCache;
+STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, const char *url, AFB_staticfile *staticfile) {
+    const char *etagCache, *mimetype; 
     char etagValue[15];
     struct MHD_Response *response;
     struct stat sbuf; 
     int ret;
 
-    if (fstat (fd, &sbuf) != 0) {
-        fprintf(stderr, "Fail to stat file: [%s] error:%s\n", filepath, strerror(errno));
+    if (fstat (staticfile->fd, &sbuf) != 0) {
+        fprintf(stderr, "Fail to stat file: [%s] error:%s\n", staticfile->path, strerror(errno));
         return (FAILED);
     }
     
     // if url is a directory let's add index.html and redirect client
     if (S_ISDIR (sbuf.st_mode)) {
-        strncpy (filepath, url, sizeof (filepath));
-
-        if (url [strlen (url) -1] != '/') strncat (filepath, "/", sizeof (filepath));
-        strncat (filepath, "index.html", sizeof (filepath));
-        close (fd);
-        response = MHD_create_response_from_buffer (0,"", MHD_RESPMEM_PERSISTENT);
-        MHD_add_response_header (response,MHD_HTTP_HEADER_LOCATION, filepath);
-        ret = MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
-
+        if (url [strlen (url) -1] != '/') strncat (staticfile->path, "/", sizeof (staticfile->path));
+        strncat (staticfile->path, "index.html", sizeof (staticfile->path));
+        close (staticfile->fd); // close directory try to open index.html
+        if (-1 == (staticfile->fd = open(staticfile->path, O_RDONLY)) || (fstat (staticfile->fd, &sbuf) != 0)) {
+           fprintf(stderr, "No Index.html in direcory [%s]\n", staticfile->path);
+           return (FAILED);  
+        }
+            
     } else  if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
 
-        fprintf (stderr, "Fail file: [%s] is not a regular file\n", filepath);
+        fprintf (stderr, "Fail file: [%s] is not a regular file\n", staticfile->path);
         const char *errorstr = "<html><body>Alsa-Json-Gateway Invalid file type</body></html>";
         response = MHD_create_response_from_buffer (strlen (errorstr),
                      (void *) errorstr,	 MHD_RESPMEM_PERSISTENT);
-        ret = MHD_queue_response (connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
+        MHD_queue_response (connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
+        goto finishJob;
 
-    } else {
+    } 
     
-        // https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching?hl=fr
-        // ftp://ftp.heanet.ie/disk1/www.gnu.org/software/libmicrohttpd/doxygen/dc/d0c/microhttpd_8h.html
+    // https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching?hl=fr
+    // ftp://ftp.heanet.ie/disk1/www.gnu.org/software/libmicrohttpd/doxygen/dc/d0c/microhttpd_8h.html
 
-        // Check etag value and load file only when modification date changes
-        etagCache = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
-        computeEtag(etagValue, sizeof (etagValue), &sbuf);
+    // Check etag value and load file only when modification date changes
+    etagCache = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
+    computeEtag(etagValue, sizeof (etagValue), &sbuf);
 
-        if (etagCache != NULL && strcmp(etagValue, etagCache) == 0) {
-            close(fd); // file did not change since last upload
-            if (verbose) fprintf(stderr, "Not Modify: [%s]\n", filepath);
-            response = MHD_create_response_from_buffer(0, "", MHD_RESPMEM_PERSISTENT);
-            MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
-            MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
-            ret = MHD_queue_response(connection, MHD_HTTP_NOT_MODIFIED, response);
+    if (etagCache != NULL && strcmp(etagValue, etagCache) == 0) {
+        close(staticfile->fd); // file did not change since last upload
+        if (verbose) fprintf(stderr, "Not Modify: [%s]\n", staticfile->path);
+        response = MHD_create_response_from_buffer(0, "", MHD_RESPMEM_PERSISTENT);
+        MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
+        MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
+        MHD_queue_response(connection, MHD_HTTP_NOT_MODIFIED, response);
 
-        } else { // it's a new file, we need to upload it to client
-            if (verbose) fprintf(stderr, "Serving: [%s]\n", filepath);
-            response = MHD_create_response_from_fd(sbuf.st_size, fd);
-            MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
-            MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
-            ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-        }
+    } else { // it's a new file, we need to upload it to client
+        // if we have magic let's try to guest mime type
+        if (session->magic) {
+           mimetype="Unknown";
+           mimetype= magic_descriptor(session->magic, staticfile->fd);
+           if (mimetype != NULL)  MHD_add_response_header (response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
+        };
+        if (verbose) fprintf(stderr, "Serving: [%s] mine=%s\n", staticfile->path, mimetype);
+        response = MHD_create_response_from_fd(sbuf.st_size, staticfile->fd);
+        MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
+        MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
+        MHD_queue_response(connection, MHD_HTTP_OK, response);
     }
+    
+finishJob:    
     MHD_destroy_response(response);
-    return (ret);
-
+    return (MHD_YES);
 }
 
 // minimal httpd file server for static HTML,JS,CSS,etc...
 STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, const char* url) {
     int fd;
     int ret;
-
-    char filepath [512];
+    AFB_staticfile staticfile;
 
     // build full path from rootdir + url
-    strncpy(filepath, session->config->rootdir, sizeof (filepath));
-    strncat(filepath, url, 511);
+
+
+    strncpy(staticfile.path, session->config->rootdir, sizeof (staticfile.path));
+    strncat(staticfile.path, url, sizeof (staticfile.path));
 
     // try to open file and get its size
-    if (-1 == (fd = open(filepath, O_RDONLY))) {
-        fprintf(stderr, "Fail to open file: [%s] error:%s\n", filepath, strerror(errno));
+    if (-1 == (staticfile.fd = open(staticfile.path, O_RDONLY))) {
+        fprintf(stderr, "Fail to open file: [%s] error:%s\n", staticfile.path, strerror(errno));
         return (FAILED);
 
     }
     // open file is OK let use it
-    ret = servFile (connection, session, url, filepath, fd);
+    ret = servFile (connection, session, url, &staticfile);
     return ret;
 }
 
@@ -151,34 +185,35 @@ STATIC int checkHTML5(struct MHD_Connection *connection, AFB_session *session, c
     int fd;
     int ret;
     struct MHD_Response *response;
-    char filepath [512];
+    AFB_staticfile staticfile;
 
-    // if requesting '/' serve index.html
-    if (strlen (url) == 0) {
-        strncpy(filepath, session->config->rootdir, sizeof (filepath));
-        strncat(filepath, "/index.html", sizeof (filepath));
+    // Any URL prefixed with /rootbase is served with index.html ex: /opa,/opa/,/opa/#!xxxxxx
+    if ( url[0] == '\0' || url[1] == '\0' || url[1] == '#') {
+        strncpy(staticfile.path, session->config->rootdir, sizeof (staticfile.path));
+        strncat(staticfile.path, "/index.html", sizeof (staticfile.path));
         // try to open file and get its size
-        if (-1 == (fd = open(filepath, O_RDONLY))) {
-            fprintf(stderr, "Fail to open file: [%s] error:%s\n", filepath, strerror(errno));
+        if (-1 == (staticfile.fd = open(staticfile.path, O_RDONLY))) {
+            fprintf(stderr, "Fail to open file: [%s] error:%s\n", staticfile.path, strerror(errno));
             // Nothing respond to this request Files, API, Angular Base
-            const char *errorstr = "<html><body>Alsa-Json-Gateway Unknown or Not readable file</body></html>";
+            const char *errorstr = "<html><body>Application Framework OPA/index.html Not found</body></html>";
             response = MHD_create_response_from_buffer(strlen(errorstr),(void *)errorstr, MHD_RESPMEM_PERSISTENT);
-            ret = MHD_queue_response(connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-            ret = MHD_YES;
-            return (FAILED);
+            MHD_queue_response(connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
+            return (MHD_YES);
        } else {
-            ret = servFile (connection, session, url, filepath, fd);
+            ret = servFile (connection, session, url, &staticfile);
             return ret;
        }
     }
 
-    // we are facing a internal route within the HTML5 OnePageApp let's redirect ex: /myapp/#!user/login
-    strncpy(filepath, session->config->rootbase, sizeof (filepath));
-    strncat(filepath, "#!", sizeof (filepath));
-    strncat(filepath, url, sizeof (filepath));
-    response = MHD_create_response_from_buffer(session->config->html5.len,(void *)session->config->html5.msg, MHD_RESPMEM_PERSISTENT);
-    MHD_add_response_header (response, "Location", "http://somesite.com/page.html");
-    MHD_queue_response (connection, MHD_HTTP_OK, response);
+    // Url match /opa/xxxx but not /opa#!xxxx we redirect the URL to /opa#!/xxxx to force index.html reload
+    strncpy(staticfile.path, session->config->rootbase, sizeof (staticfile.path));
+    strncat(staticfile.path, "#!", sizeof (staticfile.path));
+    strncat(staticfile.path, url, sizeof (staticfile.path));
+    response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
+    MHD_add_response_header (response, "Location", staticfile.path);
+    MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
+    if (verbose) fprintf (stderr,"checkHTML5 redirect to [%s]\n",staticfile.path);
+    return (MHD_YES);
 }
 
 // Check and Dispatch HTTP request
@@ -193,9 +228,9 @@ STATIC int newRequest(void *cls,
     struct MHD_Response *response;
     int ret;
     
-    // this is an Angular request we change URL /!#xxxxx   
-    if (0 == strncmp(url, session->config->rootapi, baseUrlLen)) {
-        ret = doRestApi(connection, session, method, &url[baseUrlLen]);
+    // this is a REST API let's check for plugins
+    if (0 == strncmp(url, session->config->rootapi, apiUrlLen)) {
+        ret = doRestApi(connection, session, method, &url[apiUrlLen+1]);
         return ret;
     }
     
@@ -220,17 +255,21 @@ STATIC int newRequest(void *cls,
 }
 
 STATIC int newClient(void *cls, const struct sockaddr * addr, socklen_t addrlen) {
-    // check if client is comming from an acceptable IP
+    // check if client is coming from an acceptable IP
     return (MHD_YES); // MHD_NO
 }
 
 
-PUBLIC AFB_ERROR httpdStart(AFB_session *session) {
-  
-    // do this only once
-    aipUrlLen  = strlen (session->config->rootapi);
-    baseUrlLen = strlen (session->config->rootbase);
-
+PUBLIC AFB_error httpdStart(AFB_session *session) {
+    
+    // compute fixed URL length at startup time
+    apiUrlLen = strlen (session->config->rootapi);
+    baseUrlLen= strlen (session->config->rootbase);
+    
+    // open libmagic cache
+    initLibMagic (session);
+    
+    
     if (verbose) {
         printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
         printf("AFB:notice Browser URL= http://localhost:%d\n", session->config->httpdPort);
@@ -253,7 +292,7 @@ PUBLIC AFB_ERROR httpdStart(AFB_session *session) {
 }
 
 // infinite loop
-PUBLIC AFB_ERROR httpdLoop(AFB_session *session) {
+PUBLIC AFB_error httpdLoop(AFB_session *session) {
     static int  count = 0;
 
     if (verbose) fprintf(stderr, "AFB:notice entering httpd waiting loop\n");

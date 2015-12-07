@@ -19,7 +19,7 @@
 
 #include "local-def.h"
 
-STATIC json_object* pingAfbs (AFB_plugin *plugin, AFB_session *session, struct MHD_Connection *connection, AFB_request *request) {
+STATIC json_object* pingAfbs (AFB_plugin *plugin, AFB_session *session, AFB_request *request) {
     static pingcount=0;
     json_object *response;
     response = jsonNewMessage(AFB_SUCCESS, "Ping Application Framework %d", pingcount++);
@@ -29,20 +29,15 @@ STATIC json_object* pingAfbs (AFB_plugin *plugin, AFB_session *session, struct M
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"/ping"     , (AFB_apiCB)pingSample ,"Ping Service"},
-  {"/get-all"  , (AFB_apiCB)pingAfbs ,"Ping Application Framework"},
-  {"/get-one"  , (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/start-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/stop-one" , (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/probe-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ping"     , (AFB_apiCB)pingAfbs   ,"Ping Application Framework"},
+  {"ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode"},
   {0,0,0}
 };
 
 PUBLIC AFB_plugin *dbusRegister (AFB_session *session) {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    
+    plugin->type  = AFB_PLUGIN;
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "dbus";        
     plugin->apis  = pluginApis;

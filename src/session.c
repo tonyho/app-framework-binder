@@ -35,7 +35,7 @@
 
 
 // verify we can read/write in session dir
-PUBLIC AFB_ERROR sessionCheckdir (AFB_session *session) {
+PUBLIC AFB_error sessionCheckdir (AFB_session *session) {
 
    int err;
 

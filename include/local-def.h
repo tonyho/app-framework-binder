@@ -17,7 +17,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-   $Id: $
 */
 
 #define _GNU_SOURCE
@@ -35,7 +34,7 @@
 #include <time.h>
 #include <json.h>
 #include <microhttpd.h>
-
+#include <magic.h>
 
 #define AJQ_VERSION "0.1"
 
@@ -54,7 +53,8 @@ typedef int BOOL;
 #define FAILED    -1
 
 // prebuild json error are constructed in config.c
-typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS} AFB_ERROR;
+typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS} AFB_error;
+
 extern char *ERROR_LABEL[];
 #define ERROR_LABEL_DEF {"false", "true","fatal", "fail", "warning", "empty", "success"}
 
@@ -70,7 +70,7 @@ typedef struct {
   int   level;
   char* label;
   json_object *json;
-} AFB_ErrorT;
+} AFB_errorT;
 
 // Post handler
 typedef struct {
@@ -78,6 +78,11 @@ typedef struct {
   int   len;
   int   uid;
 } AFB_HttpPost;
+
+typedef struct {
+  char  path[512];
+  int   fd;
+} AFB_staticfile;
 
 
 // some usefull static object initialized when entering listen loop.
@@ -112,7 +117,6 @@ typedef struct {
   char *configfile;        // where to store configuration on gateway exit
   uid_t setuid;
   int  cacheTimeout;
-  AFB_redirect_msg html5;  // html5 redirect message
 } AFB_config;
 
 // Command line structure hold cli --command + help text
@@ -137,6 +141,7 @@ typedef struct {
   AFB_type type;  
   char *info;
   char *prefix;
+  size_t prefixlen;
   json_object *jtype;
   AFB_restapi *apis;
 } AFB_plugin;
@@ -154,6 +159,7 @@ typedef struct {
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  forceexit;         // when autoconfig from script force exit before starting server
   AFB_plugin **plugins;   // pointer to REST/API plugins 
+  magic_t  magic;         // Mime type file magic lib
 } AFB_session;
 
 

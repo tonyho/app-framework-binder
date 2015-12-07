@@ -110,13 +110,15 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     for (idx=0; session->plugins[idx] != NULL; idx++) {
         if (!strcmp (session->plugins[idx]->prefix, baseurl)) {
            jsonResponse = callPluginApi (session->plugins[idx], session, &request );
-           free (urlcpy);
+           // free (urlcpy);
            break;
         }
+    }
+    // No plugin was found
+    if (session->plugins[idx] == NULL) {
         errMessage = jsonNewMessage(AFB_FATAL, "No Plugin for %s", baseurl);
         free (urlcpy);
         goto ExitOnError;
-
     }
 
     // plugin callback did not return a valid Json Object
@@ -150,26 +152,43 @@ PUBLIC const char* getQueryValue (AFB_request * request, char *name) {
     return (value);
 }
 
-
-void *initPlugins (AFB_session *session) {
-    static AFB_plugin *plugins[10]; // no more than 10 plugins !!!
-    AFB_plugin *plugin;
+// Loop on plugins. Check that they have the right type, prepare a JSON object with prefix
+STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
     int idx;
     
-    // simulate dynamic library load for plugins
-    // need to implement mods argument to activate only requested mods
-    idx=0;
-
-    // Minimal check before accepting a new plugin
-    plugin =  afsvRegister (session);
-    if (plugin->type != AFB_PLUGIN) {
-        fprintf (stderr, "ERROR: AFSV plugin invalid type=%d!=%d\n", plugin->type, AFB_PLUGIN);
-    } else {
-        // Prepare Plugin name to be added to API response
-        plugin->jtype = json_object_new_string (plugin->prefix);
-        json_object_get (plugin->jtype); // increase reference count to make it permanent
-        plugins[idx++]= plugin;
+    for (idx=0; plugins[idx] != NULL; idx++) {
+        if (plugins[idx]->type != AFB_PLUGIN) {
+            fprintf (stderr, "ERROR: AFSV plugin[%d] invalid type=%d != %d\n", idx,  AFB_PLUGIN, plugins[idx]->type);
+        } else {
+            // some sanity controls
+            if ((plugins[idx]->prefix == NULL) || (plugins[idx]->info == NULL) || (plugins[idx]->apis == NULL)){
+                if (plugins[idx]->prefix == NULL) plugins[idx]->prefix = "No URL prefix for APIs";
+                if (plugins[idx]->info == NULL) plugins[idx]->info = "No Info describing plugin APIs";
+                fprintf (stderr, "ERROR: plugin[%d] invalid prefix=%s info=%s", idx,plugins[idx]->prefix, plugins[idx]->info);
+                return NULL;
+            }
+            
+            if (verbose) fprintf (stderr, "Loading plugin[%d] prefix=[%s] info=%s\n", idx, plugins[idx]->prefix, plugins[idx]->info);
+            
+            // Prepare Plugin name to be added into each API response
+            plugins[idx]->jtype = json_object_new_string (plugins[idx]->prefix);
+            json_object_get (plugins[idx]->jtype); // increase reference count to make it permanent
+            
+            // compute urlprefix lenght
+            plugins[idx]->prefixlen = strlen (plugins[idx]->prefix);
+        }  
     }
-    
-    session->plugins= plugins;   
+    return (plugins);
+}
+
+void initPlugins (AFB_session *session) {
+    static AFB_plugin *plugins[10];
+
+        plugins[0]= afsvRegister (session),
+        plugins[1]= dbusRegister (session),
+        plugins[2]= alsaRegister (session),
+        plugins[3]= NULL;
+
+    // complete plugins and save them within current sessions    
+    session->plugins=  RegisterPlugins (plugins);  
 }

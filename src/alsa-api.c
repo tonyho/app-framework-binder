@@ -29,20 +29,20 @@ STATIC json_object* pingAfbs (AFB_plugin *plugin, AFB_session *session, struct M
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"/ping"     , (AFB_apiCB)pingSample ,"Ping Service"},
-  {"/get-all"  , (AFB_apiCB)pingAfbs ,"Ping Application Framework"},
-  {"/get-one"  , (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/start-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/stop-one" , (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/probe-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"/ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ping"     , (AFB_apiCB)pingSample ,"Ping Service"},
+  {"get-all"  , (AFB_apiCB)pingAfbs ,"Ping Application Framework"},
+  {"get-one"  , (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"start-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"stop-one" , (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"probe-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode"},
   {0,0,0}
 };
 
 PUBLIC AFB_plugin *alsaRegister (AFB_session *session) {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    
+    plugin->type  = AFB_PLUGIN;
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix  = "alsa";        
     plugin->apis  = pluginApis;
