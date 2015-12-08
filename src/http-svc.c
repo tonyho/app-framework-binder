@@ -45,7 +45,7 @@ char *strcasestr(const char *haystack, const char *needle);
 static int rqtcount = 0;  // dummy request rqtcount to make each message be different
 static int postcount = 0;
 
-// try to open libmagic to handle mine types
+// try to open libmagic to handle mime types
 static AFB_error initLibMagic (AFB_session *session) {
   const char *magic_full;
   
