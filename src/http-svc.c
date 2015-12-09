@@ -100,15 +100,9 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
         goto abortRequest;
     }
     
-    if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
-        close (staticfile->fd); // nothing useful to do with this file
-        fprintf (stderr, "Fail file: [%s] is not a regular file\n", staticfile->path);
-        const char *errorstr = "<html><body>Alsa-Json-Gateway Invalid file type</body></html>";
-        response = MHD_create_response_from_buffer (strlen (errorstr),
-                     (void *) errorstr,	 MHD_RESPMEM_PERSISTENT);
-        MHD_queue_response (connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-        goto sendRequest;
-    } 
+    
+    
+
     
     // if url is a directory let's add index.html and redirect client
     if (S_ISDIR (sbuf.st_mode)) {
@@ -129,7 +123,15 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
            fprintf(stderr, "No Index.html in direcory [%s]\n", staticfile->path);
            goto abortRequest;  
         }      
-    }   
+    } else if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
+        close (staticfile->fd); // nothing useful to do with this file
+        fprintf (stderr, "Fail file: [%s] is not a regular file\n", staticfile->path);
+        const char *errorstr = "<html><body>Application Framework Binder Invalid file type</body></html>";
+        response = MHD_create_response_from_buffer (strlen (errorstr),
+                     (void *) errorstr,	 MHD_RESPMEM_PERSISTENT);
+        MHD_queue_response (connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
+        goto sendRequest;
+    } 
     
     // https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching?hl=fr
     // ftp://ftp.heanet.ie/disk1/www.gnu.org/software/libmicrohttpd/doxygen/dc/d0c/microhttpd_8h.html
@@ -196,14 +198,14 @@ STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, 
     char *requestdir, *requesturl;
    
     // default search for file is rootdir base
-    requestdir = session->config->rootdir;
-    requesturl=url;
+    requestdir= session->config->rootdir;
+    requesturl=(char*)url;
     
     // Check for optional aliases
     for (idx=0; session->config->aliasdir[idx].url != NULL; idx++) {
         if (0 == strncmp(url, session->config->aliasdir[idx].url, session->config->aliasdir[idx].len)) {
              requestdir = session->config->aliasdir[idx].path;
-             requesturl=&url[session->config->aliasdir[idx].len];
+             requesturl=(char*)&url[session->config->aliasdir[idx].len];
              break;
         }
     }

@@ -30,8 +30,7 @@
 #include <signal.h>
 #include <getopt.h>
 
-static sigjmp_buf exitpoint; // context save for set/longjmp
-static sigjmp_buf restartpoint; // context save for set/longjmp
+static sigjmp_buf exitPoint; // context save for set/longjmp
 
 /*----------------------------------------------------------
  | printversion
@@ -115,21 +114,10 @@ static AFB_aliasdir aliasdir[MAX_ALIAS];
 static int aliascount=0;
 
 /*----------------------------------------------------------
- | signalQuit
- |  return to intitial exitpoint on order to close backend
- |  before exiting.
- +--------------------------------------------------------- */
-void signalQuit (int signum)
-{
-  if (verbose) printf ("INF:signalQuit received signal to quit\n");
-  longjmp (exitpoint, signum);
-}
-
-/*----------------------------------------------------------
  | timeout signalQuit
  |
  +--------------------------------------------------------- */
-void signalFail (int signum) {
+void signalQuit (int signum) {
 
   sigset_t sigset;
 
@@ -138,9 +126,9 @@ void signalFail (int signum) {
   sigaddset   (&sigset, SIGABRT);
   sigprocmask (SIG_UNBLOCK, &sigset, 0);
 
-  fprintf (stderr, "%s ERR:getAllBlock acquisition timeout\n",configTime());
-  syslog (LOG_ERR, "Daemon fail and restart [please report bug]");
-  longjmp (restartpoint, signum);
+  fprintf (stderr, "%s ERR:Received signal quit\n",configTime());
+  syslog (LOG_ERR, "Daemon got kill3 & quit [please report bug]");
+  longjmp (exitPoint, signum);
 }
 
 
@@ -236,7 +224,7 @@ static void closeSession (AFB_session *session) {
 static void listenLoop (AFB_session *session) {
   AFB_error  err;
 
-  if (signal (SIGABRT, signalFail) == SIG_ERR) {
+  if (signal (SIGABRT, signalQuit) == SIG_ERR) {
         fprintf (stderr, "%s ERR: main fail to install Signal handler\n", configTime());
         return;
   }
@@ -269,7 +257,7 @@ int main(int argc, char *argv[])  {
   AFB_config     cliconfig; // temp structure to store CLI option before file config upload
 
   // ------------- Build session handler & init config -------
-  session =  configInit ();
+  session = configInit ();
   memset(&cliconfig,0,sizeof(cliconfig));
   memset(&aliasdir  ,0,sizeof(aliasdir));
   cliconfig.aliasdir = aliasdir;
@@ -344,9 +332,7 @@ int main(int argc, char *argv[])  {
             aliascount++;
        } else {
            fprintf(stderr, "Too many aliases [max:%s] %s ignored\n", optarg, MAX_ALIAS-1);
-       }
-       
-      
+       }     
        break;
        
     case SET_SMACK:
@@ -483,8 +469,8 @@ int main(int argc, char *argv[])  {
     return (-1);
   }
 
-  // save exitpoint context when returning from longjmp closeSession and exit
-  status = setjmp (exitpoint); // return !+ when coming from longjmp
+  // save exitPoint context when returning from longjmp closeSession and exit
+  status = setjmp (exitPoint); // return !+ when coming from longjmp
   if (status != 0) {
     if (verbose) printf ("INF:main returning from longjump after signal [%d]\n", status);
     closeSession (session);
@@ -494,11 +480,7 @@ int main(int argc, char *argv[])  {
   // let's run this program with a low priority
   status=nice (20);
 
-
   // ------------------ Finaly Process Commands -----------------------------
-
-
-
    // if --save then store config on disk upfront
    if (session->configsave) configStoreFile (session);
    if (session->forceexit)  exit (0);
