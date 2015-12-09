@@ -216,7 +216,6 @@ static void closeSession (AFB_session *session) {
 
 }
 
-
 /*----------------------------------------------------------
  | listenLoop
  |   Main listening HTTP loop

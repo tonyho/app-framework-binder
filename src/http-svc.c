@@ -99,11 +99,7 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
         fprintf(stderr, "Fail to stat file: [%s] error:%s\n", staticfile->path, strerror(errno));
         goto abortRequest;
     }
-    
-    
-    
-
-    
+       
     // if url is a directory let's add index.html and redirect client
     if (S_ISDIR (sbuf.st_mode)) {
         close (staticfile->fd); // close directory check for Index
