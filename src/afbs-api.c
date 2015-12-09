@@ -19,31 +19,35 @@
 
 #include "local-def.h"
 
-STATIC json_object* pingAfbs (AFB_session *session, AFB_request *request) {
-    static pingcount=0;
+
+STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void* handle) {
+    static pingcount = 0;
     json_object *response;
-    const char * argval;
+    char query [512];
+
+    // request all query key/value
+    getQueryAll (request, query, sizeof(query)); 
     
-    argval=getQueryValue (request, "arg");
-    if (argval == NULL) {
-        argval="No present in query";
-    };
+    // check if we have some post data
+    if (request->post == NULL)  request->post="NoData";  
+        
+    // return response to caller
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);
     
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Application Framework %d [arg=%s]", pingcount++, argval);
     if (verbose) fprintf(stderr, "%d: \n", pingcount);
     return (response);
-};
+}
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample ,"Ping Service"},
-  {"get-all"  , (AFB_apiCB)pingAfbs ,"Ping Application Framework"},
-  {"get-one"  , (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"start-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"stop-one" , (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"probe-one", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ping"     , (AFB_apiCB)pingSample ,"Ping Service", NULL},
+  {"get-all"  , (AFB_apiCB)pingSample ,"Ping Application Framework", NULL},
+  {"get-one"  , (AFB_apiCB)pingSample ,"Verbose Mode", NULL},
+  {"start-one", (AFB_apiCB)pingSample ,"Verbose Mode", NULL},
+  {"stop-one" , (AFB_apiCB)pingSample ,"Verbose Mode", NULL},
+  {"probe-one", (AFB_apiCB)pingSample ,"Verbose Mode", NULL},
+  {"ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode", NULL},
+  {"ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode", NULL},
   {0,0,0}
 };
 

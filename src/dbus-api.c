@@ -19,21 +19,37 @@
 
 #include "local-def.h"
 
-STATIC json_object* pingAfbs (AFB_plugin *plugin, AFB_session *session, AFB_request *request) {
-    static pingcount=0;
+STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void* handle) {
+    static pingcount = 0;
     json_object *response;
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Application Framework %d", pingcount++);
+    char query [512];
+
+    // request all query key/value
+    getQueryAll (request, query, sizeof(query)); 
+    
+    // check if we have some post data
+    if (request->post == NULL)  request->post="NoData";  
+        
+    // return response to caller
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);
+    
     if (verbose) fprintf(stderr, "%d: \n", pingcount);
     return (response);
-};
+}
+
+
+STATIC struct {
+    void * somedata;
+} handle;
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingAfbs   ,"Ping Application Framework"},
-  {"ctx-store", (AFB_apiCB)pingSample ,"Verbose Mode"},
-  {"ctx-load" , (AFB_apiCB)pingSample ,"Verbose Mode"},
+  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework", NULL},
+  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode", NULL},
+  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode", NULL},
   {0,0,0}
 };
+
 
 PUBLIC AFB_plugin *dbusRegister (AFB_session *session) {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));

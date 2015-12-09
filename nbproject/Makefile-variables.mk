@@ -9,19 +9,19 @@ CND_DISTDIR=dist
 # Debug configuration
 CND_PLATFORM_Debug=GNU-Linux
 CND_ARTIFACT_DIR_Debug=dist/Debug/GNU-Linux
-CND_ARTIFACT_NAME_Debug=appframeworkbinder
-CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/appframeworkbinder
+CND_ARTIFACT_NAME_Debug=afb-daemon
+CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/afb-daemon
 CND_PACKAGE_DIR_Debug=dist/Debug/GNU-Linux/package
-CND_PACKAGE_NAME_Debug=appframeworkbinder.tar
-CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/appframeworkbinder.tar
+CND_PACKAGE_NAME_Debug=afb-daemon.tar
+CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/afb-daemon.tar
 # Release configuration
 CND_PLATFORM_Release=GNU-Linux
 CND_ARTIFACT_DIR_Release=dist/Release/GNU-Linux
-CND_ARTIFACT_NAME_Release=appframeworkbinder
-CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/appframeworkbinder
+CND_ARTIFACT_NAME_Release=afb-daemon
+CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/afb-daemon
 CND_PACKAGE_DIR_Release=dist/Release/GNU-Linux/package
-CND_PACKAGE_NAME_Release=appframeworkbinder.tar
-CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/appframeworkbinder.tar
+CND_PACKAGE_NAME_Release=afb-daemon.tar
+CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/afb-daemon.tar
 #
 # include compiler specific variables
 #

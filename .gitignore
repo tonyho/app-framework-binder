@@ -1,0 +1,8 @@
+/nbproject/private/
+amixer
+autom4te.cache
+config.log 
+build/**
+dist/**
+!.gitignore
+.dep.inc

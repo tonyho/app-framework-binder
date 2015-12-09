@@ -47,25 +47,23 @@ static int postcount = 0;
 
 // try to open libmagic to handle mime types
 static AFB_error initLibMagic (AFB_session *session) {
-  const char *magic_full;
   
     /*MAGIC_MIME tells magic to return a mime of the file, but you can specify different things*/
     if (verbose) printf("Loading mimetype default magic database\n");
   
-    session->magic = magic_open(MAGIC_MIME);
+    session->magic = magic_open(MAGIC_MIME_TYPE);
     if (session->magic == NULL) {
         fprintf(stderr,"ERROR: unable to initialize magic library\n");
         return AFB_FAIL;
     }
-    if (magic_load(session->magic, NULL) != 0) {
+    
+    // Warning: should not use NULL for DB [libmagic bug wont pass efence check]
+    if (magic_load(session->magic, MAGIC_DB) != 0) {
         fprintf(stderr,"cannot load magic database - %s\n", magic_error(session->magic));
         magic_close(session->magic);
         return AFB_FAIL;
     }
-    
-    //usage
-    //magic_full = magic_file(magic_cookie, actual_file);
-    //printf("%s\n", magic_full);  
+
     return AFB_SUCCESS;
 }
 
@@ -98,29 +96,39 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
 
     if (fstat (staticfile->fd, &sbuf) != 0) {
         fprintf(stderr, "Fail to stat file: [%s] error:%s\n", staticfile->path, strerror(errno));
-        return (FAILED);
+        goto abortRequest;
     }
     
-    // if url is a directory let's add index.html and redirect client
-    if (S_ISDIR (sbuf.st_mode)) {
-        if (url [strlen (url) -1] != '/') strncat (staticfile->path, "/", sizeof (staticfile->path));
-        strncat (staticfile->path, "index.html", sizeof (staticfile->path));
-        close (staticfile->fd); // close directory try to open index.html
-        if (-1 == (staticfile->fd = open(staticfile->path, O_RDONLY)) || (fstat (staticfile->fd, &sbuf) != 0)) {
-           fprintf(stderr, "No Index.html in direcory [%s]\n", staticfile->path);
-           return (FAILED);  
-        }
-            
-    } else  if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
-
+    if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
+        close (staticfile->fd); // nothing useful to do with this file
         fprintf (stderr, "Fail file: [%s] is not a regular file\n", staticfile->path);
         const char *errorstr = "<html><body>Alsa-Json-Gateway Invalid file type</body></html>";
         response = MHD_create_response_from_buffer (strlen (errorstr),
                      (void *) errorstr,	 MHD_RESPMEM_PERSISTENT);
         MHD_queue_response (connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-        goto finishJob;
-
+        goto sendRequest;
     } 
+    
+    // if url is a directory let's add index.html and redirect client
+    if (S_ISDIR (sbuf.st_mode)) {
+        close (staticfile->fd); // close directory check for Index
+       
+        // No trailing '/'. Let's add one and redirect for relative paths to work
+        if (url [strlen (url) -1] != '/') {
+            response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
+            strncat(staticfile->path, "/", sizeof (staticfile->path));
+            MHD_add_response_header (response, "Location", staticfile->path);
+            MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
+            if (verbose) fprintf (stderr,"Adding trailing '/' [%s]\n",staticfile->path);      
+            goto sendRequest;
+        }
+        
+        strncat (staticfile->path, OPA_INDEX, sizeof (staticfile->path));
+        if (-1 == (staticfile->fd = open(staticfile->path, O_RDONLY)) || (fstat (staticfile->fd, &sbuf) != 0)) {
+           fprintf(stderr, "No Index.html in direcory [%s]\n", staticfile->path);
+           goto abortRequest;  
+        }      
+    }   
     
     // https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching?hl=fr
     // ftp://ftp.heanet.ie/disk1/www.gnu.org/software/libmicrohttpd/doxygen/dc/d0c/microhttpd_8h.html
@@ -139,22 +147,46 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
 
     } else { // it's a new file, we need to upload it to client
         // if we have magic let's try to guest mime type
-        if (session->magic) {
-           mimetype="Unknown";
+        if (session->magic) {          
            mimetype= magic_descriptor(session->magic, staticfile->fd);
            if (mimetype != NULL)  MHD_add_response_header (response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
-        };
-        if (verbose) fprintf(stderr, "Serving: [%s] mine=%s\n", staticfile->path, mimetype);
+        } else mimetype="Unknown";
+        
+        if (verbose) fprintf(stderr, "Serving: [%s] mime=%s\n", staticfile->path, mimetype);
         response = MHD_create_response_from_fd(sbuf.st_size, staticfile->fd);
         MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
         MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
         MHD_queue_response(connection, MHD_HTTP_OK, response);
     }
     
-finishJob:    
+sendRequest:    
     MHD_destroy_response(response);
     return (MHD_YES);
+
+abortRequest:
+    return (FAILED);
 }
+
+
+// this function return either Index.htlm or a redirect to /#!route to make angular happy
+STATIC int redirectHTML5(struct MHD_Connection *connection, AFB_session *session, const char* url) {
+
+    int fd;
+    int ret;
+    struct MHD_Response *response;
+    AFB_staticfile staticfile;
+
+    // Url match /opa/xxxx should redirect to "/opa/#!page" to force index.html reload
+    strncpy(staticfile.path, session->config->rootbase, sizeof (staticfile.path));
+    strncat(staticfile.path, "/#!", sizeof (staticfile.path));
+    strncat(staticfile.path, &url[1], sizeof (staticfile.path));
+    response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
+    MHD_add_response_header (response, "Location", staticfile.path);
+    MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
+    if (verbose) fprintf (stderr,"checkHTML5 redirect to [%s]\n",staticfile.path);
+    return (MHD_YES);
+}
+
 
 // minimal httpd file server for static HTML,JS,CSS,etc...
 STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, const char* url) {
@@ -172,48 +204,10 @@ STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, 
     if (-1 == (staticfile.fd = open(staticfile.path, O_RDONLY))) {
         fprintf(stderr, "Fail to open file: [%s] error:%s\n", staticfile.path, strerror(errno));
         return (FAILED);
-
     }
     // open file is OK let use it
     ret = servFile (connection, session, url, &staticfile);
     return ret;
-}
-
-// this function return either Index.htlm or a redirect to /#!route to make angular happy
-STATIC int checkHTML5(struct MHD_Connection *connection, AFB_session *session, const char* url) {
-
-    int fd;
-    int ret;
-    struct MHD_Response *response;
-    AFB_staticfile staticfile;
-
-    // Any URL prefixed with /rootbase is served with index.html ex: /opa,/opa/,/opa/#!xxxxxx
-    if ( url[0] == '\0' || url[1] == '\0' || url[1] == '#') {
-        strncpy(staticfile.path, session->config->rootdir, sizeof (staticfile.path));
-        strncat(staticfile.path, "/index.html", sizeof (staticfile.path));
-        // try to open file and get its size
-        if (-1 == (staticfile.fd = open(staticfile.path, O_RDONLY))) {
-            fprintf(stderr, "Fail to open file: [%s] error:%s\n", staticfile.path, strerror(errno));
-            // Nothing respond to this request Files, API, Angular Base
-            const char *errorstr = "<html><body>Application Framework OPA/index.html Not found</body></html>";
-            response = MHD_create_response_from_buffer(strlen(errorstr),(void *)errorstr, MHD_RESPMEM_PERSISTENT);
-            MHD_queue_response(connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-            return (MHD_YES);
-       } else {
-            ret = servFile (connection, session, url, &staticfile);
-            return ret;
-       }
-    }
-
-    // Url match /opa/xxxx but not /opa#!xxxx we redirect the URL to /opa#!/xxxx to force index.html reload
-    strncpy(staticfile.path, session->config->rootbase, sizeof (staticfile.path));
-    strncat(staticfile.path, "#!", sizeof (staticfile.path));
-    strncat(staticfile.path, url, sizeof (staticfile.path));
-    response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
-    MHD_add_response_header (response, "Location", staticfile.path);
-    MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
-    if (verbose) fprintf (stderr,"checkHTML5 redirect to [%s]\n",staticfile.path);
-    return (MHD_YES);
 }
 
 // Check and Dispatch HTTP request
@@ -230,7 +224,7 @@ STATIC int newRequest(void *cls,
     
     // this is a REST API let's check for plugins
     if (0 == strncmp(url, session->config->rootapi, apiUrlLen)) {
-        ret = doRestApi(connection, session, method, &url[apiUrlLen+1]);
+        ret = doRestApi(connection, session, &url[apiUrlLen+1], method, upload_data, upload_data_size, con_cls);
         return ret;
     }
     
@@ -241,9 +235,9 @@ STATIC int newRequest(void *cls,
     ret = requestFile(connection, session, url);
     if (ret != FAILED) return ret;
     
-    // no static was served let check for Angular redirect
+    // no static was served let's try HTML5 OPA redirect
     if (0 == strncmp(url, session->config->rootbase, baseUrlLen)) {
-        ret = checkHTML5(connection, session, &url[baseUrlLen]);
+        ret = redirectHTML5(connection, session, &url[baseUrlLen]);
         return ret;
     }
 
@@ -267,7 +261,7 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
     baseUrlLen= strlen (session->config->rootbase);
     
     // open libmagic cache
-    initLibMagic (session);
+    // initLibMagic (session);
     
     
     if (verbose) {
@@ -299,7 +293,7 @@ PUBLIC AFB_error httpdLoop(AFB_session *session) {
     if (session->foreground) {
 
         while (TRUE) {
-            fprintf(stderr, "AFB:notice Use Ctrl-C to quit");
+            fprintf(stderr, "AFB:notice Use Ctrl-C to quit\n");
             (void) getc(stdin);
         }
     } else {

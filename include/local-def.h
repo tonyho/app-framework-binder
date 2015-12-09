@@ -40,6 +40,10 @@
 
 /* other definitions --------------------------------------------------- */
 
+// Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
+#define MAGIC_DB "/usr/share/misc/magic.mgc"
+#define OPA_INDEX "index.html"
+
 typedef int BOOL;
 #ifndef FALSE
   #define FALSE 0
@@ -97,8 +101,8 @@ typedef struct {
 } AFB_request;
 
 typedef struct {
-     char *msg;
-     int  len;
+     char    *msg;
+     size_t  len;
 } AFB_redirect_msg;
 
 // main config structure
@@ -117,6 +121,7 @@ typedef struct {
   char *configfile;        // where to store configuration on gateway exit
   uid_t setuid;
   int  cacheTimeout;
+  int  apiTimeout;
 } AFB_config;
 
 // Command line structure hold cli --command + help text
@@ -134,6 +139,7 @@ typedef struct {
   char *name;
   AFB_apiCB callback;
   char *info;
+  void * handle;
 } AFB_restapi;
 
 // Plugin definition

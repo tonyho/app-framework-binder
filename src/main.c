@@ -72,6 +72,7 @@ static sigjmp_buf restartpoint; // context save for set/longjmp
 
  #define SET_SMACK          140
  #define SET_PLUGINS        141
+ #define SET_APITIMEOUT     142
 
  #define DISPLAY_VERSION    150
  #define DISPLAY_HELP       151
@@ -90,6 +91,7 @@ static  AFB_options cliOptions [] = {
   {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB"},
   {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api"},
+  {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
 
   {SET_CACHE_TO     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
   {SET_cardid       ,1,"setuid"          , "Change user id [default don't change]"},
@@ -300,6 +302,11 @@ int main(int argc, char *argv[])  {
     case SET_TCP_PORT:
        if (optarg == 0) goto needValueForOption;
        if (!sscanf (optarg, "%d", &cliconfig.httpdPort)) goto notAnInteger;
+       break;
+       
+    case SET_APITIMEOUT:
+       if (optarg == 0) goto needValueForOption;
+       if (!sscanf (optarg, "%d", &cliconfig.apiTimeout)) goto notAnInteger;
        break;
 
     case SET_ROOT_DIR:

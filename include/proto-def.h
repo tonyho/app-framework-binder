@@ -21,9 +21,15 @@
 */
 
 // Rest-api
-PUBLIC json_object* pingSample (AFB_plugin *plugin, AFB_session *session, AFB_request *post);
+
+PUBLIC json_object* apiPingTest(AFB_session *session, AFB_request *request, void* handle);
 PUBLIC const char* getQueryValue (AFB_request * request, char *name);
-PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char *method, const char* url);
+PUBLIC const char* getQueryAll(AFB_request * request, char *query, size_t len);
+
+    
+PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
+    , const char *upload_data, size_t *upload_data_size, void **con_cls);
+
 void initPlugins (AFB_session *session);
 
 typedef AFB_plugin* (*AFB_pluginCB)(AFB_session *session);

@@ -59,55 +59,55 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=`pkg-config --libs libmicrohttpd` `pkg-config --libs json-c` -lmagic  
+LDLIBSOPTIONS=`pkg-config --libs libmicrohttpd` `pkg-config --libs json-c` -lefence -lmagic  
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
-	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder
+	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder: ${OBJECTFILES}
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
-	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder ${OBJECTFILES} ${LDLIBSOPTIONS}
+	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon ${OBJECTFILES} ${LDLIBSOPTIONS}
 
 ${OBJECTDIR}/src/afbs-api.o: src/afbs-api.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/afbs-api.o src/afbs-api.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/afbs-api.o src/afbs-api.c
 
 ${OBJECTDIR}/src/alsa-api.o: src/alsa-api.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/alsa-api.o src/alsa-api.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/alsa-api.o src/alsa-api.c
 
 ${OBJECTDIR}/src/config.o: src/config.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/config.o src/config.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/config.o src/config.c
 
 ${OBJECTDIR}/src/dbus-api.o: src/dbus-api.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/dbus-api.o src/dbus-api.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/dbus-api.o src/dbus-api.c
 
 ${OBJECTDIR}/src/http-svc.o: src/http-svc.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/http-svc.o src/http-svc.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/http-svc.o src/http-svc.c
 
 ${OBJECTDIR}/src/main.o: src/main.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/main.o src/main.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/main.o src/main.c
 
 ${OBJECTDIR}/src/rest-api.o: src/rest-api.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/rest-api.o src/rest-api.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/rest-api.o src/rest-api.c
 
 ${OBJECTDIR}/src/session.o: src/session.c 
 	${MKDIR} -p ${OBJECTDIR}/src
 	${RM} "$@.d"
-	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/session.o src/session.c
+	$(COMPILE.c) -g -I/usr/include/json-c -Iinclude -I/opt/libmagic/include `pkg-config --cflags libmicrohttpd` `pkg-config --cflags json-c`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/session.o src/session.c
 
 # Subprojects
 .build-subprojects:
@@ -115,7 +115,7 @@ ${OBJECTDIR}/src/session.o: src/session.c
 # Clean Targets
 .clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r ${CND_BUILDDIR}/${CND_CONF}
-	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder
+	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon
 
 # Subprojects
 .clean-subprojects:

@@ -64,6 +64,10 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    // default HTTP port
    if (cliconfig->httpdPort == 0) session->config->httpdPort=1234;
    else session->config->httpdPort=cliconfig->httpdPort;
+   
+   // default Plugin API timeout
+   if (cliconfig->apiTimeout == 0) session->config->apiTimeout=10;
+   else session->config->apiTimeout=cliconfig->apiTimeout;
 
    // cache timeout default one hour
    if (cliconfig->cacheTimeout == 0) session->config->cacheTimeout=3600;
@@ -206,9 +210,15 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    if (!cliconfig->cacheTimeout && json_object_object_get_ex (AFBConfig, "cachetimeout", &value)) {
       session->config->cacheTimeout = json_object_get_int (value);
    }
-   // cacheTimeout is an interger but HTTPd wants it as a string
+   
+   if (!cliconfig->apiTimeout && json_object_object_get_ex (AFBConfig, "apitimeout", &value)) {
+      session->config->apiTimeout = json_object_get_int (value);
+   }
+   
+   // cacheTimeout is an integer but HTTPd wants it as a string
    snprintf (cacheTimeout, sizeof (cacheTimeout),"%d", session->config->cacheTimeout);
    session->cacheTimeout = cacheTimeout; // httpd uses cacheTimeout string version
+   
    json_object_put   (AFBConfig);    // decrease reference count to free the json object
 
  
@@ -241,6 +251,7 @@ PUBLIC void configStoreFile (AFB_session * session) {
    json_object_object_add (AFBConfig, "setuid"        , json_object_new_int (session->config->setuid));
    json_object_object_add (AFBConfig, "localhostonly" , json_object_new_int (session->config->localhostOnly));
    json_object_object_add (AFBConfig, "cachetimeout"  , json_object_new_int (session->config->cacheTimeout));
+   json_object_object_add (AFBConfig, "apitimeout"    , json_object_new_int (session->config->apiTimeout));
 
    err = json_object_to_file (session->config->configfile, AFBConfig);
    json_object_put   (AFBConfig);    // decrease reference count to free the json object

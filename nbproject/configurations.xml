@@ -46,12 +46,14 @@
           <incDir>
             <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
+            <pElem>/opt/libmagic/include</pElem>
           </incDir>
         </cTool>
         <linkerTool>
           <linkerLibItems>
             <linkerOptionItem>`pkg-config --libs libmicrohttpd`</linkerOptionItem>
             <linkerOptionItem>`pkg-config --libs json-c`</linkerOptionItem>
+            <linkerLibLibItem>efence</linkerLibLibItem>
             <linkerLibLibItem>magic</linkerLibLibItem>
           </linkerLibItems>
         </linkerTool>

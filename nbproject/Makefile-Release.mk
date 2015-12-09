@@ -63,11 +63,11 @@ LDLIBSOPTIONS=
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
-	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder
+	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder: ${OBJECTFILES}
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
-	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder ${OBJECTFILES} ${LDLIBSOPTIONS}
+	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon ${OBJECTFILES} ${LDLIBSOPTIONS}
 
 ${OBJECTDIR}/src/afbs-api.o: src/afbs-api.c 
 	${MKDIR} -p ${OBJECTDIR}/src
@@ -115,7 +115,7 @@ ${OBJECTDIR}/src/session.o: src/session.c
 # Clean Targets
 .clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r ${CND_BUILDDIR}/${CND_CONF}
-	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/appframeworkbinder
+	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/afb-daemon
 
 # Subprojects
 .clean-subprojects:
