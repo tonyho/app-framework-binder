@@ -61,6 +61,7 @@ static sigjmp_buf restartpoint; // context save for set/longjmp
  #define SET_ROOT_DIR       121
  #define SET_ROOT_BASE      122
  #define SET_ROOT_API       123
+ #define SET_ROOT_ALIAS     124
 
  #define SET_CACHE_TO       130
  #define SET_cardid         131
@@ -91,6 +92,7 @@ static  AFB_options cliOptions [] = {
   {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB"},
   {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api"},
+  {SET_ROOT_ALIAS   ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
 
   {SET_CACHE_TO     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
@@ -108,6 +110,9 @@ static  AFB_options cliOptions [] = {
   {DISPLAY_HELP     ,0,"help"            , "Display this help"},
   {0, 0, 0}
  };
+
+static AFB_aliasdir aliasdir[MAX_ALIAS];
+static int aliascount=0;
 
 /*----------------------------------------------------------
  | signalQuit
@@ -265,7 +270,9 @@ int main(int argc, char *argv[])  {
 
   // ------------- Build session handler & init config -------
   session =  configInit ();
-  memset (&cliconfig,0,sizeof(cliconfig));
+  memset(&cliconfig,0,sizeof(cliconfig));
+  memset(&aliasdir  ,0,sizeof(aliasdir));
+  cliconfig.aliasdir = aliasdir;
 
   // GNU CLI getopts nterface.
   struct option ggcOption;
@@ -312,16 +319,34 @@ int main(int argc, char *argv[])  {
     case SET_ROOT_DIR:
        if (optarg == 0) goto needValueForOption;
        cliconfig.rootdir   = optarg;
+       if (verbose) fprintf(stderr, "Forcing Rootdir=%s\n",cliconfig.rootdir);
        break;       
        
     case SET_ROOT_BASE:
        if (optarg == 0) goto needValueForOption;
        cliconfig.rootbase   = optarg;
+       if (verbose) fprintf(stderr, "Forcing Rootbase=%s\n",cliconfig.rootbase);
        break;
 
     case SET_ROOT_API:
        if (optarg == 0) goto needValueForOption;
        cliconfig.rootapi   = optarg;
+       if (verbose) fprintf(stderr, "Forcing Rootapi=%s\n",cliconfig.rootapi);
+       break;
+       
+    case SET_ROOT_ALIAS:
+       if (optarg == 0) goto needValueForOption;
+       if (aliascount < MAX_ALIAS) {
+            aliasdir[aliascount].url  = strsep(&optarg,":");
+            aliasdir[aliascount].path = strsep(&optarg,":");
+            aliasdir[aliascount].len  = strlen(aliasdir[aliascount].url);
+            if (verbose) fprintf(stderr, "Alias url=%s path=%s\n", aliasdir[aliascount].url, aliasdir[aliascount].path);
+            aliascount++;
+       } else {
+           fprintf(stderr, "Too many aliases [max:%s] %s ignored\n", optarg, MAX_ALIAS-1);
+       }
+       
+      
        break;
        
     case SET_SMACK:

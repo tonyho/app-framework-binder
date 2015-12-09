@@ -35,6 +35,10 @@
 #include <json.h>
 #include <microhttpd.h>
 #include <magic.h>
+#include <setjmp.h>
+#include <signal.h>
+
+
 
 #define AJQ_VERSION "0.1"
 
@@ -43,6 +47,7 @@
 // Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
 #define MAGIC_DB "/usr/share/misc/magic.mgc"
 #define OPA_INDEX "index.html"
+#define MAX_ALIAS 10  // max number of aliases
 
 typedef int BOOL;
 #ifndef FALSE
@@ -88,6 +93,12 @@ typedef struct {
   int   fd;
 } AFB_staticfile;
 
+typedef struct {
+  char  *url;
+  char  *path;
+  size_t len;
+} AFB_aliasdir;
+
 
 // some usefull static object initialized when entering listen loop.
 extern int verbose;
@@ -98,6 +109,7 @@ typedef struct {
   char *api;
   char *post;
   struct MHD_Connection *connection;
+  sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
 } AFB_request;
 
 typedef struct {
@@ -122,6 +134,7 @@ typedef struct {
   uid_t setuid;
   int  cacheTimeout;
   int  apiTimeout;
+  AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 } AFB_config;
 
 // Command line structure hold cli --command + help text

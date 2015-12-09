@@ -61,12 +61,15 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    int fd;
    json_object * AFBConfig, *value;
    
+   // TBD integrate alias-dir array with config-file
+   session->config->aliasdir = cliconfig->aliasdir;
+   
    // default HTTP port
    if (cliconfig->httpdPort == 0) session->config->httpdPort=1234;
    else session->config->httpdPort=cliconfig->httpdPort;
    
    // default Plugin API timeout
-   if (cliconfig->apiTimeout == 0) session->config->apiTimeout=10;
+   if (cliconfig->apiTimeout == 0) session->config->apiTimeout=0;
    else session->config->apiTimeout=cliconfig->apiTimeout;
 
    // cache timeout default one hour
@@ -110,8 +113,6 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    } else {
        session->config->plugins= cliconfig->plugins;
    }
-
-
 
    // if no session dir create a default path from rootdir
    if  (cliconfig->sessiondir == NULL) {

@@ -38,6 +38,7 @@
 // let's compute fixed URL length only once
 static apiUrlLen=0;
 static baseUrlLen=0;
+static rootUrlLen=0;
 
 // proto missing from GCC
 char *strcasestr(const char *haystack, const char *needle);
@@ -190,15 +191,26 @@ STATIC int redirectHTML5(struct MHD_Connection *connection, AFB_session *session
 
 // minimal httpd file server for static HTML,JS,CSS,etc...
 STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, const char* url) {
-    int fd;
-    int ret;
+    int fd, ret, idx;
     AFB_staticfile staticfile;
-
+    char *requestdir, *requesturl;
+   
+    // default search for file is rootdir base
+    requestdir = session->config->rootdir;
+    requesturl=url;
+    
+    // Check for optional aliases
+    for (idx=0; session->config->aliasdir[idx].url != NULL; idx++) {
+        if (0 == strncmp(url, session->config->aliasdir[idx].url, session->config->aliasdir[idx].len)) {
+             requestdir = session->config->aliasdir[idx].path;
+             requesturl=&url[session->config->aliasdir[idx].len];
+             break;
+        }
+    }
+    
     // build full path from rootdir + url
-
-
-    strncpy(staticfile.path, session->config->rootdir, sizeof (staticfile.path));
-    strncat(staticfile.path, url, sizeof (staticfile.path));
+    strncpy(staticfile.path, requestdir, sizeof (staticfile.path));   
+    strncat(staticfile.path, requesturl, sizeof (staticfile.path));
 
     // try to open file and get its size
     if (-1 == (staticfile.fd = open(staticfile.path, O_RDONLY))) {
@@ -259,8 +271,9 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
     // compute fixed URL length at startup time
     apiUrlLen = strlen (session->config->rootapi);
     baseUrlLen= strlen (session->config->rootbase);
-    
-    // open libmagic cache
+    rootUrlLen= strlen (session->config->rootdir);
+     
+    // TBD open libmagic cache [fail to pass EFENCE check]
     // initLibMagic (session);
     
     

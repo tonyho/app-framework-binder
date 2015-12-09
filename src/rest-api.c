@@ -23,8 +23,6 @@
 #include <setjmp.h>
 #include <signal.h>
 
-// context save for timeout set/longjmp
-static sigjmp_buf checkPluginCall; 
 
 // handle to hold queryAll values
 typedef struct {
@@ -92,67 +90,62 @@ STATIC void endRequest(void *cls, struct MHD_Connection *connection, void **con_
     }
 }
 
-/*----------------------------------------------------------
- | timeout signalQuit
- +--------------------------------------------------------- */
-STATIC void pluginError (int signum) {
-
-  sigset_t sigset;
-
-  // unlock timeout signal to allow a new signal to come
-  sigemptyset (&sigset);
-  sigaddset   (&sigset, SIGALRM);
-  sigprocmask (SIG_UNBLOCK, &sigset, 0);
-
-  fprintf (stderr, "Oops:%s Plugin Api Timeout timeout\n", configTime());
-  longjmp (checkPluginCall, signum);
-}
-
-
 // Check of apiurl is declare in this plugin and call it
-
 STATIC json_object * callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_request *request) {
     json_object *response;
-    int idx, status;
+    int idx, status, sig;
+    int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
+    
+    /*---------------------------------------------------------------
+    | Signal handler defined inside CallPluginApi to access Request
+    +---------------------------------------------------------------- */
+    void pluginError (int signum) {
+
+      sigset_t sigset;
+
+      // unlock timeout signal to allow a new signal to come
+      sigemptyset (&sigset);
+      sigaddset   (&sigset, SIGALRM);
+      sigprocmask (SIG_UNBLOCK, &sigset, 0);
+
+      fprintf (stderr, "Oops:%s Plugin Api Timeout timeout\n", configTime());
+      longjmp (request->checkPluginCall, signum);
+    }
 
     // If a plugin hold this urlpath call its callback
     for (idx = 0; plugin->apis[idx].callback != NULL; idx++) {
         if (!strcmp(plugin->apis[idx].name, request->api)) {
             
             // save context before calling the API
-            status = setjmp (checkPluginCall);
+            status = setjmp (request->checkPluginCall);
             if (status != 0) {
                 response = jsonNewMessage(AFB_FATAL, "Plugin Call Fail prefix=%s api=%s info=%s", plugin->prefix, request->api, plugin->info);
             } else {
-                if (signal (SIGALRM, pluginError) == SIG_ERR) {
-                    fprintf (stderr, "%s ERR: main no Signal/timeout handler installed.", configTime());
-                    return NULL;
-                }
                 
-                if (signal (SIGSEGV, pluginError) == SIG_ERR) {
-                    fprintf (stderr, "%s ERR: main no Signal/memory handler installed.", configTime());
-                    return NULL;
-                }
-                
-                if (signal (SIGFPE , pluginError) == SIG_ERR) {
-                    fprintf (stderr, "%s ERR: main no Signal/memory handler installed.", configTime());
-                    return NULL;
-                }
+                if (session->config->apiTimeout > 0) {
+                    for (sig=0; signals[sig] != 0; sig++) {
+                       if (signal (signals[sig], pluginError) == SIG_ERR) {
+                          fprintf (stderr, "%s ERR: main no Signal/timeout handler installed.", configTime());
+                          return NULL;
+                       }
+                    }
 
-                // protect plugin call with a timeout
-                alarm (session->config->apiTimeout);
+                    // Trigger a timer to protect plugin for no return API
+                    alarm (session->config->apiTimeout);
+                }
 
                 response = plugin->apis[idx].callback(session, request, plugin->apis[idx].handle);
                 if (response != NULL) json_object_object_add(response, "jtype", plugin->jtype);
 
-                // cancel timeout and sleep before next aquisition
-                alarm (0);
-                signal(SIGALRM, SIG_DFL);
-                signal(SIGSEGV, SIG_DFL);
-                signal(SIGFPE , SIG_DFL);
+                // cancel timeout and plugin signal handle before next call
+                if (session->config->apiTimeout > 0) {
+                    alarm (0);
+                    for (sig=0; signals[sig] != 0; sig++) {
+                       signal (signals[sig], SIG_DFL);
+                    }
+                }
             }    
             return (response);
-
         }
     }
     return (NULL);
@@ -299,7 +292,6 @@ ExitOnError:
 
 
 // Loop on plugins. Check that they have the right type, prepare a JSON object with prefix
-
 STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
     int idx;
 
