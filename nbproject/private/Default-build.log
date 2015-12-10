@@ -1,0 +1,11 @@
+Scanning dependencies of target afb-daemon
+[ 12%] Building C object src/CMakeFiles/afb-daemon.dir/main.c.o
+[ 25%] Building C object src/CMakeFiles/afb-daemon.dir/config.c.o
+[ 37%] Building C object src/CMakeFiles/afb-daemon.dir/session.c.o
+[ 50%] Building C object src/CMakeFiles/afb-daemon.dir/http-svc.c.o
+[ 62%] Building C object src/CMakeFiles/afb-daemon.dir/afbs-api.c.o
+[ 75%] Building C object src/CMakeFiles/afb-daemon.dir/dbus-api.c.o
+[ 87%] Building C object src/CMakeFiles/afb-daemon.dir/rest-api.c.o
+[100%] Building C object src/CMakeFiles/afb-daemon.dir/alsa-api.c.o
+Linking C executable afb-daemon
+[100%] Built target afb-daemon

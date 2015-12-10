@@ -5,3 +5,5 @@ build/**
 dist/**
 !.gitignore
 .dep.inc
+CMakeFiles/
+CMakeCache.txt

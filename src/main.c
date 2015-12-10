@@ -241,7 +241,6 @@ static void listenLoop (AFB_session *session) {
   }
 }
 
-
 /*---------------------------------------------------------
  | main
  |   Parse option and launch action
