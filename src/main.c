@@ -88,9 +88,9 @@ static  AFB_options cliOptions [] = {
   {KILL_PREV_REST   ,0,"restart"         , "Kill active process if any and restart"},
 
   {SET_TCP_PORT     ,1,"port"            , "HTTP listening TCP port  [default 1234]"},
-  {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB"},
-  {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa"},
-  {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api"},
+  {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB]"},
+  {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa]"},
+  {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api]"},
   {SET_ROOT_ALIAS   ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
 
@@ -102,8 +102,8 @@ static  AFB_options cliOptions [] = {
   {SET_CONFIG_SAVE  ,0,"save"            , "Save config on disk [default no]"},
   {SET_CONFIG_EXIT  ,0,"saveonly"        , "Save config on disk and then exit"},
 
-  {SET_SMACK        ,1,"smack"           , "Set Smack Label [default=demo"},
-  {SET_PLUGINS      ,1,"mods"            , "Enable module [default=all"},
+  {SET_SMACK        ,1,"smack"           , "Set Smack Label [default demo]"},
+  {SET_PLUGINS      ,1,"mods"            , "Enable module [default all]"},
   
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
   {DISPLAY_HELP     ,0,"help"            , "Display this help"},
