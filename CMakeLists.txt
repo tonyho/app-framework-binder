@@ -1,0 +1,42 @@
+PROJECT(afb-daemon C)
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+SET(CMAKE_BUILD_TYPE, Debug)
+SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+SET(PROJECT_NAME "AFB Daemon")
+SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
+SET(PROJECT_VERSION "0.1")
+
+INCLUDE(FindPkgConfig)
+INCLUDE(CheckIncludeFiles)
+INCLUDE(CheckLibraryExists)
+
+CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
+CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
+IF(HAVE_MAGIC_H)
+  IF(HAVE_LIBMAGIC_SO)
+    SET(HAVE_LIBMAGIC "1")
+  ENDIF(HAVE_LIBMAGIC_SO)
+ENDIF(HAVE_MAGIC_H)
+IF(NOT HAVE_LIBMAGIC)
+  MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
+    Please install the \"file-devel\" or \"libmagic-dev\" package !")
+ENDIF(NOT HAVE_LIBMAGIC)
+
+IF(CMAKE_BUILD_TYPE MATCHES Debug)
+  CHECK_LIBRARY_EXISTS(efence malloc "" HAVE_LIBEFENCE)
+  IF(HAVE_LIBEFENCE)
+    MESSAGE(STATUS "Linking with ElectricFence for debugging purposes...")
+    SET(libefence_LIBRARIES "-lefence")
+  ENDIF(HAVE_LIBEFENCE)
+ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
+
+INCLUDE(FindPkgConfig)
+PKG_CHECK_MODULES(json-c REQUIRED json-c)
+PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd)
+
+SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS})
+SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${libefence_LIBRARIES} -lmagic)
+
+ADD_SUBDIRECTORY(src)
