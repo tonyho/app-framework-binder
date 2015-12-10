@@ -4,18 +4,25 @@
     <df root="." name="0">
       <df name="build">
         <df name="CMakeFiles">
-          <df name="3.0.2">
+          <df name="3.3.2">
             <df name="CompilerIdC">
               <in>CMakeCCompilerId.c</in>
             </df>
           </df>
           <df name="CMakeTmp">
           </df>
+          <in>feature_tests.c</in>
         </df>
         <df name="src">
           <df name="CMakeFiles">
             <df name="afb-daemon.dir">
             </df>
+          </df>
+        </df>
+      </df>
+      <df name="dist">
+        <df name="Debug">
+          <df name="GNU-Linux">
           </df>
         </df>
       </df>
@@ -32,6 +39,34 @@
         <in>main.c</in>
         <in>rest-api.c</in>
         <in>session.c</in>
+      </df>
+    </df>
+    <df root="." name="1">
+      <df name="build">
+        <df name="CMakeFiles">
+          <df name="3.3.2">
+            <df name="CompilerIdC">
+            </df>
+          </df>
+          <df name="CMakeTmp">
+          </df>
+        </df>
+        <df name="src">
+          <df name="CMakeFiles">
+            <df name="afb-daemon.dir">
+            </df>
+          </df>
+        </df>
+      </df>
+      <df name="dist">
+        <df name="Debug">
+          <df name="GNU-Linux">
+          </df>
+        </df>
+      </df>
+      <df name="include">
+      </df>
+      <df name="src">
       </df>
     </df>
   </logicalFolder>
@@ -60,8 +95,6 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
-        <gdb_signals>
-        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>

@@ -71,7 +71,7 @@ PUBLIC json_object* apiPingTest(AFB_session *session, AFB_request *request, void
 
     // request all query key/value
     len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strcpy (&query,"NoSearchQueryList");
+    if (len == 0) strcpy (query,"NoSearchQueryList");
     
     // check if we have some post data
     if (request->post == NULL)  request->post="NoData";  
