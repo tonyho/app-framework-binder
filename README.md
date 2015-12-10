@@ -10,23 +10,24 @@ industry requirementsas the primary target for this code is AGL.
 
 ### Building
  Building Application Framework Binder requires the following libraries:
-- libmagic ("libmagic-dev" under Debian/Ubuntu, "file-devel" under OpenSUSE);
-- libmicrohttpd ("libmicrohttpd-dev/devel");
-- json-c ("libjson-c-dev/devel");
+ * libmagic ("libmagic-dev" under Debian/Ubuntu, "file-devel" under OpenSUSE);
+ * libmicrohttpd ("libmicrohttpd-dev/devel");
+ * json-c ("libjson-c-dev/devel");
  and the following tools:
-- pkg-config;
-- CMake >= 2.8.
+ * pkg-config;
+ * CMake >= 2.8.
 
  To build from the root directory, please type:
-$ mkdir build; cd build
-& cmake ..
-& make; make install
+
+$ mkdir build; cd build<br />
+$ cmake ..<br />
+$ make; make install<br />
 
 ### Start
-afb-daemon --help 
+$ afb-daemon --help 
 
 ### Example
-afb-daemon --verbose --rootdir=/home/fulup/.AFB --alias=icons:/usr/share/icons
+$ afb-daemon --verbose --rootdir=/home/fulup/.AFB --alias=icons:/usr/share/icons
 
 ### Directory & Path
 Default behaviour is to locate ROOTDIR in $HOME/.AFB
