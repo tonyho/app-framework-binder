@@ -23,6 +23,8 @@
 #include <setjmp.h>
 #include <signal.h>
 
+#define AFB_MSG_JTYPE "AJB_reply"
+
 
 // handle to hold queryAll values
 typedef struct {
@@ -31,6 +33,7 @@ typedef struct {
      size_t  len;
 } queryHandleT;
 
+static json_object *afbJsonType;
 
 // Helper to retrieve argument from  connection
 PUBLIC const char* getQueryValue(AFB_request * request, char *name) {
@@ -47,7 +50,7 @@ STATIC int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, co
 }
 
 // Helper to retrieve argument from  connection
-PUBLIC const char* getQueryAll(AFB_request * request, char *buffer, size_t len) {
+PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     queryHandleT query;
     
     query.msg= buffer;
@@ -55,7 +58,7 @@ PUBLIC const char* getQueryAll(AFB_request * request, char *buffer, size_t len) 
     query.idx= 0;
 
     MHD_get_connection_values (request->connection, MHD_GET_ARGUMENT_KIND, getQueryCB, &query);
-    return (query.msg);
+    return (len);
 }
 
 
@@ -64,9 +67,11 @@ PUBLIC json_object* apiPingTest(AFB_session *session, AFB_request *request, void
     static pingcount = 0;
     json_object *response;
     char query [512];
+    int len;
 
     // request all query key/value
-    getQueryAll (request, query, sizeof(query)); 
+    len = getQueryAll (request, query, sizeof(query));
+    if (len == 0) strcpy (&query,"NoSearchQueryList");
     
     // check if we have some post data
     if (request->post == NULL)  request->post="NoData";  
@@ -91,8 +96,8 @@ STATIC void endRequest(void *cls, struct MHD_Connection *connection, void **con_
 }
 
 // Check of apiurl is declare in this plugin and call it
-STATIC json_object * callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_request *request) {
-    json_object *response;
+STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_request *request) {
+    json_object *jresp, *jcall;
     int idx, status, sig;
     int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
     
@@ -100,55 +105,77 @@ STATIC json_object * callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB
     | Signal handler defined inside CallPluginApi to access Request
     +---------------------------------------------------------------- */
     void pluginError (int signum) {
-
       sigset_t sigset;
 
-      // unlock timeout signal to allow a new signal to come
+      // unlock signal to allow a new signal to come
       sigemptyset (&sigset);
-      sigaddset   (&sigset, SIGALRM);
+      sigaddset   (&sigset, signum);
       sigprocmask (SIG_UNBLOCK, &sigset, 0);
 
       fprintf (stderr, "Oops:%s Plugin Api Timeout timeout\n", configTime());
       longjmp (request->checkPluginCall, signum);
     }
 
+    
     // If a plugin hold this urlpath call its callback
     for (idx = 0; plugin->apis[idx].callback != NULL; idx++) {
         if (!strcmp(plugin->apis[idx].name, request->api)) {
             
+            // prepare an object to store calling values
+            jcall=json_object_new_object();
+            json_object_object_add(jcall, "prefix", json_object_new_string (plugin->prefix));
+            json_object_object_add(jcall, "api"   , json_object_new_string (plugin->apis[idx].name));
+            
             // save context before calling the API
             status = setjmp (request->checkPluginCall);
-            if (status != 0) {
-                response = jsonNewMessage(AFB_FATAL, "Plugin Call Fail prefix=%s api=%s info=%s", plugin->prefix, request->api, plugin->info);
+            if (status != 0) {    
+                
+                // Plugin aborted somewhere during its execution
+                json_object_object_add(jcall, "status", json_object_new_string ("abort"));
+                json_object_object_add(jcall, "info" ,  json_object_new_string ("Plugin broke during execution"));
+                json_object_object_add(request->jresp, "request", jcall);
+                
             } else {
                 
+                // If timeout protection==0 we are in debug and we do not apply signal protection
                 if (session->config->apiTimeout > 0) {
                     for (sig=0; signals[sig] != 0; sig++) {
                        if (signal (signals[sig], pluginError) == SIG_ERR) {
                           fprintf (stderr, "%s ERR: main no Signal/timeout handler installed.", configTime());
-                          return NULL;
+                          return AFB_FAIL;
                        }
                     }
-
-                    // Trigger a timer to protect plugin for no return API
+                    // Trigger a timer to protect from inacceptable long time execution
                     alarm (session->config->apiTimeout);
                 }
 
-                response = plugin->apis[idx].callback(session, request, plugin->apis[idx].handle);
-                if (response != NULL) json_object_object_add(response, "jtype", plugin->jtype);
+                // Effectively call the API
+                jresp = plugin->apis[idx].callback(session, request, plugin->apis[idx].handle);
 
+                // API should return NULL of a valid Json Object
+                if (jresp == NULL) {
+                    json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                    json_object_object_add(request->jresp, "request", jcall);
+                    
+                } else {
+                    json_object_object_add(jcall, "status", json_object_new_string ("success"));
+                    json_object_object_add(request->jresp, "request", jcall);
+                    json_object_object_add(request->jresp, "response", jresp);
+
+                }
                 // cancel timeout and plugin signal handle before next call
                 if (session->config->apiTimeout > 0) {
                     alarm (0);
                     for (sig=0; signals[sig] != 0; sig++) {
                        signal (signals[sig], SIG_DFL);
                     }
-                }
+                }              
             }    
-            return (response);
+        
+            return (AFB_DONE);
         }
     }
-    return (NULL);
+    return (AFB_FAIL);
 }
 
 
@@ -159,7 +186,8 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     
     static int postcount = 0; // static counter to debug POST protocol
     char *baseurl, *baseapi, *urlcpy1, *urlcpy2, *query;
-    json_object *jsonResponse, *errMessage;
+    json_object *errMessage;
+    AFB_error status;
     struct MHD_Response *webResponse;
     const char *serialized, parsedurl;
     AFB_request request;
@@ -176,7 +204,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
 
     baseapi = strsep(&urlcpy2, "/");
     if (baseapi == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "Invalid Plugin/API call url=%s/%s", baseurl, url);
+        errMessage = jsonNewMessage(AFB_FATAL, "Invalid Plugin/API call url=%s", url);
         goto ExitOnError;
     }
     
@@ -251,11 +279,16 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     request.url = url;
     request.plugin = baseurl;
     request.api = baseapi;
+    request.jresp = json_object_new_object();
+    
+    // increase reference count and add jtype to response    
+    json_object_get (afbJsonType);
+    json_object_object_add (request.jresp, "jtype", afbJsonType);
     
     // Search for a plugin with this urlpath
     for (idx = 0; session->plugins[idx] != NULL; idx++) {
         if (!strcmp(session->plugins[idx]->prefix, baseurl)) {
-            jsonResponse = callPluginApi(session->plugins[idx], session, &request);
+            status =callPluginApi(session->plugins[idx], session, &request);
             free(urlcpy1);
             break;
         }
@@ -268,17 +301,17 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     }
 
     // plugin callback did not return a valid Json Object
-    if (jsonResponse == NULL) {
+    if (status != AFB_DONE) {
         errMessage = jsonNewMessage(AFB_FATAL, "No Plugin/API for %s/%s", baseurl, baseapi);
         goto ExitOnError;
     }
 
-    serialized = json_object_to_json_string(jsonResponse);
+    serialized = json_object_to_json_string(request.jresp);
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
 
     ret = MHD_queue_response(connection, MHD_HTTP_OK, webResponse);
     MHD_destroy_response(webResponse);
-    json_object_put(jsonResponse); // decrease reference rqtcount to free the json object
+    json_object_put(request.jresp); // decrease reference rqtcount to free the json object
     return ret;
 
 ExitOnError:
@@ -293,7 +326,7 @@ ExitOnError:
 
 // Loop on plugins. Check that they have the right type, prepare a JSON object with prefix
 STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
-    int idx;
+    int idx, jdx;
 
     for (idx = 0; plugins[idx] != NULL; idx++) {
         if (plugins[idx]->type != AFB_PLUGIN) {
@@ -309,12 +342,24 @@ STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
 
             if (verbose) fprintf(stderr, "Loading plugin[%d] prefix=[%s] info=%s\n", idx, plugins[idx]->prefix, plugins[idx]->info);
 
-            // Prepare Plugin name to be added into each API response
+            // Prebuild plugin jtype to boost API response
             plugins[idx]->jtype = json_object_new_string(plugins[idx]->prefix);
             json_object_get(plugins[idx]->jtype); // increase reference count to make it permanent
-
-            // compute urlprefix lenght
             plugins[idx]->prefixlen = strlen(plugins[idx]->prefix);
+            
+              
+            // Prebuild each API jtype to boost API json response
+            for (jdx = 0; plugins[idx]->apis[jdx].name != NULL; jdx++) {
+                AFB_privateApi *private = malloc (sizeof (AFB_privateApi));
+                if (plugins[idx]->apis[jdx].private != NULL) {
+                    fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL\n"
+                            ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name);
+                }
+                private->len = strlen (plugins[idx]->apis[jdx].name);
+                private->jtype=json_object_new_string(plugins[idx]->apis[jdx].name);
+                json_object_get(private->jtype); // increase reference count to make it permanent
+                plugins[idx]->apis[jdx].private = private;
+            }
         }
     }
     return (plugins);
@@ -322,7 +367,8 @@ STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
 
 void initPlugins(AFB_session *session) {
     static AFB_plugin * plugins[10];
-
+    afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
+    
     plugins[0] = afsvRegister(session),
             plugins[1] = dbusRegister(session),
             plugins[2] = alsaRegister(session),

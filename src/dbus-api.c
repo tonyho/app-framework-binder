@@ -23,9 +23,11 @@ STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void
     static pingcount = 0;
     json_object *response;
     char query [512];
+    int len;
 
     // request all query key/value
-    getQueryAll (request, query, sizeof(query)); 
+    len = getQueryAll (request, query, sizeof(query));
+    if (len == 0) strcpy (query,"NoSearchQueryList");
     
     // check if we have some post data
     if (request->post == NULL)  request->post="NoData";  
@@ -37,6 +39,21 @@ STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void
     return (response);
 }
 
+STATIC json_object* pingFail (AFB_session *session, AFB_request *request, void* handle) {
+    return NULL;
+}
+
+STATIC json_object* pingBug (AFB_session *session, AFB_request *request, void* handle) {
+    int a,b,c;
+    
+    fprintf (stderr, "Use --timeout=10 to trap error\n");
+    b=4;
+    c=0;
+    a=b/c;
+    
+    // should never return
+    return NULL;
+}
 
 STATIC struct {
     void * somedata;
@@ -44,7 +61,9 @@ STATIC struct {
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework", NULL},
+  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework",NULL},
+  {"pingnull" , (AFB_apiCB)pingFail   , "Return NULL", NULL},
+  {"pingbug"  , (AFB_apiCB)pingBug     , "Do a Memory Violation", NULL},
   {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode", NULL},
   {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode", NULL},
   {0,0,0}

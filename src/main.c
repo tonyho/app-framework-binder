@@ -240,7 +240,7 @@ static void listenLoop (AFB_session *session) {
         fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
   }
 }
-
+ 
 /*---------------------------------------------------------
  | main
  |   Parse option and launch action

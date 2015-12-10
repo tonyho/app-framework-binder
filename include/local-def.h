@@ -64,7 +64,7 @@ typedef int BOOL;
 #define FAILED    -1
 
 // prebuild json error are constructed in config.c
-typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS} AFB_error;
+typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE} AFB_error;
 
 extern char *ERROR_LABEL[];
 #define ERROR_LABEL_DEF {"false", "true","fatal", "fail", "warning", "empty", "success"}
@@ -110,6 +110,7 @@ typedef struct {
   char *plugin;
   char *api;
   char *post;
+  json_object *jresp;
   struct MHD_Connection *connection;
   sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
 } AFB_request;
@@ -147,6 +148,11 @@ typedef struct {
   char *help;      // help text
 } AFB_options;
 
+typedef struct {
+  int  len;        // command number within application
+  json_object *jtype;
+} AFB_privateApi;
+
 typedef json_object* (*AFB_apiCB)();
 
 // API definition
@@ -155,6 +161,7 @@ typedef struct {
   AFB_apiCB callback;
   char *info;
   void * handle;
+  AFB_privateApi *private;
 } AFB_restapi;
 
 // Plugin definition
