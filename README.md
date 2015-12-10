@@ -10,12 +10,23 @@ industry requirementsas the primary target for this code is AGL.
 
 ### Building
  Building Application Framework Binder requires the following libraries:
+
  * libmagic ("libmagic-dev" under Debian/Ubuntu, "file-devel" under OpenSUSE);
  * libmicrohttpd ("libmicrohttpd-dev/devel");
  * json-c ("libjson-c-dev/devel");
+
+ optionally, for plugins :
+
+ * rtl-sdr >= 0.5.0 (fetch and build from "git://git.osmocom.org/rtl-sdr");
+
  and the following tools:
+
  * pkg-config;
- * CMake >= 2.8.
+ * cmake >= 2.8.
+
+To install all dependencies under OpenSUSE (except rtl-sdr), please type:
+
+$ zypper in file-devel libmicrohttpd-devel libjson-c-devel pkg-config cmake
 
  To build from the root directory, please type:
 

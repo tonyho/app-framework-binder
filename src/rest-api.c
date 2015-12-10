@@ -368,11 +368,15 @@ STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
 void initPlugins(AFB_session *session) {
     static AFB_plugin * plugins[10];
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
-    
-    plugins[0] = afsvRegister(session),
-            plugins[1] = dbusRegister(session),
-            plugins[2] = alsaRegister(session),
-            plugins[3] = NULL;
+    int i = 0;
+
+    plugins[i] = afsvRegister(session),
+    plugins[i++] = dbusRegister(session),
+    plugins[i++] = alsaRegister(session),
+#ifdef HAVE_RADIO_PLUGIN
+    plugins[i++] = radioRegister(session),
+#endif
+    plugins[i++] = NULL;
 
     // complete plugins and save them within current sessions    
     session->plugins = RegisterPlugins(plugins);

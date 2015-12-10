@@ -36,6 +36,7 @@ typedef AFB_plugin* (*AFB_pluginCB)(AFB_session *session);
 PUBLIC  AFB_plugin* afsvRegister (AFB_session *session);
 PUBLIC  AFB_plugin* dbusRegister (AFB_session *session);
 PUBLIC  AFB_plugin* alsaRegister (AFB_session *session);
+PUBLIC  AFB_plugin* radioRegister (AFB_session *session);
 
 
 
