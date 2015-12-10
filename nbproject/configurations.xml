@@ -35,8 +35,7 @@
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
       <flagsDictionary>
-        <element flagsID="0" commonFlags="-fPIE"/>
-        <element flagsID="1" commonFlags="-mtune=generic -march=x86-64 -fPIE"/>
+        <element flagsID="0" commonFlags="-mtune=generic -march=x86-64 -fPIE"/>
       </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
@@ -46,40 +45,31 @@
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath>build/src/afb-daemon</executablePath>
+          <cTool>
+            <incDir>
+              <pElem>src</pElem>
+              <pElem>/usr/include/json-c</pElem>
+              <pElem>include</pElem>
+              <pElem>build/src</pElem>
+            </incDir>
+          </cTool>
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>build</preBuildCommandWorkingDir>
           <preBuildCommand>cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=${IDE_CC} -DCMAKE_CXX_COMPILER=${IDE_CXX} -DCMAKE_C_FLAGS_DEBUG="-g3 -gdwarf-2" -DCMAKE_CXX_FLAGS_DEBUG="-g3 -gdwarf-2" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..</preBuildCommand>
+          <preBuildFirst>true</preBuildFirst>
         </preBuild>
       </makefileType>
       <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/alsa-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
           <preprocessorList>
             <Elem>__PIC__=2</Elem>
             <Elem>__PIE__=2</Elem>
@@ -91,52 +81,31 @@
         </cTool>
       </item>
       <item path="src/dbus-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/http-svc.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/main.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
-          <incDir>
-            <pElem>include</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+          <preprocessorList>
+            <Elem>__PIC__=2</Elem>
+            <Elem>__PIE__=2</Elem>
+            <Elem>__REGISTER_PREFIX__=</Elem>
+            <Elem>__USER_LABEL_PREFIX__=</Elem>
+            <Elem>__pic__=2</Elem>
+            <Elem>__pie__=2</Elem>
+          </preprocessorList>
         </cTool>
       </item>
       <item path="src/rest-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/session.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
+        <cTool flags="0">
           <preprocessorList>
             <Elem>__PIC__=2</Elem>
             <Elem>__PIE__=2</Elem>
