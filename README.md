@@ -8,6 +8,20 @@ Final goal is keep the engine public while allowing people to load non open-sour
 libraries especially libmicrohttpd & libjson. Finally what ever Licence is chosen it should be compatible with dependencies and automotive
 industry requirementsas the primary target for this code is AGL. 
 
+### Building
+ Building Application Framework Binder requires the following libraries:
+- libmagic ("libmagic-dev" under Debian/Ubuntu, "file-devel" under OpenSUSE);
+- libmicrohttpd ("libmicrohttpd-dev/devel");
+- json-c ("libjson-c-dev/devel");
+ and the following tools:
+- pkg-config;
+- CMake >= 2.8.
+
+ To build from the root directory, please type:
+$ mkdir build; cd build
+& cmake ..
+& make; make install
+
 ### Start
 afb-daemon --help 
 
