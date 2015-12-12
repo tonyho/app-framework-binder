@@ -39,7 +39,7 @@ STATIC json_object* pingSample (AFB_request *request, void* handle) {
     if (request->post == NULL)  request->post="NoData";  
         
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} handle=[%s] PostData: \'%s\' ", pingcount++, query, handle, request->post);
     
     if (verbose) fprintf(stderr, "%d: \n", pingcount);
     return (response);
@@ -65,6 +65,6 @@ PUBLIC AFB_plugin *alsaRegister () {
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "alsa";        
     plugin->apis  = pluginApis;
-
+    plugin->handle= "bla bla bla";
     return (plugin);
 };
