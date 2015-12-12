@@ -19,7 +19,7 @@
 
 #include "local-def.h"
 
-STATIC json_object* wrongApi (AFB_session *session, AFB_request *request, void* handle) {
+STATIC json_object* wrongApi (AFB_request *request, void* handle) {
     int zero=0;
     int bug=1234;
     int impossible;
@@ -27,13 +27,13 @@ STATIC json_object* wrongApi (AFB_session *session, AFB_request *request, void* 
     impossible=bug/zero;
 }
 
-STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void* handle) {
+STATIC json_object* pingSample (AFB_request *request, void* handle) {
     static pingcount = 0;
     json_object *response;
     char query [512];
 
     // request all query key/value
-    getQueryAll (request, query, sizeof(query)); 
+    getQueryAll (request,query, sizeof(query)); 
     
     // check if we have some post data
     if (request->post == NULL)  request->post="NoData";  
@@ -52,18 +52,18 @@ STATIC struct {
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework", NULL},
-  {"error"    , (AFB_apiCB)wrongApi   , "Ping Application Framework", NULL},
-  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode", NULL},
-  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode", NULL},
-  {0,0,0}
+  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework",NULL},
+  {"error"    , (AFB_apiCB)wrongApi   , "Ping Application Framework",NULL},
+  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode",NULL},
+  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode",NULL},
+  {0,0,0,0}
 };
 
-PUBLIC AFB_plugin *alsaRegister (AFB_session *session) {
+PUBLIC AFB_plugin *alsaRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN;
     plugin->info  = "Application Framework Binder Service";
-    plugin->prefix  = "alsa";        
+    plugin->prefix= "alsa";        
     plugin->apis  = pluginApis;
     
     return (plugin);

@@ -19,7 +19,7 @@
 
 #include "local-def.h"
 
-STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void* handle) {
+STATIC json_object* pingSample (AFB_request *request) {
     static pingcount = 0;
     json_object *response;
     char query [512];
@@ -39,11 +39,11 @@ STATIC json_object* pingSample (AFB_session *session, AFB_request *request, void
     return (response);
 }
 
-STATIC json_object* pingFail (AFB_session *session, AFB_request *request, void* handle) {
+STATIC json_object* pingFail (AFB_request *request) {
     return NULL;
 }
 
-STATIC json_object* pingBug (AFB_session *session, AFB_request *request, void* handle) {
+STATIC json_object* pingBug (AFB_request *request) {
     int a,b,c;
     
     fprintf (stderr, "Use --timeout=10 to trap error\n");
@@ -55,27 +55,43 @@ STATIC json_object* pingBug (AFB_session *session, AFB_request *request, void* h
     return NULL;
 }
 
-STATIC struct {
-    void * somedata;
-} handle;
+
+// For samples https://linuxprograms.wordpress.com/2010/05/20/json-c-libjson-tutorial/
+STATIC json_object* pingJson (AFB_session *session, AFB_request *request, void* handle) {
+    json_object *jresp, *embed;    
+    
+    jresp = json_object_new_object();
+    json_object_object_add(jresp, "myString", json_object_new_string ("Some String"));
+    json_object_object_add(jresp, "myInt", json_object_new_int (1234));
+     
+    embed  = json_object_new_object();
+    json_object_object_add(embed, "subObjString", json_object_new_string ("Some String"));
+    json_object_object_add(embed, "subObjInt", json_object_new_int (5678));
+    
+    json_object_object_add(jresp,"eobj", embed);
+    
+    return jresp;
+}
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework",NULL},
-  {"pingnull" , (AFB_apiCB)pingFail   , "Return NULL", NULL},
-  {"pingbug"  , (AFB_apiCB)pingBug     , "Do a Memory Violation", NULL},
-  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode", NULL},
-  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode", NULL},
+  {"ping"     , (AFB_apiCB)pingSample  , "Ping Application Framework"},
+  {"pingnull" , (AFB_apiCB)pingFail    , "Return NULL"},
+  {"pingbug"  , (AFB_apiCB)pingBug     , "Do a Memory Violation"},
+  {"pingJson" , (AFB_apiCB)pingJson    , "Return a JSON object"},
+  {"ctx-store", (AFB_apiCB)pingSample  , "Verbose Mode"},
+  {"ctx-load" , (AFB_apiCB)pingSample  , "Verbose Mode"},
   {0,0,0}
 };
 
 
-PUBLIC AFB_plugin *dbusRegister (AFB_session *session) {
+PUBLIC AFB_plugin *dbusRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN;
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "dbus";        
     plugin->apis  = pluginApis;
+    plugin->handle= (void*) "Any you Want";
     
     return (plugin);
 };

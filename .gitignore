@@ -7,3 +7,4 @@ dist/**
 .dep.inc
 CMakeFiles/
 CMakeCache.txt
+nbproject/private/*.log

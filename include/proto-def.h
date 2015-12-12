@@ -22,7 +22,7 @@
 
 // Rest-api
 
-PUBLIC json_object* apiPingTest(AFB_session *session, AFB_request *request, void* handle);
+PUBLIC json_object* apiPingTest(AFB_request *request);
 PUBLIC const char* getQueryValue (AFB_request * request, char *name);
 PUBLIC int getQueryAll(AFB_request * request, char *query, size_t len);
 
@@ -32,10 +32,10 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
 
 void initPlugins (AFB_session *session);
 
-typedef AFB_plugin* (*AFB_pluginCB)(AFB_session *session);
-PUBLIC  AFB_plugin* afsvRegister (AFB_session *session);
-PUBLIC  AFB_plugin* dbusRegister (AFB_session *session);
-PUBLIC  AFB_plugin* alsaRegister (AFB_session *session);
+typedef AFB_plugin* (*AFB_pluginCB)();
+PUBLIC  AFB_plugin* afsvRegister ();
+PUBLIC  AFB_plugin* dbusRegister ();
+PUBLIC  AFB_plugin* alsaRegister ();
 PUBLIC  AFB_plugin* radioRegister (AFB_session *session);
 
 
@@ -45,6 +45,12 @@ PUBLIC AFB_error sessionCheckdir     (AFB_session *session);
 PUBLIC json_object *sessionList      (AFB_session *session, AFB_request *request);
 PUBLIC json_object *sessionToDisk    (AFB_session *session, AFB_request *request, char *name,json_object *jsonSession);
 PUBLIC json_object *sessionFromDisk  (AFB_session *session, AFB_request *request, char *name);
+PUBLIC char* ctxTokenRefresh (AFB_request *request);
+PUBLIC char* ctxTokenCreate (AFB_request *request);
+PUBLIC AFB_error ctxTokenCheck (AFB_request *request);
+PUBLIC int ctxTokenReset (AFB_request *request);
+PUBLIC int ctxClientGet (AFB_request *request);
+
 
 
 // Httpd server

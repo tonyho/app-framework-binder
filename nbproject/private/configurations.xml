@@ -20,12 +20,6 @@
           </df>
         </df>
       </df>
-      <df name="dist">
-        <df name="Debug">
-          <df name="GNU-Linux">
-          </df>
-        </df>
-      </df>
       <df name="include">
         <in>local-def.h</in>
         <in>proto-def.h</in>
@@ -37,6 +31,7 @@
         <in>dbus-api.c</in>
         <in>http-svc.c</in>
         <in>main.c</in>
+        <in>radio-api.c</in>
         <in>rest-api.c</in>
         <in>session.c</in>
       </df>
@@ -55,12 +50,6 @@
           <df name="CMakeFiles">
             <df name="afb-daemon.dir">
             </df>
-          </df>
-        </df>
-      </df>
-      <df name="dist">
-        <df name="Debug">
-          <df name="GNU-Linux">
           </df>
         </df>
       </df>
@@ -95,6 +84,8 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
+        <gdb_signals>
+        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>

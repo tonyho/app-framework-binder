@@ -33,7 +33,28 @@ typedef struct {
      size_t  len;
 } queryHandleT;
 
-static json_object *afbJsonType;
+static json_object     *afbJsonType;
+
+
+// Sample Generic Ping Debug API
+PUBLIC json_object* apiPingTest(AFB_request *request) {
+    static pingcount = 0;
+    json_object *response;
+    char query [512];
+    int len;
+
+    // request all query key/value
+    len = getQueryAll (request, query, sizeof(query));
+    if (len == 0) strcpy (query,"NoSearchQueryList");
+    
+    // check if we have some post data
+    if (request->post == NULL)  request->post="NoData";  
+        
+    // return response to caller
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d Loa=%d query={%s} PostData: \'%s\' "
+               , pingcount++, request->client->cid, request->loa, query, request->post);
+    return (response);
+}
 
 // Helper to retrieve argument from  connection
 PUBLIC const char* getQueryValue(AFB_request * request, char *name) {
@@ -52,7 +73,7 @@ STATIC int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, co
 // Helper to retrieve argument from  connection
 PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     queryHandleT query;
-    
+    buffer[0] = '\0'; // start with an empty string
     query.msg= buffer;
     query.len= len;
     query.idx= 0;
@@ -61,29 +82,7 @@ PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     return (len);
 }
 
-
-// Sample Generic Ping Debug API
-PUBLIC json_object* apiPingTest(AFB_session *session, AFB_request *request, void* handle) {
-    static pingcount = 0;
-    json_object *response;
-    char query [512];
-    int len;
-
-    // request all query key/value
-    len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strcpy (query,"NoSearchQueryList");
-    
-    // check if we have some post data
-    if (request->post == NULL)  request->post="NoData";  
-        
-    // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);
-    return (response);
-}
-
-
 // Because of POST call multiple time requestApi we need to free POST handle here
-
 STATIC void endRequest(void *cls, struct MHD_Connection *connection, void **con_cls, enum MHD_RequestTerminationCode toe) {
     AFB_HttpPost *posthandle = *con_cls;
 
@@ -96,7 +95,7 @@ STATIC void endRequest(void *cls, struct MHD_Connection *connection, void **con_
 }
 
 // Check of apiurl is declare in this plugin and call it
-STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_request *request) {
+STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
     json_object *jresp, *jcall;
     int idx, status, sig;
     int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
@@ -106,7 +105,8 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_req
     +---------------------------------------------------------------- */
     void pluginError (int signum) {
       sigset_t sigset;
-
+      AFB_clientCtx *context;
+              
       // unlock signal to allow a new signal to come
       sigemptyset (&sigset);
       sigaddset   (&sigset, signum);
@@ -138,40 +138,43 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_req
             } else {
                 
                 // If timeout protection==0 we are in debug and we do not apply signal protection
-                if (session->config->apiTimeout > 0) {
+                if (request->config->apiTimeout > 0) {
                     for (sig=0; signals[sig] != 0; sig++) {
                        if (signal (signals[sig], pluginError) == SIG_ERR) {
-                          fprintf (stderr, "%s ERR: main no Signal/timeout handler installed.", configTime());
-                          return AFB_FAIL;
+                           request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
+                           fprintf (stderr, "%s ERR: main no Signal/timeout handler installed.", configTime());
+                           return AFB_FAIL;
                        }
                     }
-                    // Trigger a timer to protect from inacceptable long time execution
-                    alarm (session->config->apiTimeout);
+                    // Trigger a timer to protect from unacceptable long time execution
+                    alarm (request->config->apiTimeout);
                 }
-
-                // Effectively call the API
-                jresp = plugin->apis[idx].callback(session, request, plugin->apis[idx].handle);
+                
+                // add client context to request
+                ctxClientGet(request);      
+                
+                // Effectively call the API with a subset of the context
+                jresp = plugin->apis[idx].callback(request);
 
                 // API should return NULL of a valid Json Object
                 if (jresp == NULL) {
-                    json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                    json_object_object_add(jcall, "status", json_object_new_string ("null"));
                     json_object_object_add(request->jresp, "request", jcall);
+                    request->errcode = MHD_HTTP_NO_RESPONSE;
                     
                 } else {
-                    json_object_object_add(jcall, "status", json_object_new_string ("success"));
+                    json_object_object_add(jcall, "status", json_object_new_string ("processed"));
                     json_object_object_add(request->jresp, "request", jcall);
                     json_object_object_add(request->jresp, "response", jresp);
-
                 }
                 // cancel timeout and plugin signal handle before next call
-                if (session->config->apiTimeout > 0) {
+                if (request->config->apiTimeout > 0) {
                     alarm (0);
                     for (sig=0; signals[sig] != 0; sig++) {
                        signal (signals[sig], SIG_DFL);
                     }
                 }              
-            }    
-        
+            }       
             return (AFB_DONE);
         }
     }
@@ -180,31 +183,31 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_session *session, AFB_req
 
 
 // process rest API query
-
 PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
     , const char *upload_data, size_t *upload_data_size, void **con_cls) {
     
     static int postcount = 0; // static counter to debug POST protocol
-    char *baseurl, *baseapi, *urlcpy1, *urlcpy2, *query;
+    char *baseurl, *baseapi, *urlcpy1, *urlcpy2, *query, *token, *uuid;
     json_object *errMessage;
     AFB_error status;
     struct MHD_Response *webResponse;
     const char *serialized, parsedurl;
     AFB_request request;
     AFB_HttpPost *posthandle = *con_cls;
+    AFB_clientCtx clientCtx;
     int idx, ret;
 
     // Extract plugin urlpath from request and make two copy because strsep overload copy
     urlcpy1 = urlcpy2 = strdup(url);
     baseurl = strsep(&urlcpy2, "/");
     if (baseurl == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "Invalid Plugin/API call url=%s", url);
+        errMessage = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
         goto ExitOnError;
     }
 
     baseapi = strsep(&urlcpy2, "/");
     if (baseapi == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "Invalid Plugin/API call url=%s", url);
+        errMessage = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
         goto ExitOnError;
     }
     
@@ -271,11 +274,11 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     } else {
         request.post = NULL;
     };
-
-   
+        
     // build request structure
     memset(&request, 0, sizeof (request));
     request.connection = connection;
+    request.config     = session->config;
     request.url = url;
     request.plugin = baseurl;
     request.api = baseapi;
@@ -288,33 +291,44 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     // Search for a plugin with this urlpath
     for (idx = 0; session->plugins[idx] != NULL; idx++) {
         if (!strcmp(session->plugins[idx]->prefix, baseurl)) {
-            status =callPluginApi(session->plugins[idx], session, &request);
-            free(urlcpy1);
+            status =callPluginApi(session->plugins[idx], &request);
             break;
         }
     }
     // No plugin was found
     if (session->plugins[idx] == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "No Plugin for %s", baseurl);
-        free(urlcpy1);
+        errMessage = jsonNewMessage(AFB_FATAL, "No Plugin=[%s]", request.plugin);
         goto ExitOnError;
     }
 
     // plugin callback did not return a valid Json Object
     if (status != AFB_DONE) {
-        errMessage = jsonNewMessage(AFB_FATAL, "No Plugin/API for %s/%s", baseurl, baseapi);
+        errMessage = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s]", request.api, request.plugin);
         goto ExitOnError;
     }
 
     serialized = json_object_to_json_string(request.jresp);
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
-
-    ret = MHD_queue_response(connection, MHD_HTTP_OK, webResponse);
+    free(urlcpy1);
+    
+    // client did not pass token on URI let's use cookies 
+    if (!request.restfull) {
+       char cookie[64]; 
+       snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request.client->uuid); 
+       MHD_add_response_header (webResponse, MHD_HTTP_HEADER_SET_COOKIE, cookie);
+       // if(verbose) fprintf(stderr,"Cookie: [%s]\n", cookie);
+    }
+    
+    // if requested add an error status
+    if (request.errcode != 0)  ret=MHD_queue_response (connection, request.errcode, webResponse);
+    else ret = MHD_queue_response(connection, MHD_HTTP_OK, webResponse);
+    
     MHD_destroy_response(webResponse);
     json_object_put(request.jresp); // decrease reference rqtcount to free the json object
     return ret;
 
 ExitOnError:
+    free(urlcpy1);
     serialized = json_object_to_json_string(errMessage);
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
     ret = MHD_queue_response(connection, MHD_HTTP_BAD_REQUEST, webResponse);
@@ -341,6 +355,10 @@ STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
             }
 
             if (verbose) fprintf(stderr, "Loading plugin[%d] prefix=[%s] info=%s\n", idx, plugins[idx]->prefix, plugins[idx]->info);
+            
+            // register private to plugin global context [cid=0]
+            plugins[idx]->ctxGlobal= malloc (sizeof (AFB_clientCtx));
+            plugins[idx]->ctxGlobal->cid=0;
 
             // Prebuild plugin jtype to boost API response
             plugins[idx]->jtype = json_object_new_string(plugins[idx]->prefix);
@@ -370,14 +388,14 @@ void initPlugins(AFB_session *session) {
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int i = 0;
 
-    plugins[i] = afsvRegister(session),
+    plugins[i++] = afsvRegister(session),
     plugins[i++] = dbusRegister(session),
     plugins[i++] = alsaRegister(session),
 #ifdef HAVE_RADIO_PLUGIN
     plugins[i++] = radioRegister(session),
 #endif
     plugins[i++] = NULL;
-
+    
     // complete plugins and save them within current sessions    
     session->plugins = RegisterPlugins(plugins);
 }

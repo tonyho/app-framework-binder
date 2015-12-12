@@ -39,6 +39,8 @@
 #include <magic.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <uuid/uuid.h>
+
 
 
 
@@ -49,7 +51,14 @@
 // Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
 #define MAGIC_DB "/usr/share/misc/magic.mgc"
 #define OPA_INDEX "index.html"
-#define MAX_ALIAS 10  // max number of aliases
+#define MAX_ALIAS 10           // max number of aliases
+#define COOKIE_NAME   "AJB_session"
+
+
+#define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
+#define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout [0=NoLimit for Debug Only]
+#define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout
+#define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
 
 typedef int BOOL;
 #ifndef FALSE
@@ -63,6 +72,8 @@ typedef int BOOL;
 #define STATIC    static
 #define FAILED    -1
 
+extern int verbose;  // this is the only global variable
+
 // prebuild json error are constructed in config.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE} AFB_error;
 
@@ -72,9 +83,11 @@ extern char *ERROR_LABEL[];
 #define BANNER "<html><head><title>Application Framework Binder</title></head><body>Application Framework </body></html>"
 #define JSON_CONTENT  "application/json"
 #define MAX_POST_SIZE  4096   // maximum size for POST data
+#define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 
 // use to check anonymous data when using dynamic loadable lib
 typedef enum  {AFB_PLUGIN=1234, AFB_REQUEST=5678} AFB_type;
+typedef json_object* (*AFB_apiCB)();
 
 // Error code are requested through function to manage json usage count
 typedef struct {
@@ -101,24 +114,13 @@ typedef struct {
   size_t len;
 } AFB_aliasdir;
 
-
-// some usefull static object initialized when entering listen loop.
-extern int verbose;
-// MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
+// Command line structure hold cli --command + help text
 typedef struct {
-  const char *url;
-  char *plugin;
-  char *api;
-  char *post;
-  json_object *jresp;
-  struct MHD_Connection *connection;
-  sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
-} AFB_request;
-
-typedef struct {
-     char    *msg;
-     size_t  len;
-} AFB_redirect_msg;
+  int  val;        // command number within application
+  int  has_arg;    // command number within application
+  char *name;      // command as used in --xxxx cli
+  char *help;      // help text
+} AFB_options;
 
 // main config structure
 typedef struct {
@@ -134,35 +136,63 @@ typedef struct {
   char *pidfile;           // where to store pid when running background
   char *sessiondir;        // where to store mixer session files
   char *configfile;        // where to store configuration on gateway exit
-  uid_t setuid;
+  char *setuid;
   int  cacheTimeout;
   int  apiTimeout;
+  int  cntxTimeout;        // Client Session Context timeout
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 } AFB_config;
 
-// Command line structure hold cli --command + help text
-typedef struct {
-  int  val;        // command number within application
-  int  has_arg;    // command number within application
-  char *name;      // command as used in --xxxx cli
-  char *help;      // help text
-} AFB_options;
+
 
 typedef struct {
   int  len;        // command number within application
   json_object *jtype;
 } AFB_privateApi;
 
-typedef json_object* (*AFB_apiCB)();
+
+typedef struct {
+     char    *msg;
+     size_t  len;
+} AFB_redirect_msg;
 
 // API definition
 typedef struct {
   char *name;
   AFB_apiCB callback;
   char *info;
-  void * handle;
   AFB_privateApi *private;
 } AFB_restapi;
+
+
+// User Client Session Context
+typedef struct {
+  int  cid;         // index 0 if global
+  char uuid[37];    // long term authentication of remote client
+  char token[37];   // short term authentication of remote client
+  time_t timeStamp; // last time token was refresh
+  int   restfull;   // client does not use cookie
+  void *handle;     // application specific context
+  AFB_apiCB freeHandleCB;  // callback to free application handle [null for standard free]
+} AFB_clientCtx;
+
+
+// MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
+typedef struct {
+  const char *url;
+  char *plugin;
+  char *api;
+  char *post;
+  int  loa;
+  json_object *jresp;
+  AFB_clientCtx *client;      // needed because libmicrohttp cannot create an empty response
+  int   restfull;             // request is resfull [uuid token provided]
+  int   errcode;              // http error code
+  sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
+  AFB_config *config;         // plugin may need access to config
+  struct MHD_Connection *connection;
+} AFB_request;
+
 
 // Plugin definition
 typedef struct {
@@ -172,7 +202,11 @@ typedef struct {
   size_t prefixlen;
   json_object *jtype;
   AFB_restapi *apis;
+  void *handle;
+  int  ctxCount;
+  AFB_clientCtx *ctxGlobal;
 } AFB_plugin;
+
 
 typedef struct {
   AFB_config  *config;   // pointer to current config
@@ -190,6 +224,7 @@ typedef struct {
   magic_t  magic;         // Mime type file magic lib
   sigjmp_buf restartCkpt; // context save for restart set/longjmp
 } AFB_session;
+
 
 
 #include "proto-def.h"

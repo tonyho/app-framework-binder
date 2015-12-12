@@ -69,12 +69,16 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    else session->config->httpdPort=cliconfig->httpdPort;
    
    // default Plugin API timeout
-   if (cliconfig->apiTimeout == 0) session->config->apiTimeout=0;
+   if (cliconfig->apiTimeout == 0) session->config->apiTimeout=DEFLT_API_TIMEOUT;
    else session->config->apiTimeout=cliconfig->apiTimeout;
 
    // cache timeout default one hour
-   if (cliconfig->cacheTimeout == 0) session->config->cacheTimeout=3600;
+   if (cliconfig->cacheTimeout == 0) session->config->cacheTimeout=DEFLT_CACHE_TIMEOUT;
    else session->config->cacheTimeout=cliconfig->cacheTimeout;
+
+   // cache timeout default one hour
+   if (cliconfig->cntxTimeout == 0) session->config->cntxTimeout=DEFLT_CNTX_TIMEOUT;
+   else session->config->cntxTimeout=cliconfig->cntxTimeout;
 
    if (cliconfig->rootdir == NULL) {
        session->config->rootdir = getenv("AFBDIR");
@@ -188,6 +192,10 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
       session->config->plugins =  strdup (json_object_get_string (value));
    }
 
+   if (!cliconfig->setuid && json_object_object_get_ex (AFBConfig, "setuid", &value)) {
+      session->config->setuid = strdup (json_object_get_string (value));
+   }
+   
    if (!cliconfig->sessiondir && json_object_object_get_ex (AFBConfig, "sessiondir", &value)) {
       session->config->sessiondir = strdup (json_object_get_string (value));
    }
@@ -200,9 +208,6 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
       session->config->httpdPort = json_object_get_int (value);
    }
    
-   if (!cliconfig->setuid && json_object_object_get_ex (AFBConfig, "setuid", &value)) {
-      session->config->setuid = json_object_get_int (value);
-   }
 
    if (!cliconfig->localhostOnly && json_object_object_get_ex (AFBConfig, "localhostonly", &value)) {
       session->config->localhostOnly = json_object_get_int (value);
@@ -214,6 +219,10 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    
    if (!cliconfig->apiTimeout && json_object_object_get_ex (AFBConfig, "apitimeout", &value)) {
       session->config->apiTimeout = json_object_get_int (value);
+   }
+   
+   if (!cliconfig->cntxTimeout && json_object_object_get_ex (AFBConfig, "cntxtimeout", &value)) {
+      session->config->cntxTimeout = json_object_get_int (value);
    }
    
    // cacheTimeout is an integer but HTTPd wants it as a string
@@ -248,11 +257,12 @@ PUBLIC void configStoreFile (AFB_session * session) {
    json_object_object_add (AFBConfig, "plugins"       , json_object_new_string (session->config->plugins));
    json_object_object_add (AFBConfig, "sessiondir"    , json_object_new_string (session->config->sessiondir));
    json_object_object_add (AFBConfig, "pidfile"       , json_object_new_string (session->config->pidfile));
+   json_object_object_add (AFBConfig, "setuid"        , json_object_new_string (session->config->setuid));
    json_object_object_add (AFBConfig, "httpdPort"     , json_object_new_int (session->config->httpdPort));
-   json_object_object_add (AFBConfig, "setuid"        , json_object_new_int (session->config->setuid));
    json_object_object_add (AFBConfig, "localhostonly" , json_object_new_int (session->config->localhostOnly));
    json_object_object_add (AFBConfig, "cachetimeout"  , json_object_new_int (session->config->cacheTimeout));
    json_object_object_add (AFBConfig, "apitimeout"    , json_object_new_int (session->config->apiTimeout));
+   json_object_object_add (AFBConfig, "cntxtimeout"   , json_object_new_int (session->config->cntxTimeout));
 
    err = json_object_to_file (session->config->configfile, AFBConfig);
    json_object_put   (AFBConfig);    // decrease reference count to free the json object

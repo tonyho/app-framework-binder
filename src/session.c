@@ -14,6 +14,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * Reference: 
+ * https://github.com/json-c/json-c/blob/master/linkhash.c
+ * https://github.com/json-c/json-c/blob/master/linkhash.h
  */
 
 
@@ -28,10 +32,12 @@
 #define AFB_SESSION_JLIST "AFB_sessions"
 #define AFB_SESSION_JINFO "AFB_infos"
 
+
 #define AFB_CURRENT_SESSION "active-session"  // file link name within sndcard dir
 #define AFB_DEFAULT_SESSION "current-session" // should be in sync with UI
 
 
+static struct lh_table *clientCtxs=NULL;    // let's use JsonObject Hashtable to Store Sessions
 
 
 // verify we can read/write in session dir
@@ -300,3 +306,200 @@ OnErrorExit:
    json_object_put (jsonSession);
    return response;
 }
+
+
+// Function to handle Cookies and Client session context it relies on json low level
+// linked list functionalities https://github.com/json-c/json-c/blob/master/linkhash.c
+
+// Hash client UUID before storing in table
+STATIC unsigned long ctxUuidHashCB (const void *k1) {
+    unsigned long hash;
+    
+    AFB_clientCtx *ctx = (AFB_clientCtx*) k1;
+    hash = lh_char_hash(ctx->uuid);
+    return (hash);    
+}
+
+// Compare client UUIDs within table
+STATIC int ctxUuidCompCB (const void *k1, const void *k2) {
+    int res;    
+    AFB_clientCtx *ctx1 = (AFB_clientCtx*) k1;
+    AFB_clientCtx *ctx2 = (AFB_clientCtx*) k2;
+    
+    res = lh_char_equal(ctx1->uuid, ctx2->uuid);
+    return (res);    
+}
+
+// Free context [XXXX Should be protected again memory abort XXXX]
+STATIC void ctxUuidFreeCB (struct lh_entry *entry) {
+    AFB_clientCtx *ctx = (AFB_clientCtx*) entry->v;
+
+    // If application add a handle let's free it now
+    if (ctx->handle != NULL) {
+        
+        // Free client handle with a standard Free function, with app callback or ignore it
+        if (ctx->freeHandleCB == NULL) free (ctx->handle); 
+        else if (ctx->freeHandleCB != (void*)-1) ctx->freeHandleCB(ctx->handle); 
+    }
+    free ((void*)entry->v);
+}
+
+// Create a new store in RAM, not that is too small it will be automatically extended
+STATIC struct lh_table *ctxStoreCreate (int nbSession) {
+   lh_table *table; 
+    
+   // function will exit process in case of error !!! 
+   table=lh_table_new (nbSession, "CtxClient", ctxUuidFreeCB, ctxUuidHashCB, ctxUuidCompCB);
+   return (table);
+}
+
+// Check if context timeout or not
+STATIC int ctxStoreToOld (const void *k1, int timeout) {
+    int res;    
+    AFB_clientCtx *ctx = (AFB_clientCtx*) k1;
+
+    res = ((ctx->timeStamp + timeout) < time(NULL));
+    return (res);    
+}
+
+// Loop on every entry and remove old context sessions
+PUBLIC int ctxStoreGarbage (struct lh_table *lht, const int timeout) {
+    struct lh_entry *c;
+    
+    // Loop on every entry within table
+    for(c = lht->head; c != NULL; c = c->next) {
+        if(lht->free_fn) {
+            if(c->k == LH_EMPTY) return lht->count;
+            if(c->k != LH_FREED &&  ctxStoreToOld(c->v, timeout)) lh_table_delete_entry (lht, c);
+	}
+    }
+  
+    // return current size after cleanup
+    return (lht->count);
+}
+
+// This function will return exiting client context or newly created client context
+PUBLIC int ctxClientGet (AFB_request *request) {
+  static int cid=0;
+  AFB_clientCtx *clientCtx=NULL;
+  const char *uuid;
+  uuid_t newuuid;
+  int ret;
+  
+   // if client session store is null create it
+   if (clientCtxs == NULL) {
+       clientCtxs= ctxStoreCreate(CTX_NBCLIENTS);
+   }
+
+    // Check if client as a context or not inside the URL
+    uuid  = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "uuid");
+       
+    // if UUID in query we're restfull with no cookies otherwise check for cookie
+    if (uuid != NULL) request->restfull = TRUE;
+    else {
+        request->restfull = FALSE;
+        uuid = MHD_lookup_connection_value (request->connection, MHD_COOKIE_KIND, COOKIE_NAME);  
+    };
+    
+    
+    if (uuid != NULL)   {
+        // search if client context exist and it not timeout let's use it
+	if ((lh_table_lookup_ex (clientCtxs, uuid, (void**) &clientCtx)) 
+                && ! ctxStoreToOld (clientCtx, request->config->cntxTimeout)) {
+                request->client=clientCtx;
+                if (verbose) fprintf (stderr, "ctxClientGet Old uuid=[%s] token=[%s] timestamp=%d\n"
+                             ,request->client->uuid, request->client->token, request->client->timeStamp);
+                return;            
+        }
+    }
+
+    
+    // we have no session let's create one otherwise let's clean any exiting values
+    if (clientCtx == NULL) clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
+    uuid_generate(newuuid);         // create a new UUID
+    uuid_unparse_lower(newuuid, clientCtx->uuid);
+    clientCtx->cid=cid++;
+        
+    // if table is full at 50% let's clean it up
+    if(clientCtxs->count > (clientCtxs->size*0.5)) ctxStoreGarbage(clientCtxs, request->config->cntxTimeout);
+    
+    // finally add uuid into hashtable
+    ret= lh_table_insert (clientCtxs, (void*)clientCtx->uuid, clientCtx);
+    
+    if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);
+       
+    request->client = clientCtx;
+    return (ret);
+}
+
+// Sample Generic Ping Debug API
+PUBLIC AFB_error ctxTokenCheck (AFB_request *request) {
+    const char *token;
+    
+    // this time have to extract token from query list
+    token = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "token");
+    
+    // if not token is providing we refuse the exchange
+    if ((token == NULL) || (request->client->token == NULL)) return (AFB_FALSE);
+    
+    // compare current token with previous one
+    if ((0 == strcmp (token, request->client->token)) && (!ctxStoreToOld (request->client, request->config->cntxTimeout))) {
+       return (AFB_TRUE);
+    }
+    
+    // Token is not valid let move level of assurance to zero and free attached client handle
+    return (AFB_FALSE);
+}
+
+// Free Client Session Context
+PUBLIC int ctxTokenReset (AFB_request *request) {
+    struct lh_entry* entry;
+    int ret;
+        
+    entry = lh_table_lookup_entry (clientCtxs, request->client->uuid);
+    if (entry == NULL) return FALSE;
+    
+    lh_table_delete_entry (clientCtxs, entry);
+ 
+    return (TRUE);
+}
+
+// generate a new token
+PUBLIC char* ctxTokenCreate (AFB_request *request) {
+    int oldTnkValid;
+    const char *ornew;
+    uuid_t newuuid;
+
+    // create a UUID as token value
+    uuid_generate(newuuid); 
+    uuid_unparse_lower(newuuid, request->client->token);
+    
+    // keep track of time for session timeout and further clean up
+    request->client->timeStamp=time(NULL); 
+    
+    // Token is also store in context but it might be convenient for plugin to access it directly
+    return (request->client->token);
+}
+
+
+// generate a new token and update client context
+PUBLIC char* ctxTokenRefresh (AFB_request *request) {
+    int oldTnkValid;
+    const char *oldornew;
+    uuid_t newuuid;
+    
+    // Check if the old token is valid
+    oldTnkValid= ctxTokenCheck (request);
+    
+    // if token is not valid let check for query argument "oldornew"
+    if (!oldTnkValid) {
+        oldornew = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "oldornew");
+        if (oldornew != NULL) oldTnkValid= TRUE;
+    }
+   
+    // No existing token and no request to create one
+    if (oldTnkValid != TRUE) return NULL;
+
+    return (ctxTokenCreate (request));
+}
+

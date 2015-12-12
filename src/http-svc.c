@@ -118,7 +118,7 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
         if (-1 == (staticfile->fd = open(staticfile->path, O_RDONLY)) || (fstat (staticfile->fd, &sbuf) != 0)) {
            fprintf(stderr, "No Index.html in direcory [%s]\n", staticfile->path);
            goto abortRequest;  
-        }      
+        } 
     } else if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
         close (staticfile->fd); // nothing useful to do with this file
         fprintf (stderr, "Fail file: [%s] is not a regular file\n", staticfile->path);
@@ -149,7 +149,7 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
         if (session->magic) {          
            mimetype= magic_descriptor(session->magic, staticfile->fd);
            if (mimetype != NULL)  MHD_add_response_header (response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
-        } else mimetype="Unknown";
+        } else mimetype="application/unknown";
         
         if (verbose) fprintf(stderr, "Serving: [%s] mime=%s\n", staticfile->path, mimetype);
         response = MHD_create_response_from_fd(sbuf.st_size, staticfile->fd);

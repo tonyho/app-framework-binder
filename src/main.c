@@ -29,6 +29,7 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <getopt.h>
+#include <pwd.h>
 
 static sigjmp_buf exitPoint; // context save for set/longjmp
 
@@ -63,7 +64,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
  #define SET_ROOT_ALIAS     124
 
  #define SET_CACHE_TO       130
- #define SET_cardid         131
+ #define SET_USERID         131
  #define SET_PID_FILE       132
  #define SET_SESSION_DIR    133
  #define SET_CONFIG_FILE    134
@@ -73,6 +74,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
  #define SET_SMACK          140
  #define SET_PLUGINS        141
  #define SET_APITIMEOUT     142
+ #define SET_CNTXTIMEOUT    143
 
  #define DISPLAY_VERSION    150
  #define DISPLAY_HELP       151
@@ -92,10 +94,12 @@ static  AFB_options cliOptions [] = {
   {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa]"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api]"},
   {SET_ROOT_ALIAS   ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
+  
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
-
+  {SET_CNTXTIMEOUT  ,1,"cntxtimeout"     , "Client Session Context Timeout [default 900]"},
   {SET_CACHE_TO     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
-  {SET_cardid       ,1,"setuid"          , "Change user id [default don't change]"},
+  
+  {SET_USERID       ,1,"setuid"          , "Change user id [default don't change]"},
   {SET_PID_FILE     ,1,"pidfile"         , "PID file path [default none]"},
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
   {SET_CONFIG_FILE  ,1,"config"          , "Config Filename [default rootdir/sessions/configs/default.AFB]"},
@@ -302,6 +306,11 @@ int main(int argc, char *argv[])  {
        if (!sscanf (optarg, "%d", &cliconfig.apiTimeout)) goto notAnInteger;
        break;
 
+    case SET_CNTXTIMEOUT:
+       if (optarg == 0) goto needValueForOption;
+       if (!sscanf (optarg, "%d", &cliconfig.cntxTimeout)) goto notAnInteger;
+       break;
+
     case SET_ROOT_DIR:
        if (optarg == 0) goto needValueForOption;
        cliconfig.rootdir   = optarg;
@@ -376,9 +385,9 @@ int main(int argc, char *argv[])  {
        session->configsave  = 1;
        break;
 
-    case SET_cardid:
+    case SET_USERID:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &cliconfig.setuid)) goto notAnInteger;
+       if (!sscanf (optarg, "%s", &cliconfig.setuid)) goto notAnInteger;
        break;
 
     case SET_FAKE_MOD:
@@ -485,13 +494,17 @@ int main(int argc, char *argv[])  {
 
     if (session->config->setuid) {
         int err;
-
-        err = setuid(session->config->setuid);
-        if (err) fprintf (stderr, "Fail to change program cardid error=%s", strerror(err));
+        struct passwd *passwd;
+        passwd=getpwnam(session->config->setuid);
+        
+        if (passwd == NULL) goto errorSetuid;
+        
+        err = setuid(passwd->pw_uid);
+        if (err) goto errorSetuid;
     }
 
     // let's not take the risk to run as ROOT
-    if (getuid() == 0)  status=setuid(65534);  // run as nobody
+    if (getuid() == 0)  goto errorNoRoot;
 
     // check session dir and create if it does not exist
     if (sessionCheckdir (session) != AFB_SUCCESS) goto errSessiondir;
@@ -574,44 +587,52 @@ normalExit:
   exit (0);
 
 // ------------- Fatal ERROR display error and quit  -------------
+errorSetuid:
+  fprintf (stderr,"\nERR:AFB-daemon Failed to change UID to username=[%s]\n\n", session->config->setuid);
+  exit (-1);
+  
+errorNoRoot:
+  fprintf (stderr,"\nERR:AFB-daemon Not allow to run as root [use --seteuid=username option]\n\n");
+  exit (-1);
+
 errorPidFile:
-  fprintf (stderr,"\nERR:main Failled to write pid file [%s]\n\n", session->config->pidfile);
+  fprintf (stderr,"\nERR:AFB-daemon Failed to write pid file [%s]\n\n", session->config->pidfile);
   exit (-1);
 
 errorFork:
-  fprintf (stderr,"\nERR:main Failled to fork son process\n\n");
+  fprintf (stderr,"\nERR:AFB-daemon Failed to fork son process\n\n");
   exit (-1);
 
 needValueForOption:
-  fprintf (stderr,"\nERR:main option [--%s] need a value i.e. --%s=xxx\n\n"
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
   exit (-1);
 
 noValueForOption:
-  fprintf (stderr,"\nERR:main option [--%s] don't take value\n\n"
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] don't take value\n\n"
           ,gnuOptions[optionIndex].name);
   exit (-1);
 
 notAnInteger:
-  fprintf (stderr,"\nERR:main option [--%s] requirer an interger i.e. --%s=9\n\n"
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
   exit (-1);
 
 exitOnSignal:
-  fprintf (stderr,"\n%s INF:main pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
+  fprintf (stderr,"\n%s INF:AFB-daemon pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
                  ,configTime(), getpid());
   exit (-1);
 
 errConsole:
-  fprintf (stderr,"\nERR:cannot open /dev/console (use --foreground)\n\n");
+  fprintf (stderr,"\nERR:AFB-daemon cannot open /dev/console (use --foreground)\n\n");
   exit (-1);
 
 errSessiondir:
-  fprintf (stderr,"\nERR:cannot read/write session dir\n\n");
+  fprintf (stderr,"\nERR:AFB-daemon cannot read/write session dir\n\n");
   exit (-1);
 
 errSoundCard:
-  fprintf (stderr,"\nERR:fail to probe sound cards\n\n");
+  fprintf (stderr,"\nERR:AFB-daemon fail to probe sound cards\n\n");
   exit (-1);
 
 exitInitLoop:
@@ -619,5 +640,5 @@ exitInitLoop:
   if (session->background && session->config->pidfile != NULL)  unlink (session->config->pidfile);
   exit (-1);
 
-}; /* END main() */
+}; /* END AFB-daemon() */
 
