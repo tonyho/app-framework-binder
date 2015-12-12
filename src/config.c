@@ -21,12 +21,10 @@
 
 */
 
-
 #include "../include/local-def.h"
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
 
 #define AFB_CONFIG_JTYPE "AFB_config"
 

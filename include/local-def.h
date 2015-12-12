@@ -80,7 +80,7 @@ extern int verbose;  // this is the only global variable
 typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginT;
 
 // prebuild json error are constructed in config.c
-typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE} AFB_error;
+typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
 extern char *ERROR_LABEL[];
 #define ERROR_LABEL_DEF {"false", "true","fatal", "fail", "warning", "empty", "success"}

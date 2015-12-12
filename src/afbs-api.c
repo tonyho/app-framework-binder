@@ -40,6 +40,13 @@ STATIC json_object* clientContextCreate (AFB_request *request) {
     }
         
     // request a new client context token and check result 
+    if (AFB_UNAUTH == ctxTokenCreate (request)) {
+        request->errcode=MHD_HTTP_UNAUTHORIZED;
+        jresp= jsonNewMessage(AFB_FAIL, "No/Invalid initial token provided [should match --token=xxxx]");
+        return (jresp);
+    }
+    
+    // request a new client context token and check result 
     if (AFB_SUCCESS != ctxTokenCreate (request)) {
         request->errcode=MHD_HTTP_UNAUTHORIZED;
         jresp= jsonNewMessage(AFB_FAIL, "Token Session Not Activated [restart with --token=xxxx]");

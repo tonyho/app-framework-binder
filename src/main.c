@@ -109,7 +109,7 @@ static  AFB_options cliOptions [] = {
 
   {SET_SMACK        ,1,"smack"           , "Set Smack Label [default demo]"},
   {SET_PLUGINS      ,1,"mods"            , "Enable module [default all]"},
-  {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=non]"},
+  {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
   
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
   {DISPLAY_HELP     ,0,"help"            , "Display this help"},

@@ -476,8 +476,22 @@ PUBLIC AFB_error ctxTokenCreate (AFB_request *request) {
     int oldTnkValid;
     const char *ornew;
     uuid_t newuuid;
+    const char *token;
 
     if (request->client == NULL) return AFB_EMPTY;
+
+    // if config->token!="" then verify that we have the right initial share secret   
+    if (request->config->token[0] != '\0') {
+        
+        // check for initial token secret and return if not presented
+        token = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "token");
+        if (token == NULL) return AFB_UNAUTH;
+        
+        // verify that presented initial tokens fit
+        if (strcmp(request->config->token, token)) return AFB_UNAUTH;
+        
+    }
+    
 
     // create a UUID as token value
     uuid_generate(newuuid); 
