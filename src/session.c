@@ -270,7 +270,7 @@ PUBLIC json_object * sessionToDisk (AFB_session *session, AFB_request *request, 
 
        // info is a valid AFB_info type
        if (!json_object_object_get_ex (info, "jtype", &jtype)) {
-            response = jsonNewMessage (AFB_EMPTY,"sndcard=%s session=%s No 'AFB_type' args=%s", request->plugin, name, request->post);
+            response = jsonNewMessage (AFB_EMPTY,"sndcard=%s session=%s No 'AFB_pluginT' args=%s", request->plugin, name, request->post);
             goto OnErrorExit;
        }
 
@@ -379,17 +379,19 @@ PUBLIC int ctxStoreGarbage (struct lh_table *lht, const int timeout) {
 }
 
 // This function will return exiting client context or newly created client context
-PUBLIC int ctxClientGet (AFB_request *request) {
+PUBLIC AFB_error ctxClientGet (AFB_request *request) {
   static int cid=0;
   AFB_clientCtx *clientCtx=NULL;
   const char *uuid;
   uuid_t newuuid;
   int ret;
   
-   // if client session store is null create it
-   if (clientCtxs == NULL) {
+    if (request->config->token == NULL) return AFB_EMPTY;
+  
+    // if client session store is null create it
+    if (clientCtxs == NULL) {
        clientCtxs= ctxStoreCreate(CTX_NBCLIENTS);
-   }
+    }
 
     // Check if client as a context or not inside the URL
     uuid  = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "uuid");
@@ -424,17 +426,20 @@ PUBLIC int ctxClientGet (AFB_request *request) {
     if(clientCtxs->count > (clientCtxs->size*0.5)) ctxStoreGarbage(clientCtxs, request->config->cntxTimeout);
     
     // finally add uuid into hashtable
-    ret= lh_table_insert (clientCtxs, (void*)clientCtx->uuid, clientCtx);
+    ret=lh_table_insert (clientCtxs, (void*)clientCtx->uuid, clientCtx);
+    if (ret < 0) return (AFB_FAIL);
     
-    if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);
-       
+    if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
     request->client = clientCtx;
-    return (ret);
+
+    return (AFB_SUCCESS);
 }
 
 // Sample Generic Ping Debug API
 PUBLIC AFB_error ctxTokenCheck (AFB_request *request) {
     const char *token;
+    
+    if (request->client == NULL) return AFB_EMPTY;
     
     // this time have to extract token from query list
     token = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "token");
@@ -444,31 +449,35 @@ PUBLIC AFB_error ctxTokenCheck (AFB_request *request) {
     
     // compare current token with previous one
     if ((0 == strcmp (token, request->client->token)) && (!ctxStoreToOld (request->client, request->config->cntxTimeout))) {
-       return (AFB_TRUE);
+       return (AFB_SUCCESS);
     }
     
     // Token is not valid let move level of assurance to zero and free attached client handle
-    return (AFB_FALSE);
+    return (AFB_FAIL);
 }
 
 // Free Client Session Context
-PUBLIC int ctxTokenReset (AFB_request *request) {
+PUBLIC AFB_error ctxTokenReset (AFB_request *request) {
     struct lh_entry* entry;
     int ret;
-        
+
+    if (request->client == NULL) return AFB_EMPTY;
+
     entry = lh_table_lookup_entry (clientCtxs, request->client->uuid);
-    if (entry == NULL) return FALSE;
+    if (entry == NULL) return AFB_FALSE;
     
     lh_table_delete_entry (clientCtxs, entry);
  
-    return (TRUE);
+    return (AFB_SUCCESS);
 }
 
 // generate a new token
-PUBLIC char* ctxTokenCreate (AFB_request *request) {
+PUBLIC AFB_error ctxTokenCreate (AFB_request *request) {
     int oldTnkValid;
     const char *ornew;
     uuid_t newuuid;
+
+    if (request->client == NULL) return AFB_EMPTY;
 
     // create a UUID as token value
     uuid_generate(newuuid); 
@@ -478,15 +487,17 @@ PUBLIC char* ctxTokenCreate (AFB_request *request) {
     request->client->timeStamp=time(NULL); 
     
     // Token is also store in context but it might be convenient for plugin to access it directly
-    return (request->client->token);
+    return (AFB_SUCCESS);
 }
 
 
 // generate a new token and update client context
-PUBLIC char* ctxTokenRefresh (AFB_request *request) {
+PUBLIC AFB_error ctxTokenRefresh (AFB_request *request) {
     int oldTnkValid;
     const char *oldornew;
     uuid_t newuuid;
+
+    if (request->client == NULL) return AFB_EMPTY;
     
     // Check if the old token is valid
     oldTnkValid= ctxTokenCheck (request);
@@ -498,7 +509,7 @@ PUBLIC char* ctxTokenRefresh (AFB_request *request) {
     }
    
     // No existing token and no request to create one
-    if (oldTnkValid != TRUE) return NULL;
+    if (oldTnkValid != TRUE) return AFB_WARNING;
 
     return (ctxTokenCreate (request));
 }

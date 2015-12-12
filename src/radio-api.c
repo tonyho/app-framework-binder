@@ -493,14 +493,14 @@ STATIC struct {
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"start"    , (AFB_apiCB)start      , "Ping Application Framework", NULL},
-  {"stop"     , (AFB_apiCB)stop       , "Ping Application Framework", NULL},
-  {0,0,0}
+  {"start"    , (AFB_apiCB)start      , "Ping Application Framework"},
+  {"stop"     , (AFB_apiCB)stop       , "Ping Application Framework"},
+  {NULL}
 };
 
 PUBLIC AFB_plugin *radioRegister (AFB_session *session) {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN;
+    plugin->type  = AFB_PLUGIN_JSON;
     plugin->info  = "Application Framework Binder - Radio plugin";
     plugin->prefix  = "radio";
     plugin->apis  = pluginApis;

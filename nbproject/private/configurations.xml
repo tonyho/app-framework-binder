@@ -99,8 +99,11 @@
         <runcommandpicklist>
           <runcommandpicklistitem>"${OUTPUT_PATH}"</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons
+--token=123456789</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons</runcommand>
+        <runcommand>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789</runcommand>
         <rundir>build</rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>

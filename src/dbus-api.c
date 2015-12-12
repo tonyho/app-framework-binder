@@ -81,17 +81,16 @@ STATIC  AFB_restapi pluginApis[]= {
   {"pingJson" , (AFB_apiCB)pingJson    , "Return a JSON object"},
   {"ctx-store", (AFB_apiCB)pingSample  , "Verbose Mode"},
   {"ctx-load" , (AFB_apiCB)pingSample  , "Verbose Mode"},
-  {0,0,0}
+  {NULL}
 };
 
 
 PUBLIC AFB_plugin *dbusRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN;
+    plugin->type  = AFB_PLUGIN_JSON;
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "dbus";        
     plugin->apis  = pluginApis;
-    plugin->handle= (void*) "Any you Want";
-    
+    plugin->handle= (void*) "Any you Want";        
     return (plugin);
 };

@@ -27,20 +27,24 @@ typedef struct {
 
 
 // Request Creation of new context if it does not exist
-PUBLIC json_object* clientContextCreate (AFB_request *request) {
+STATIC json_object* clientContextCreate (AFB_request *request) {
     json_object *jresp;
     int   res;
     char *token;
     AFB_clientCtx *client=request->client; // get client context from request
-
+   
     // check we do not already have a session
-    if (client->handle != NULL) {
+    if ((client != NULL) && (client->handle != NULL)) {
         request->errcode=MHD_HTTP_FORBIDDEN;
         return (jsonNewMessage(AFB_FAIL, "Token exist use refresh"));
     }
         
-    // request a new client context token and check result
-    ctxTokenCreate (request);
+    // request a new client context token and check result 
+    if (AFB_SUCCESS != ctxTokenCreate (request)) {
+        request->errcode=MHD_HTTP_UNAUTHORIZED;
+        jresp= jsonNewMessage(AFB_FAIL, "Token Session Not Activated [restart with --token=xxxx]");
+        return (jresp);
+    }
    
     // add a client handle to session
     client->handle = malloc (sizeof (MyClientApplicationHandle));
@@ -53,19 +57,16 @@ PUBLIC json_object* clientContextCreate (AFB_request *request) {
 }
 
 // Renew an existing context
-PUBLIC json_object* clientContextRefresh (AFB_request *request) {
+STATIC json_object* clientContextRefresh (AFB_request *request) {
     json_object *jresp;
 
-    // check we do not already have a session
-    if (request->client == NULL) return (jsonNewMessage(AFB_FAIL, "No Previous Token use Create"));
-    
     // note: we do not need to parse the old token as clientContextRefresh doit for us
-    if (ctxTokenRefresh (request)) {
-        jresp = json_object_new_object();
-        json_object_object_add(jresp, "token", json_object_new_string (request->client->token));              
-    } else {
+    if (AFB_SUCCESS != ctxTokenRefresh (request)) {
         request->errcode=MHD_HTTP_UNAUTHORIZED;
         jresp= jsonNewMessage(AFB_FAIL, "Token Exchange Broken Refresh Refused");
+    } else {
+        jresp = json_object_new_object();
+        json_object_object_add(jresp, "token", json_object_new_string (request->client->token));              
     }
             
     return (jresp);
@@ -73,49 +74,54 @@ PUBLIC json_object* clientContextRefresh (AFB_request *request) {
 
 
 // Verify a context is still valid 
-PUBLIC json_object* clientContextCheck (AFB_request *request) {
-    json_object *jresp;
-    int isvalid;
-
-    // check is token is valid
-    isvalid= ctxTokenCheck (request);
+STATIC json_object* clientContextCheck (AFB_request *request) {
+    
+    json_object *jresp = json_object_new_object();
     
     // add an error code to respond
-    if (!isvalid) request->errcode=MHD_HTTP_UNAUTHORIZED;
-    
-    // prepare response for client side application
-    jresp = json_object_new_object();
-    json_object_object_add(jresp, "isvalid", json_object_new_boolean (isvalid));
-    
+    if (AFB_SUCCESS != ctxTokenCheck (request)) {
+        request->errcode=MHD_HTTP_UNAUTHORIZED;
+        json_object_object_add(jresp, "isvalid", json_object_new_boolean (FALSE));
+    } else {
+        json_object_object_add(jresp, "isvalid", json_object_new_boolean (TRUE));       
+    }
+        
     return (jresp); 
 }
 
 // Close and Free context
-PUBLIC json_object* clientContextReset (AFB_request *request) {
+STATIC json_object* clientContextReset (AFB_request *request) {
     json_object *jresp;
-    
-    jresp = json_object_new_object();
-    json_object_object_add(jresp, "done", json_object_new_boolean (ctxTokenReset (request)));
+   
+    // note: we do not need to parse the old token as clientContextRefresh doit for us
+    if (AFB_SUCCESS != ctxTokenReset (request)) {
+        request->errcode=MHD_HTTP_UNAUTHORIZED;
+        jresp= jsonNewMessage(AFB_FAIL, "No Token Client Context [use --token=xxx]");
+    } else {
+        jresp = json_object_new_object();
+        json_object_object_add(jresp, "uuid", json_object_new_string (request->client->uuid));              
+    }
     
     return (jresp); 
 }
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"          , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service", NULL},
-  {"token-create"  , (AFB_apiCB)clientContextCreate ,"Request Client Context Creation",NULL},
-  {"token-refresh" , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token",NULL},
-  {"token-check"   , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token",NULL},
-  {"token-reset"   , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources",NULL},
-  {0,0,0,0}
+  {"ping"          , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
+  {"token-create"  , (AFB_apiCB)clientContextCreate ,"Request Client Context Creation"},
+  {"token-refresh" , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
+  {"token-check"   , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},
+  {"token-reset"   , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources"},
+  {NULL}
 };
 
 PUBLIC AFB_plugin *afsvRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN; 
+    plugin->type  = AFB_PLUGIN_JSON; 
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "afbs";  // url base
     plugin->apis  = pluginApis;
+    plugin->handle= (void*) "What ever you want";
     
     return (plugin);
 };

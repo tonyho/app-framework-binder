@@ -52,19 +52,19 @@ STATIC struct {
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework",NULL},
-  {"error"    , (AFB_apiCB)wrongApi   , "Ping Application Framework",NULL},
-  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode",NULL},
-  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode",NULL},
-  {0,0,0,0}
+  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework"},
+  {"error"    , (AFB_apiCB)wrongApi   , "Ping Application Framework"},
+  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode"},
+  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode"},
+  {NULL}
 };
 
 PUBLIC AFB_plugin *alsaRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN;
+    plugin->type  = AFB_PLUGIN_JSON;
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "alsa";        
     plugin->apis  = pluginApis;
-    
+
     return (plugin);
 };

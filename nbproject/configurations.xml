@@ -74,12 +74,22 @@
         </cTool>
       </item>
       <item path="src/alsa-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="0">
+        <cTool flags="1">
           <incDir>
-            <pElem>include</pElem>
+            <pElem>src</pElem>
             <pElem>/usr/include/json-c</pElem>
+            <pElem>include</pElem>
+            <pElem>/usr/include/uuid</pElem>
             <pElem>build/src</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>__PIC__=2</Elem>
+            <Elem>__PIE__=2</Elem>
+            <Elem>__REGISTER_PREFIX__=</Elem>
+            <Elem>__USER_LABEL_PREFIX__=</Elem>
+            <Elem>__pic__=2</Elem>
+            <Elem>__pie__=2</Elem>
+          </preprocessorList>
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">

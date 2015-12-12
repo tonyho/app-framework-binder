@@ -37,7 +37,7 @@ static json_object     *afbJsonType;
 
 
 // Sample Generic Ping Debug API
-PUBLIC json_object* apiPingTest(AFB_request *request) {
+PUBLIC json_object* apiPingTest(AFB_request *request, void *pluginHandle) {
     static pingcount = 0;
     json_object *response;
     char query [512];
@@ -51,8 +51,8 @@ PUBLIC json_object* apiPingTest(AFB_request *request) {
     if (request->post == NULL)  request->post="NoData";  
         
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d Loa=%d query={%s} PostData: \'%s\' "
-               , pingcount++, request->client->cid, request->loa, query, request->post);
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d Loa=%d query={%s} Handle=0x%x PostData: \'%s\' "
+               , pingcount++, request->client->cid, request->loa, query, request->post, pluginHandle);
     return (response);
 }
 
@@ -154,7 +154,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
                 ctxClientGet(request);      
                 
                 // Effectively call the API with a subset of the context
-                jresp = plugin->apis[idx].callback(request);
+                jresp = plugin->apis[idx].callback(request, plugin->handle);
 
                 // API should return NULL of a valid Json Object
                 if (jresp == NULL) {
@@ -278,11 +278,11 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     // build request structure
     memset(&request, 0, sizeof (request));
     request.connection = connection;
-    request.config     = session->config;
-    request.url = url;
+    request.config = session->config;
+    request.url    = url;
     request.plugin = baseurl;
-    request.api = baseapi;
-    request.jresp = json_object_new_object();
+    request.api    = baseapi;
+    request.jresp  = json_object_new_object();
     
     // increase reference count and add jtype to response    
     json_object_get (afbJsonType);
@@ -312,7 +312,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     free(urlcpy1);
     
     // client did not pass token on URI let's use cookies 
-    if (!request.restfull) {
+    if ((!request.restfull) && (request.client != NULL)) {
        char cookie[64]; 
        snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request.client->uuid); 
        MHD_add_response_header (webResponse, MHD_HTTP_HEADER_SET_COOKIE, cookie);
@@ -339,12 +339,12 @@ ExitOnError:
 
 
 // Loop on plugins. Check that they have the right type, prepare a JSON object with prefix
-STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
+STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
     int idx, jdx;
 
     for (idx = 0; plugins[idx] != NULL; idx++) {
-        if (plugins[idx]->type != AFB_PLUGIN) {
-            fprintf(stderr, "ERROR: AFSV plugin[%d] invalid type=%d != %d\n", idx, AFB_PLUGIN, plugins[idx]->type);
+        if (plugins[idx]->type != AFB_PLUGIN_JSON) {
+            fprintf(stderr, "ERROR: AFSV plugin[%d] invalid type=%d != %d\n", idx, AFB_PLUGIN_JSON, plugins[idx]->type);
         } else {
             // some sanity controls
             if ((plugins[idx]->prefix == NULL) || (plugins[idx]->info == NULL) || (plugins[idx]->apis == NULL)) {
@@ -356,10 +356,6 @@ STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
 
             if (verbose) fprintf(stderr, "Loading plugin[%d] prefix=[%s] info=%s\n", idx, plugins[idx]->prefix, plugins[idx]->info);
             
-            // register private to plugin global context [cid=0]
-            plugins[idx]->ctxGlobal= malloc (sizeof (AFB_clientCtx));
-            plugins[idx]->ctxGlobal->cid=0;
-
             // Prebuild plugin jtype to boost API response
             plugins[idx]->jtype = json_object_new_string(plugins[idx]->prefix);
             json_object_get(plugins[idx]->jtype); // increase reference count to make it permanent
@@ -370,8 +366,8 @@ STATIC AFB_plugin ** RegisterPlugins(AFB_plugin **plugins) {
             for (jdx = 0; plugins[idx]->apis[jdx].name != NULL; jdx++) {
                 AFB_privateApi *private = malloc (sizeof (AFB_privateApi));
                 if (plugins[idx]->apis[jdx].private != NULL) {
-                    fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL\n"
-                            ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name);
+                    fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL=0x%x\n"
+                            ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name, plugins[idx]->apis[jdx].private);
                 }
                 private->len = strlen (plugins[idx]->apis[jdx].name);
                 private->jtype=json_object_new_string(plugins[idx]->apis[jdx].name);
@@ -397,5 +393,5 @@ void initPlugins(AFB_session *session) {
     plugins[i++] = NULL;
     
     // complete plugins and save them within current sessions    
-    session->plugins = RegisterPlugins(plugins);
+    session->plugins = RegisterJsonPlugins(plugins);
 }

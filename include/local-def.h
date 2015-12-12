@@ -59,6 +59,7 @@
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout [0=NoLimit for Debug Only]
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout
 #define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
+#define DEFLT_AUTH_TOKEN    NULL   // expect for debug should == NULL
 
 typedef int BOOL;
 #ifndef FALSE
@@ -74,6 +75,10 @@ typedef int BOOL;
 
 extern int verbose;  // this is the only global variable
 
+
+// Plugin Type
+typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginT;
+
 // prebuild json error are constructed in config.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE} AFB_error;
 
@@ -85,8 +90,7 @@ extern char *ERROR_LABEL[];
 #define MAX_POST_SIZE  4096   // maximum size for POST data
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 
-// use to check anonymous data when using dynamic loadable lib
-typedef enum  {AFB_PLUGIN=1234, AFB_REQUEST=5678} AFB_type;
+
 typedef json_object* (*AFB_apiCB)();
 
 // Error code are requested through function to manage json usage count
@@ -136,7 +140,8 @@ typedef struct {
   char *pidfile;           // where to store pid when running background
   char *sessiondir;        // where to store mixer session files
   char *configfile;        // where to store configuration on gateway exit
-  char *setuid;
+  char *setuid;            // downgrade uid to username
+  char *token;             // initial authentication token [default NULL no session]
   int  cacheTimeout;
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
@@ -196,7 +201,7 @@ typedef struct {
 
 // Plugin definition
 typedef struct {
-  AFB_type type;  
+  AFB_pluginT type;  
   char *info;
   char *prefix;
   size_t prefixlen;
@@ -204,7 +209,6 @@ typedef struct {
   AFB_restapi *apis;
   void *handle;
   int  ctxCount;
-  AFB_clientCtx *ctxGlobal;
 } AFB_plugin;
 
 

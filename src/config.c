@@ -71,6 +71,10 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    // default Plugin API timeout
    if (cliconfig->apiTimeout == 0) session->config->apiTimeout=DEFLT_API_TIMEOUT;
    else session->config->apiTimeout=cliconfig->apiTimeout;
+   
+   // default AUTH_TOKEN
+   if (cliconfig->token == NULL) session->config->token= DEFLT_AUTH_TOKEN;
+   else session->config->token=cliconfig->token;
 
    // cache timeout default one hour
    if (cliconfig->cacheTimeout == 0) session->config->cacheTimeout=DEFLT_CACHE_TIMEOUT;
@@ -302,9 +306,6 @@ PUBLIC AFB_session *configInit () {
      AFBerr[idx].json  = jsonNewMessage (idx, NULL);
   }
   verbose = verbosesav;
-  
-  // Load Plugins
-  initPlugins (session);
   
   return (session);
 }
