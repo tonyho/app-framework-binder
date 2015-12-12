@@ -34,14 +34,14 @@ typedef struct dongle_ctx dongle_ctx;
 typedef struct demod_ctx demod_ctx;
 typedef struct output_ctx output_ctx;
 
-struct dongle_ctx {
+typedef struct  {
     pthread_t thr;
     unsigned char thr_finished;
     uint16_t buf[BUF_LEN];
     uint32_t buf_len;
-};
+} dongle_ctx;
 
-struct demod_ctx {
+typedef struct  {
     pthread_t thr;
     unsigned char thr_finished;
     pthread_rwlock_t lck;
@@ -53,9 +53,9 @@ struct demod_ctx {
     int buf_len;
     int16_t res[BUF_LEN];
     int res_len;
-};
+} demod_ctx;
 
-struct output_ctx {
+typedef struct  {
     pthread_t thr;
     unsigned char thr_finished;
     pthread_rwlock_t lck;
@@ -63,9 +63,10 @@ struct output_ctx {
     pthread_mutex_t ok_m;
     int16_t buf[BUF_LEN];
     int buf_len;
-};
+} output_ctx;
 
-struct dev_ctx {
+typedef struct  {
+    int used;  // radio is free ???
     rtlsdr_dev_t* dev;
     Mode mode;
     float freq;
@@ -75,7 +76,7 @@ struct dev_ctx {
     dongle_ctx *dongle;
     demod_ctx *demod;
     output_ctx *output;
-};
+} dev_ctx;
 
 
 void* _dongle_thread_fn (void *);
@@ -90,17 +91,19 @@ void _radio_start_threads (struct dev_ctx *);
 void _radio_stop_threads (struct dev_ctx *);
 
 static unsigned int init_dev_count;
-static struct dev_ctx **dev_ctx;
+static dev_ctx **dev_ctx;
 
 /* ------------- RADIO IMPLEMENTATION ----------------- */
 
- /* ---- PUBLIC FUNCTIONS --- */
 
-void radio_on () {
+// Radio initialisation should be done only when user start the radio and not at plugin intialisation
+// Making this call too early would impose to restart the binder to detect a radio.
+STATIC initRadio() {
+ 
     init_dev_count = _radio_dev_count();
     int i;
 
-    dev_ctx = (struct dev_ctx**) malloc(init_dev_count * sizeof(struct dev_ctx));
+    dev_ctx = (dev_ctx**) malloc(init_dev_count * sizeof(dev_ctx));
 
     for (i = 0; i < init_dev_count; i++) {
         dev_ctx[i] = (struct dev_ctx*) malloc(sizeof(struct dev_ctx));
@@ -116,7 +119,7 @@ void radio_on () {
     }
 }
 
-void radio_off () {
+STATIC void radio_off () {
     int i;
 
     for (i = 0; i < init_dev_count; i++) {
@@ -126,40 +129,40 @@ void radio_off () {
     free(dev_ctx);
 }
 
-void radio_set_mode (struct dev_ctx *dev_ctx, Mode mode) {
+STATIC void radio_set_mode (dev_ctx *dev_ctx, Mode mode) {
     dev_ctx->mode = mode;
     _radio_apply_params(dev_ctx);
 }
 
-void radio_set_freq (struct dev_ctx *dev_ctx, float freq) {
+STATIC void radio_set_freq (dev_ctx *dev_ctx, float freq) {
     dev_ctx->freq = freq;
     _radio_apply_params(dev_ctx);
 }
 
-void radio_set_mute (struct dev_ctx *dev_ctx, unsigned char mute) {
+STATIC void radio_set_mute (dev_ctx *dev_ctx, unsigned char mute) {
     dev_ctx->mute = mute;
     _radio_apply_params(dev_ctx);
 }
 
-void radio_play (struct dev_ctx *dev_ctx) {
+STATIC void radio_play (dev_ctx *dev_ctx) {
     _radio_start_threads(dev_ctx);
 }
 
-void radio_stop (struct dev_ctx *dev_ctx) {
+STATIC void radio_stop (dev_ctx *dev_ctx) {
     _radio_stop_threads(dev_ctx);
 }
 
  /* --- HELPER FUNCTIONS --- */
 
-unsigned int _radio_dev_count () {
+STATIC unsigned int _radio_dev_count () {
     return rtlsdr_get_device_count();
 }
 
-const char* _radio_dev_name (unsigned int num) {
+STATIC const char* _radio_dev_name (unsigned int num) {
     return rtlsdr_get_device_name(num);
 }
 
-unsigned char _radio_dev_init (struct dev_ctx *dev_ctx, unsigned int num) {
+STATIC unsigned char _radio_dev_init (dev_ctx *dev_ctx, unsigned int num) {
     rtlsdr_dev_t *dev = dev_ctx->dev;
 
     if (rtlsdr_open(&dev, num) < 0)
@@ -177,7 +180,7 @@ unsigned char _radio_dev_init (struct dev_ctx *dev_ctx, unsigned int num) {
     return 1;
 }
 
-unsigned char _radio_dev_free (struct dev_ctx *dev_ctx) {
+STATIC unsigned char _radio_dev_free (dev_ctx *dev_ctx) {
     rtlsdr_dev_t *dev = dev_ctx->dev;
 
     if (rtlsdr_close(dev) < 0)
@@ -187,7 +190,7 @@ unsigned char _radio_dev_free (struct dev_ctx *dev_ctx) {
     return 1;
 }
 
-void _radio_apply_params (struct dev_ctx *dev_ctx) {
+STATIC void _radio_apply_params (dev_ctx *dev_ctx) {
     rtlsdr_dev_t *dev = dev_ctx->dev;
     Mode mode = dev_ctx->mode;
     float freq = dev_ctx->freq;
@@ -206,7 +209,7 @@ void _radio_apply_params (struct dev_ctx *dev_ctx) {
     // dev_ctx->dev = dev; REQUIRED IN C TOO ? TEST !
 }
 
-void _radio_start_threads (struct dev_ctx *dev_ctx) {
+STATIC void _radio_start_threads (dev_ctx *dev_ctx) {
     rtlsdr_dev_t *dev = dev_ctx->dev;
     dev_ctx->dongle = (dongle_ctx*) malloc(sizeof(dongle_ctx));
     dev_ctx->demod = (demod_ctx*) malloc(sizeof(demod_ctx));
@@ -241,7 +244,7 @@ void _radio_start_threads (struct dev_ctx *dev_ctx) {
     pthread_create(&output->thr, NULL, _output_thread_fn, (void*)dev_ctx);
 }
 
-void _radio_stop_threads (struct dev_ctx *dev_ctx) {
+STATIC void _radio_stop_threads (dev_ctx *dev_ctx) {
     rtlsdr_dev_t *dev = dev_ctx->dev;
     dongle_ctx *dongle = dev_ctx->dongle;
     demod_ctx *demod = dev_ctx->demod;
@@ -279,8 +282,8 @@ void _radio_stop_threads (struct dev_ctx *dev_ctx) {
 
  /* ---- LOCAL THREADED FUNCTIONS ---- */
 
-static void _rtlsdr_callback (unsigned char *buf, uint32_t len, void *ctx) {
-    struct dev_ctx *dev_ctx = (struct dev_ctx *)ctx;
+STATIC void _rtlsdr_callback (unsigned char *buf, uint32_t len, void *ctx) {
+    dev_ctx *dev_ctx = (dev_ctx *)ctx;
     dongle_ctx *dongle = dev_ctx->dongle;
     demod_ctx *demod = dev_ctx->demod;
     unsigned char tmp;
@@ -315,9 +318,9 @@ static void _rtlsdr_callback (unsigned char *buf, uint32_t len, void *ctx) {
        pthread_signal(&demod->ok, &demod->ok_m);
 }
  /**/
-void* _dongle_thread_fn (void *ctx) {
-    struct dev_ctx *dev_ctx = (struct dev_ctx *)ctx;
-    struct dongle_ctx *dongle = dev_ctx->dongle;
+STATIC void* _dongle_thread_fn (void *ctx) {
+    dev_ctx *dev_ctx = (dev_ctx *)ctx;
+    dongle_ctx *dongle = dev_ctx->dongle;
 
     rtlsdr_read_async(dev_ctx->dev, _rtlsdr_callback, dev_ctx, 0, 0);
 
@@ -325,7 +328,7 @@ void* _dongle_thread_fn (void *ctx) {
     return 0;
 }
 
-void _lowpass_demod (void *ctx) {
+STATIC void _lowpass_demod (void *ctx) {
     demod_ctx *demod = (demod_ctx *)ctx;
     int i=0, i2=0;
 
@@ -345,7 +348,7 @@ void _lowpass_demod (void *ctx) {
     demod->buf_len = i2;
 }
  /**/
-void _lowpassreal_demod (void *ctx) {
+STATIC void _lowpassreal_demod (void *ctx) {
     demod_ctx *demod = (demod_ctx *)ctx;
     int i=0, i2=0;
     int fast = 200000;
@@ -365,12 +368,12 @@ void _lowpassreal_demod (void *ctx) {
     demod->res_len = i2;
 }
  /**/
-void _multiply (int ar, int aj, int br, int bj, int *cr, int *cj) {
+STATIC void _multiply (int ar, int aj, int br, int bj, int *cr, int *cj) {
     *cr = ar*br - aj*bj;
     *cj = aj*br + ar*bj;
 }
  /**/
-int _polar_discriminant (int ar, int aj, int br, int bj) {
+STATIC int _polar_discriminant (int ar, int aj, int br, int bj) {
     int cr, cj;
     double angle;
     _multiply(ar, aj, br, -bj, &cr, &cj);
@@ -378,7 +381,7 @@ int _polar_discriminant (int ar, int aj, int br, int bj) {
     return (int)(angle / 3.14159 * (1<<14));
 }
  /**/
-void _fm_demod (void *ctx) {
+STATIC void _fm_demod (void *ctx) {
     demod_ctx *demod = (demod_ctx *)ctx;
     int16_t *buf = demod->buf;
     int buf_len = demod->buf_len;
@@ -396,7 +399,7 @@ void _fm_demod (void *ctx) {
     demod->res_len = buf_len/2;
 }
  /**/
-void _am_demod (void *ctx) {
+STATIC void _am_demod (void *ctx) {
     demod_ctx *demod = (demod_ctx *)ctx;
     int16_t *buf = demod->buf;
     int buf_len = demod->buf_len;
@@ -410,8 +413,8 @@ void _am_demod (void *ctx) {
     demod->res_len = buf_len/2;
 }
  /**/
-void* _demod_thread_fn (void *ctx) {
-    struct dev_ctx *dev_ctx = (struct dev_ctx *)ctx;
+STATIC void* _demod_thread_fn (void *ctx) {
+    dev_ctx *dev_ctx = (dev_ctx *)ctx;
     demod_ctx *demod = dev_ctx->demod;
     output_ctx *output = dev_ctx->output;
 
@@ -438,8 +441,8 @@ void* _demod_thread_fn (void *ctx) {
     return 0;
 }
 
-void* _output_thread_fn (void *ctx) {
-    struct dev_ctx *dev_ctx = (struct dev_ctx *)ctx;
+STATIC void* _output_thread_fn (void *ctx) {
+    dev_ctx *dev_ctx = (dev_ctx *)ctx;
     output_ctx *output = dev_ctx->output;
 
     while (dev_ctx->should_run) {
@@ -454,7 +457,7 @@ void* _output_thread_fn (void *ctx) {
     return 0;
 }
 
-/* -------------- PLUGIN BINDING ------------------- */
+
 
 STATIC json_object* start (AFB_session *session, AFB_request *request, void* handle) {
     json_object *response;
@@ -487,14 +490,160 @@ STATIC json_object* stop (AFB_session *session, AFB_request *request, void* hand
 }
 
 
-STATIC struct {
-    void * somedata;
-} handle;
+// ********************************************************
+
+// FULUP integration proposal with client session context
+
+// ********************************************************
+
+
+#define MAX_RADIO 10
+
+// Structure holding existing radio with current usage status
+typdef struct {
+    int   idx;
+    char *name;
+    int  used;
+}radioDevT;
+
+// Radio plugin handle should store everething API may need
+typdef struc {
+  radioT *radios[MAX_RADIO];  // pointer to existing radio
+  int devCount;
+    
+} pluginHandleT;
+
+// Client Context Structure Hold any specific to client [will be destroyed when client leave]
+typdef struc {
+    dev_ctx radio; // pointer to client radio
+    int     idx;   // index of radio within global array
+    
+} clientHandleT;
+
+
+// It his was not a demo only, it should be smarter to enable hot plug/unplug
+STATIC updateRadioDevList(pluginHandleT *handle) {
+  int idx;  
+    
+  // loop on existing radio if any
+  for (idx = 0; idx < _radio_dev_count; idx++) {
+      if (idx == MAX_RADIO) break;
+      handle->radios[idx] = calloc(1, sizeof(radioDevT)) // use calloc to set used to FALSE
+      handle->radios[idx]->name = _radio_dev_name(num); 
+  }
+  handle->devCount = _radio_dev_count;
+}
+
+
+// This is call at plugin load time [radio devices might still not be visible]
+STATIC  pluginHandleT* initRadioPlugin() {
+    
+  // Allocate Plugin handle  
+  pluginHandleT  *handle = calloc (1,sizeof (pluginHandleT)); // init handle with zero
+  
+  // Some initialisation steps
+  updateRadioDevList(handle);
+  
+  return (handle);
+}
+
+// Stop a radio free related ressource and make it avaliable for other clients
+STATIC AFB_error releaseRadio (pluginHandleT* handle, AFB_clientCtx *client) {
+    
+   // change radio status
+   handle->radios[client->idx].used = FALSE;
+   
+   // stop related threads and free attached resources
+   radio_stop (client->radio);
+   
+   // May be some further cleanup ????
+   
+   return (AFB_SUCCESS); // Could it fails ????
+}
+
+
+// Start a radio and reserve exclusive usage to requesting client
+STATIC clientHandleT  *reserveRadio (pluginHandleT* handle) {
+    clientHandleT *client;
+    
+   // loop on existing radio if any
+    for (idx = 0; idx < _radio_dev_count; idx++) {
+        if (handle->radios[client->idx].used = FALSE) break;
+    }
+    
+    // No avaliable radio return now
+    if (idx == MAX_RADIO) return (NULL);
+    
+   // Book radio
+   handle->radios[client->idx].used = TRUE;
+   
+   // create client handle 
+   client = calloc (1, sizeof (clientHandleT));
+   
+   // stop related threads and free attached resources
+   radio_start (client->radio);
+   
+   // May be some things to do ????
+   
+   
+   return (client);
+}
+
+// This is called when client session died [ex; client quit for more than 15mn]
+STATIC freeRadio (clientHandleT *client) {
+    
+    releaseRadio (handle, client);
+    free (client);
+}
+
+
+STATIC json_object* powerOnOff (AFB_session *session, AFB_request *request, void* handle) {
+    json_object *jresp;
+    dev_ctx *dev_ctx = (dev_ctx *)handle;
+    AFB_clientCtx *client=request->client; // get client context from request
+   
+    // Make sure binder was started with client session
+    if ((client != NULL) {
+        request->errcode=MHD_HTTP_FORBIDDEN;
+        return (jsonNewMessage(AFB_FAIL, "Radio binder need session [--token=xxxx]"));        
+    }
+     
+    // If we have a handle radio was on let power it down
+    if (client->handle != NULL) {
+        
+        releaseRadio (handle, client);  // poweroff client related radio
+        
+        jresp = json_object_new_object();
+        json_object_object_add(jresp, "power", json_object_new_string ("off"));        
+        return (jresp);
+    }
+        
+    // request a new client context token and check result 
+    if (AFB_UNAUTH == ctxTokenCreate (request)) {
+        request->errcode=MHD_HTTP_UNAUTHORIZED;
+        jresp= jsonNewMessage(AFB_FAIL, "You're not authorized to request a radio [make sure you have the right authentication token");
+        return (jresp);
+    }
+    
+    // Client is clean let's look it we have an avaliable radio to propose
+    
+    // make sure we have last hot plug dongle visible
+    updateRadioDevList (handle); 
+    
+    // get try to get an unused radio
+    client->handle = reserveRadio (handle);  
+    if (client->handle == NULL) {
+       return (jsonNewMessage(AFB_FAIL, "Sory No More Radio Avaliable")); 
+    }  
+    
+    // At this point we should have something to retreive radio status before last poweroff [but this is only a demonstrator]
+}
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"start"    , (AFB_apiCB)start      , "Ping Application Framework"},
-  {"stop"     , (AFB_apiCB)stop       , "Ping Application Framework"},
+  {"power"  , (AFB_apiCB)powerOnOff , "Ping Application Framework"},
+  {"start"  , (AFB_apiCB)start      , "Ping Application Framework"},
+  {"stop"   , (AFB_apiCB)stop       , "Ping Application Framework"},
   {NULL}
 };
 
@@ -504,6 +653,9 @@ PUBLIC AFB_plugin *radioRegister (AFB_session *session) {
     plugin->info  = "Application Framework Binder - Radio plugin";
     plugin->prefix  = "radio";
     plugin->apis  = pluginApis;
+    
+    plugin->handle = initRadioPlugin();
+    plugin->freeHandleCB = freeRadio();
 
     return (plugin);
 };
