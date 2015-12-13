@@ -332,14 +332,14 @@ STATIC int ctxUuidCompCB (const void *k1, const void *k2) {
 
 // Free context [XXXX Should be protected again memory abort XXXX]
 STATIC void ctxUuidFreeCB (struct lh_entry *entry) {
-    AFB_clientCtx *ctx = (AFB_clientCtx*) entry->v;
+    AFB_clientCtx *client = (AFB_clientCtx*) entry->v;
 
     // If application add a handle let's free it now
-    if (ctx->handle != NULL) {
+    if (client->ctx != NULL) {
         
         // Free client handle with a standard Free function, with app callback or ignore it
-        if (ctx->freeHandleCB == NULL) free (ctx->handle); 
-        else if (ctx->freeHandleCB != (void*)-1) ctx->freeHandleCB(ctx->handle); 
+        if (client->plugin->freeCtxCB == NULL) free (client->ctx); 
+        else if (client->plugin->freeCtxCB != (void*)-1) client->plugin->freeCtxCB(client); 
     }
     free ((void*)entry->v);
 }
@@ -379,7 +379,7 @@ PUBLIC int ctxStoreGarbage (struct lh_table *lht, const int timeout) {
 }
 
 // This function will return exiting client context or newly created client context
-PUBLIC AFB_error ctxClientGet (AFB_request *request) {
+PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin) {
   static int cid=0;
   AFB_clientCtx *clientCtx=NULL;
   const char *uuid;
@@ -420,7 +420,8 @@ PUBLIC AFB_error ctxClientGet (AFB_request *request) {
     if (clientCtx == NULL) clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
     uuid_generate(newuuid);         // create a new UUID
     uuid_unparse_lower(newuuid, clientCtx->uuid);
-    clientCtx->cid=cid++;
+    clientCtx->cid=cid++;   // simple application uniqueID 
+    clientCtx->plugin = plugin;    // provide plugin callbacks a hook to plugin
         
     // if table is full at 50% let's clean it up
     if(clientCtxs->count > (clientCtxs->size*0.5)) ctxStoreGarbage(clientCtxs, request->config->cntxTimeout);

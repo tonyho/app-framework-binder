@@ -169,36 +169,6 @@ typedef struct {
   AFB_privateApi *private;
 } AFB_restapi;
 
-
-// User Client Session Context
-typedef struct {
-  int  cid;         // index 0 if global
-  char uuid[37];    // long term authentication of remote client
-  char token[37];   // short term authentication of remote client
-  time_t timeStamp; // last time token was refresh
-  int   restfull;   // client does not use cookie
-  void *handle;     // application specific context
-  AFB_apiCB freeHandleCB;  // callback to free application handle [null for standard free]
-} AFB_clientCtx;
-
-
-// MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
-typedef struct {
-  const char *url;
-  char *plugin;
-  char *api;
-  char *post;
-  int  loa;
-  json_object *jresp;
-  AFB_clientCtx *client;      // needed because libmicrohttp cannot create an empty response
-  int   restfull;             // request is resfull [uuid token provided]
-  int   errcode;              // http error code
-  sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
-  AFB_config *config;         // plugin may need access to config
-  struct MHD_Connection *connection;
-} AFB_request;
-
-
 // Plugin definition
 typedef struct {
   AFB_pluginT type;  
@@ -209,7 +179,35 @@ typedef struct {
   AFB_restapi *apis;
   void *handle;
   int  ctxCount;
+  AFB_apiCB freeCtxCB;  // callback to free application context [null for standard free]
 } AFB_plugin;
+
+
+// User Client Session Context
+typedef struct {
+  int  cid;             // index 0 if global
+  char uuid[37];        // long term authentication of remote client
+  char token[37];       // short term authentication of remote client
+  time_t timeStamp;     // last time token was refresh
+  int   restfull;       // client does not use cookie
+  void *ctx;            // application specific context
+  AFB_plugin *plugin;   // provide callback and easy access to plugin
+} AFB_clientCtx;
+
+// MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
+typedef struct {
+  const char *url;
+  char *plugin;
+  char *api;
+  char *post;
+  json_object *jresp;
+  AFB_clientCtx *client;      // needed because libmicrohttp cannot create an empty response
+  int   restfull;             // request is resfull [uuid token provided]
+  int   errcode;              // http error code
+  sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
+  AFB_config *config;         // plugin may need access to config
+  struct MHD_Connection *connection;
+} AFB_request;
 
 
 typedef struct {

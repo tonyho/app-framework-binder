@@ -554,7 +554,7 @@ STATIC AFB_error releaseRadio (pluginHandleT* handle, AFB_clientCtx *client) {
    handle->radios[client->idx].used = FALSE;
    
    // stop related threads and free attached resources
-   radio_stop (client->radio);
+   radio_stop (&client->radio);
    
    // May be some further cleanup ????
    
@@ -581,7 +581,7 @@ STATIC clientHandleT  *reserveRadio (pluginHandleT* handle) {
    client = calloc (1, sizeof (clientHandleT));
    
    // stop related threads and free attached resources
-   radio_start (client->radio);
+   radio_start (&client->radio);
    
    // May be some things to do ????
    
@@ -597,10 +597,10 @@ STATIC freeRadio (clientHandleT *client) {
 }
 
 
-STATIC json_object* powerOnOff (AFB_session *session, AFB_request *request, void* handle) {
+STATIC json_object* powerOnOff (AFB_session *session, AFB_request *request) {
     json_object *jresp;
-    dev_ctx *dev_ctx = (dev_ctx *)handle;
     AFB_clientCtx *client=request->client; // get client context from request
+    dev_ctx *dev_ctx = (dev_ctx *)client->ctx;
    
     // Make sure binder was started with client session
     if ((client != NULL) {
@@ -655,7 +655,7 @@ PUBLIC AFB_plugin *radioRegister (AFB_session *session) {
     plugin->apis  = pluginApis;
     
     plugin->handle = initRadioPlugin();
-    plugin->freeHandleCB = freeRadio();
+    plugin->freeCtxCB = freeRadio();
 
     return (plugin);
 };

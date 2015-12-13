@@ -22,7 +22,7 @@
 
 // Rest-api
 
-PUBLIC json_object* apiPingTest(AFB_request *request, void *pluginHandle);
+PUBLIC json_object* apiPingTest(AFB_request *request);
 PUBLIC const char* getQueryValue (AFB_request * request, char *name);
 PUBLIC int getQueryAll(AFB_request * request, char *query, size_t len);
 
@@ -48,7 +48,7 @@ PUBLIC AFB_error ctxTokenRefresh (AFB_request *request);
 PUBLIC AFB_error ctxTokenCreate (AFB_request *request);
 PUBLIC AFB_error ctxTokenCheck (AFB_request *request);
 PUBLIC AFB_error ctxTokenReset (AFB_request *request);
-PUBLIC AFB_error ctxClientGet (AFB_request *request);
+PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin);
 
 
 

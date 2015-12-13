@@ -37,22 +37,29 @@ static json_object     *afbJsonType;
 
 
 // Sample Generic Ping Debug API
-PUBLIC json_object* apiPingTest(AFB_request *request, void *pluginHandle) {
+PUBLIC json_object* apiPingTest(AFB_request *request) {
     static pingcount = 0;
     json_object *response;
-    char query [512];
-    int len;
+    char query  [256];
+    char session[256];
 
+    int len;
+    AFB_clientCtx *client=request->client; // get client context from request
+    
     // request all query key/value
     len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strcpy (query,"NoSearchQueryList");
+    if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
     
     // check if we have some post data
-    if (request->post == NULL)  request->post="NoData";  
+    if (request->post == NULL)  request->post="NoData"; 
+    
+    // check is we have a session and a plugin handle
+    if (client == NULL) strcpy (session,"NoSession");       
+    else snprintf(session, sizeof(session),"uuid=%s token=%s ctx=0x%x handle=0x%x", client->uuid, client->token, client->ctx, client->ctx); 
         
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d Loa=%d query={%s} Handle=0x%x PostData: \'%s\' "
-               , pingcount++, request->client->cid, request->loa, query, request->post, pluginHandle);
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d query={%s} session={%s} PostData: [%s] "
+               , pingcount++, request->client->cid, query, session, request->post);
     return (response);
 }
 
@@ -151,7 +158,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
                 }
                 
                 // add client context to request
-                ctxClientGet(request);      
+                ctxClientGet(request, plugin);      
                 
                 // Effectively call the API with a subset of the context
                 jresp = plugin->apis[idx].callback(request, plugin->handle);

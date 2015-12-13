@@ -34,7 +34,7 @@ STATIC json_object* clientContextCreate (AFB_request *request) {
     AFB_clientCtx *client=request->client; // get client context from request
    
     // check we do not already have a session
-    if ((client != NULL) && (client->handle != NULL)) {
+    if ((client != NULL) && (client->ctx != NULL)) {
         request->errcode=MHD_HTTP_FORBIDDEN;
         return (jsonNewMessage(AFB_FAIL, "Token exist use refresh"));
     }
@@ -53,8 +53,8 @@ STATIC json_object* clientContextCreate (AFB_request *request) {
         return (jresp);
     }
    
-    // add a client handle to session
-    client->handle = malloc (sizeof (MyClientApplicationHandle));
+    // add a client context to session
+    client->ctx = malloc (sizeof (MyClientApplicationHandle));
     
     // Send response to UI
     jresp = json_object_new_object();               
@@ -112,6 +112,12 @@ STATIC json_object* clientContextReset (AFB_request *request) {
     return (jresp); 
 }
 
+// This function is call when Client Session Context is removed
+// Note: when freeCtxCB==NULL standard free/malloc is called
+STATIC void clientContextFree(AFB_clientCtx *client) {
+    fprintf (stderr,"Plugin[%s] Closing Session uuid=[%s]\n", client->plugin->prefix, client->uuid);
+    free (client->ctx);
+}
 
 STATIC  AFB_restapi pluginApis[]= {
   {"ping"          , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
@@ -129,6 +135,7 @@ PUBLIC AFB_plugin *afsvRegister () {
     plugin->prefix= "afbs";  // url base
     plugin->apis  = pluginApis;
     plugin->handle= (void*) "What ever you want";
+    plugin->freeCtxCB= (void*) clientContextFree;
     
     return (plugin);
 };
