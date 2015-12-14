@@ -1,10 +1,10 @@
 amixer
 autom4te.cache
 config.log 
-build/**
-dist/**
+build/*
+dist/*
 !.gitignore
 .dep.inc
 CMakeFiles/
 CMakeCache.txt
-nbproject/private/*.log
+nbproject/*
