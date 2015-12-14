@@ -14,6 +14,7 @@ industry requirementsas the primary target for this code is AGL.
  * libmagic ("libmagic-dev" under Debian/Ubuntu, "file-devel" under OpenSUSE);
  * libmicrohttpd ("libmicrohttpd-dev/devel");
  * json-c ("libjson-c-dev/devel");
+ * uuid ("uuid-dev/libuuid-devel");
 
  optionally, for plugins :
 
@@ -26,7 +27,7 @@ industry requirementsas the primary target for this code is AGL.
 
 To install all dependencies under OpenSUSE (except rtl-sdr), please type:
 
-$ zypper in file-devel libmicrohttpd-devel libjson-c-devel pkg-config cmake
+$ zypper in file-devel libmicrohttpd-devel libjson-c-devel libuuid-devel pkg-config cmake
 
  To build from the root directory, please type:
 
