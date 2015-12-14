@@ -96,6 +96,8 @@ STATIC json_object* clientContextCheck (AFB_request *request) {
     return (jresp); 
 }
 
+
+
 // Close and Free context
 STATIC json_object* clientContextReset (AFB_request *request) {
     json_object *jresp;
@@ -112,6 +114,39 @@ STATIC json_object* clientContextReset (AFB_request *request) {
     return (jresp); 
 }
 
+// Some file upload sample
+STATIC json_object* clientFileUpload (AFB_request *request) {
+    int fd;
+    json_object *jresp;
+    char filepath[512];
+    char *filename;
+    
+    getQueryValue(request, "filename");
+    if (filename == NULL) return (jsonNewMessage(AFB_FAIL, "No Filename provided"));
+    
+    // add an error code to respond
+    if (request->post == NULL) {
+        request->errcode=MHD_HTTP_UNAUTHORIZED;
+        return (jsonNewMessage(AFB_FAIL, "Post No Data"));
+    }
+    
+    // This is simple test let's write file in config->session->filename
+    strncpy (filepath, request->config->configfile, sizeof(filepath));
+    strncat (filepath, "/", sizeof(filepath));
+    strncat (filepath, "/", sizeof(filepath));
+        
+
+    if((fd = open(request->config->configfile, O_RDONLY)) < 0) {
+      return (jsonNewMessage(AFB_FAIL,"Fail to Upload file [%s] at [%s] error=\n", filename, filepath, strerror(errno)));
+    };
+
+   // write file on disk and free fd
+   write (fd, request->post, request->len);
+   close(fd);  
+        
+    return (jresp); 
+}
+
 // This function is call when Client Session Context is removed
 // Note: when freeCtxCB==NULL standard free/malloc is called
 STATIC void clientContextFree(AFB_clientCtx *client) {
@@ -125,6 +160,7 @@ STATIC  AFB_restapi pluginApis[]= {
   {"token-refresh" , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
   {"token-check"   , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},
   {"token-reset"   , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources"},
+  {"file-upload"   , (AFB_apiCB)clientFileUpload    ,"Demo for file upload"},
   {NULL}
 };
 

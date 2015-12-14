@@ -60,6 +60,7 @@
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout
 #define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
 #define DEFLT_AUTH_TOKEN    NULL   // expect for debug should == NULL
+#define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout
 
 typedef int BOOL;
 #ifndef FALSE
@@ -199,7 +200,8 @@ typedef struct {
   const char *url;
   char *plugin;
   char *api;
-  char *post;
+  char *post; // post data in raw format
+  int  len;   // post data len
   json_object *jresp;
   AFB_clientCtx *client;      // needed because libmicrohttp cannot create an empty response
   int   restfull;             // request is resfull [uuid token provided]

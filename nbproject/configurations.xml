@@ -61,12 +61,7 @@
             <incDir>
               <pElem>include</pElem>
               <pElem>/usr/include/json-c</pElem>
-              <pElem>/usr/include/libusb-1.0</pElem>
-              <pElem>build/src</pElem>
             </incDir>
-            <preprocessorList>
-              <Elem>WITH_RADIO_PLUGIN=1</Elem>
-            </preprocessorList>
           </cTool>
         </makeTool>
         <preBuild>
@@ -77,38 +72,69 @@
       </makefileType>
       <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
       <item path="src/alsa-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
       <item path="src/dbus-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
       <item path="src/http-svc.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
       <item path="src/main.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
-      <item path="src/radio-api.c" ex="false" tool="0" flavor2="0">
+      <item path="src/radio-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>/usr/include/libusb-1.0</pElem>
+            <pElem>build/src</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>WITH_RADIO_PLUGIN=1</Elem>
+          </preprocessorList>
         </cTool>
       </item>
       <item path="src/rest-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
       <item path="src/session.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <incDir>
+            <pElem>build/src</pElem>
+          </incDir>
         </cTool>
       </item>
     </conf>
