@@ -76,7 +76,6 @@ typedef int BOOL;
 
 extern int verbose;  // this is the only global variable
 
-
 // Plugin Type
 typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginT;
 
@@ -88,6 +87,7 @@ extern char *ERROR_LABEL[];
 
 #define BANNER "<html><head><title>Application Framework Binder</title></head><body>Application Framework </body></html>"
 #define JSON_CONTENT  "application/json"
+#define FORM_CONTENT "multipart/form-data"
 #define MAX_POST_SIZE  4096   // maximum size for POST data
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 

@@ -149,7 +149,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
                     for (sig=0; signals[sig] != 0; sig++) {
                        if (signal (signals[sig], pluginError) == SIG_ERR) {
                            request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
-                           fprintf (stderr, "%s ERR: main no Signal/timeout handler installed.", configTime());
+                           request->jresp = jsonNewMessage(AFB_FATAL, "%s ERR: Signal/timeout handler activation fail.", configTime());
                            return AFB_FAIL;
                        }
                     }
@@ -188,6 +188,47 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
     return (AFB_FAIL);
 }
 
+STATIC AFB_error findAndCallApi (struct MHD_Connection *connection, AFB_session *session,  const char* url, AFB_request *request) {
+    int idx;
+    char *baseurl, *baseapi;
+    AFB_error status;
+    
+     // build request structure
+    memset(request, 0, sizeof (request));
+    request->connection = connection;
+    request->config = session->config;
+    request->url    = url;
+    request->plugin = baseurl;
+    request->api    = baseapi;
+    request->jresp  = json_object_new_object();
+    
+    // increase reference count and add jtype to response    
+    json_object_get (afbJsonType);
+    json_object_object_add (request->jresp, "jtype", afbJsonType);
+      
+    // Search for a plugin with this urlpath
+    for (idx = 0; session->plugins[idx] != NULL; idx++) {
+        if (!strcmp(session->plugins[idx]->prefix, baseurl)) {
+            status =callPluginApi(session->plugins[idx], request);
+            break;
+        }
+    }
+    // No plugin was found
+    if (session->plugins[idx] == NULL) {
+        request->jresp = jsonNewMessage(AFB_FATAL, "No Plugin=[%s]", request->plugin);
+        request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
+        return (AFB_FAIL);
+    }  
+    
+    // plugin callback did not return a valid Json Object
+    if (status != AFB_DONE) {
+        request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s]", request->api, request->plugin);
+        request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
+        return (AFB_FAIL);
+    }
+
+    return (status);
+}
 
 // process rest API query
 PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
@@ -231,9 +272,18 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
         if (param) sscanf(param, "%i", &contentlen);
 
         // POST datas may come in multiple chunk. Even when it never happen on AFB, we still have to handle the case
-        if (strcasestr(encoding, JSON_CONTENT) == 0) {
+        
+        // This is FORM post only file upload is supported
+        if (strcasestr(encoding, FORM_CONTENT) != NULL) {
+            request.post= (void*)upload_data;
+            request.len = *upload_data_size;
+            status = findAndCallApi (connection, session, url, &request);
+            return MHD_YES;
+        }  
+        
+        // POST datas may come in multiple chunk. Even when it never happen on AFB, we still have to handle the case
+        if (strcasestr(encoding, JSON_CONTENT) == NULL) {
             errMessage = jsonNewMessage(AFB_FATAL, "Post Date wrong type encoding=%s != %s", encoding, JSON_CONTENT);
-            goto ExitOnError;
         }
 
         if (contentlen > MAX_POST_SIZE) {
@@ -281,39 +331,10 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     } else {
         request.post = NULL;
     };
-        
-    // build request structure
-    memset(&request, 0, sizeof (request));
-    request.connection = connection;
-    request.config = session->config;
-    request.url    = url;
-    request.plugin = baseurl;
-    request.api    = baseapi;
-    request.jresp  = json_object_new_object();
-    
-    // increase reference count and add jtype to response    
-    json_object_get (afbJsonType);
-    json_object_object_add (request.jresp, "jtype", afbJsonType);
-    
-    // Search for a plugin with this urlpath
-    for (idx = 0; session->plugins[idx] != NULL; idx++) {
-        if (!strcmp(session->plugins[idx]->prefix, baseurl)) {
-            status =callPluginApi(session->plugins[idx], &request);
-            break;
-        }
-    }
-    // No plugin was found
-    if (session->plugins[idx] == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "No Plugin=[%s]", request.plugin);
-        goto ExitOnError;
-    }
 
-    // plugin callback did not return a valid Json Object
-    if (status != AFB_DONE) {
-        errMessage = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s]", request.api, request.plugin);
-        goto ExitOnError;
-    }
-
+    // Now that we got request data let's call the API
+    status = findAndCallApi (connection, session, url, &request);
+      
     serialized = json_object_to_json_string(request.jresp);
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
     free(urlcpy1);
