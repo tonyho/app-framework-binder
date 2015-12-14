@@ -107,6 +107,7 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
         // No trailing '/'. Let's add one and redirect for relative paths to work
         if (url [strlen (url) -1] != '/') {
             response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
+            strncpy(staticfile->path, url, sizeof (staticfile->path));
             strncat(staticfile->path, "/", sizeof (staticfile->path));
             MHD_add_response_header (response, "Location", staticfile->path);
             MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
