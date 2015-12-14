@@ -9,6 +9,7 @@
         <in>dbus-api.c</in>
         <in>http-svc.c</in>
         <in>main.c</in>
+        <in>radio-api.c</in>
         <in>rest-api.c</in>
         <in>session.c</in>
       </df>
@@ -47,7 +48,6 @@
       </toolsSet>
       <flagsDictionary>
         <element flagsID="0" commonFlags="-fPIE"/>
-        <element flagsID="1" commonFlags="-mtune=generic -march=x86-64 -fPIE"/>
       </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
@@ -57,6 +57,17 @@
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath>build/src/afb-daemon</executablePath>
+          <cTool>
+            <incDir>
+              <pElem>include</pElem>
+              <pElem>/usr/include/json-c</pElem>
+              <pElem>/usr/include/libusb-1.0</pElem>
+              <pElem>build/src</pElem>
+            </incDir>
+            <preprocessorList>
+              <Elem>WITH_RADIO_PLUGIN=1</Elem>
+            </preprocessorList>
+          </cTool>
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>build</preBuildCommandWorkingDir>
@@ -65,145 +76,39 @@
         </preBuild>
       </makefileType>
       <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/alsa-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/dbus-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/http-svc.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
-          <incDir>
-            <pElem>include</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
         </cTool>
       </item>
       <item path="src/main.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/radio-api.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/rest-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/session.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>include</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
+        <cTool flags="0">
         </cTool>
       </item>
     </conf>
