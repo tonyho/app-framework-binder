@@ -257,12 +257,12 @@ PUBLIC json_object * sessionToDisk (AFB_session *session, AFB_request *request, 
 
 
    // do we have extra session info ?
-   if (request->post) {
+   if (request->post->type == AFB_POST_JSON) {
        static json_object *info, *jtype;
        const char  *ajglabel;
 
        // extract session info from args
-       info = json_tokener_parse (request->post);
+       info = json_tokener_parse (request->post->data);
        if (!info) {
             response = jsonNewMessage (AFB_FATAL,"sndcard=%s session=%s invalid json args=%s", request->plugin, name, request->post);
             goto OnErrorExit;
@@ -489,8 +489,7 @@ PUBLIC AFB_error ctxTokenCreate (AFB_request *request) {
         if (token == NULL) return AFB_UNAUTH;
         
         // verify that presented initial tokens fit
-        if (strcmp(request->config->token, token)) return AFB_UNAUTH;
-        
+        if (strcmp(request->config->token, token)) return AFB_UNAUTH;       
     }
     
 

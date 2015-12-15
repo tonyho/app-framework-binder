@@ -42,7 +42,6 @@ STATIC json_object* pingSample (AFB_request *request) {
     response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} handle=[%s] PostData: \'%s\' " 
                              , pingcount++, query, request->post);
     
-    if (verbose) fprintf(stderr, "%d: \n", pingcount);
     return (response);
 }
 

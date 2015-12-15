@@ -70,14 +70,10 @@ static AFB_error initLibMagic (AFB_session *session) {
 
 // Because of POST call multiple time requestApi we need to free POST handle here
 static void endRequest (void *cls, struct MHD_Connection *connection, void **con_cls, enum MHD_RequestTerminationCode toe) {
-  AFB_HttpPost *posthandle = *con_cls;
+  AFB_PostHandle *posthandle = *con_cls;
 
   // if post handle was used let's free everything
-  if (posthandle) {
-     if (verbose) fprintf (stderr, "End Post Request UID=%d\n", posthandle->uid);
-     free (posthandle->data);
-     free (posthandle);
-  }
+  if (posthandle != NULL) endPostRequest (posthandle);
 }
 
 

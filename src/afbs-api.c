@@ -114,37 +114,83 @@ STATIC json_object* clientContextReset (AFB_request *request) {
     return (jresp); 
 }
 
-// Some file upload sample
-STATIC json_object* clientFileUpload (AFB_request *request) {
-    int fd;
-    json_object *jresp;
-    char filepath[512];
-    char *filename;
-    
-    getQueryValue(request, "filename");
-    if (filename == NULL) return (jsonNewMessage(AFB_FAIL, "No Filename provided"));
-    
-    // add an error code to respond
-    if (request->post == NULL) {
-        request->errcode=MHD_HTTP_UNAUTHORIZED;
-        return (jsonNewMessage(AFB_FAIL, "Post No Data"));
+// In this case or handle is quite basic
+typedef struct {
+   int fd; 
+} appPostCtx;
+
+// This function is call when PostForm processing is completed
+STATIC void DonePostForm (AFB_request *request) {
+    AFB_PostHandle  *postHandle = (AFB_PostHandle*)request->post->data;;
+  
+    int fd = (int)postHandle->handle;
+    close (fd);
+
+    if (verbose) fprintf ("DonePostForm filename=%s upload done\n", form->filename);
+}
+
+
+// WARNING: PostForm callback are call one type for form value
+STATIC AFB_error ProcessPostForm (AFB_request *request, AFB_PostItem *item) {
+
+    AFB_PostHandle  *postHandle;
+    appPostCtx *appCtx;
+            
+    // When Post is fully processed the same callback is call with a item==NULL
+    if (item == NULL) {
+        return(jsonNewMessage(AFB_SUCESS,"File [%s] uploaded at [%s] error=\n", item->filename, request->config->sessiondir));  
     }
     
-    // This is simple test let's write file in config->session->filename
-    strncpy (filepath, request->config->configfile, sizeof(filepath));
-    strncat (filepath, "/", sizeof(filepath));
-    strncat (filepath, "/", sizeof(filepath));
-        
+    // Let's make sure this is a valid PostForm request
+    if (!request->post && request->post->type != AFB_POST_FORM) {
+        return(jsonNewMessage(AFB_FAIL,"This is not a valid PostForm request\n"));          
+    } else {
+        // In AFB_POST_FORM case post->data is a PostForm handle
+        postHandle = (AFB_PostHandle*) request->post->data;
+    }
 
-    if((fd = open(request->config->configfile, O_RDONLY)) < 0) {
-      return (jsonNewMessage(AFB_FAIL,"Fail to Upload file [%s] at [%s] error=\n", filename, filepath, strerror(errno)));
-    };
+    // Check this is a file element
+    if (0 != strcmp (item->key, "file")) {
+        request->errcode = MHD_HTTP_FORBIDDEN;
+        request.jresp = jsonNewMessage(AFB_FAIL,"No File within element key=%s\n", item->key);
+        return AFB_FAIL;
+    }
 
-   // write file on disk and free fd
-   write (fd, request->post, request->len);
-   close(fd);  
+    // This is the 1st Item iteration let's open output file and allocate necessary resources
+    if (postHandle->handle == NULL)  {
+        strncpy (filepath, request->config->sessiondir, sizeof(filepath));
+        strncat (filepath, "/", sizeof(filepath));
+        strncat (filepath, item->filename, sizeof(filepath));  
+
+        if((fd = open(request->config->sessiondir, O_RDONLY)) < 0) {
+            request->errcode = MHD_HTTP_FORBIDDEN;
+            request->jresp = jsonNewMessage(AFB_FAIL,"Fail to Upload file [%s] at [%s] error=\n", item->filename, request->config->sessiondir, strerror(errno));
+            return AFB_FAIL;
+        };            
+
+        // keep track of file handle with item
+        appCtx = malloc (size(appPostCtx)); // May place anything here until post->completeCB handle resources liberation
+        postHandle->handle = malloc (size(appPostCtx)); // May place anything here until post->completeCB handle resources liberation
         
-    return (jresp); 
+        postHandle->completeCB = DonePostForm; // CallBack when Form Processing is finished
+        
+    } else {
+        // this is not the call, FD is already open
+        fd = (int)post->handle;
+    }
+
+    // We have something to write
+    if (item.len > 0) {
+        
+        if (!write (fd, item->data, item->len)) {
+            request->errcode = MHD_HTTP_FORBIDDEN;
+            request->json = jsonNewMessage(AFB_FAIL,"Fail to write file [%s] at [%s] error=\n", item->filename, strerror(errno));
+            return AFB_FAIL;
+        }
+    }
+  
+    // every event should return Sucess or Form processing stop
+    return AFB_SUCCESS;
 }
 
 // This function is call when Client Session Context is removed
@@ -160,7 +206,7 @@ STATIC  AFB_restapi pluginApis[]= {
   {"token-refresh" , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
   {"token-check"   , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},
   {"token-reset"   , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources"},
-  {"file-upload"   , (AFB_apiCB)clientFileUpload    ,"Demo for file upload"},
+  {"file-upload"   , (AFB_apiCB)ProcessPostForm     ,"Demo for file upload"},
   {NULL}
 };
 

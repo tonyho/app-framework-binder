@@ -101,12 +101,35 @@ typedef struct {
   json_object *json;
 } AFB_errorT;
 
+typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM} AFB_PostType;
+
+typedef  struct {
+    int  len;   // post element size
+    char *data; // post data in raw format
+    AFB_PostType type; // Json type
+} AFB_PostRequest;
+  
 // Post handler
 typedef struct {
-  char* data;
-  int   len;
-  int   uid;
-} AFB_HttpPost;
+  void*  handle;
+  int    len;
+  int    uid;
+  AFB_PostType type;
+  struct MHD_PostProcessor *pp;
+  AFB_apiCB  completeCB;   // callback when post is completed
+  void   *private;
+} AFB_PostHandle;
+
+typedef struct {
+    enum MHD_ValueKind kind; // kind type of the value
+    const char *key;         // key 0-terminated key for the value
+    const char *filename;    // filename of the uploaded file, NULL if not known
+    const char *mimetype;    // content_type mime-type of the data, NULL if not known
+    const char *encoding;    // transfer_encoding encoding of the data, NULL if not known
+    const char *data;        // data pointer to size bytes of data at the specified offset
+    uint64_t   offset;       // offset of data in the overall value
+    size_t     len;          // number of bytes in data available
+} AFB_PostItem;
 
 typedef struct {
   char  path[512];
@@ -148,8 +171,6 @@ typedef struct {
   int  cntxTimeout;        // Client Session Context timeout
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 } AFB_config;
-
-
 
 typedef struct {
   int  len;        // command number within application
@@ -200,8 +221,7 @@ typedef struct {
   const char *url;
   char *plugin;
   char *api;
-  char *post; // post data in raw format
-  int  len;   // post data len
+  AFB_PostRequest *post;
   json_object *jresp;
   AFB_clientCtx *client;      // needed because libmicrohttp cannot create an empty response
   int   restfull;             // request is resfull [uuid token provided]
@@ -209,6 +229,7 @@ typedef struct {
   sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
   AFB_config *config;         // plugin may need access to config
   struct MHD_Connection *connection;
+  AFB_plugin **plugins;
 } AFB_request;
 
 
@@ -218,7 +239,6 @@ typedef struct {
   int  killPrevious;
   int  background;        // run in backround mode
   int  foreground;        // run in forground mode
-  int  checkAlsa;         // Display active Alsa Board
   int  configsave;        // Save config on disk on start
   char *cacheTimeout;     // http require timeout to be a string
   void *httpd;            // anonymous structure for httpd handler

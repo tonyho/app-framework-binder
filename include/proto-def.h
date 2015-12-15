@@ -26,7 +26,7 @@ PUBLIC json_object* apiPingTest(AFB_request *request);
 PUBLIC const char* getQueryValue (AFB_request * request, char *name);
 PUBLIC int getQueryAll(AFB_request * request, char *query, size_t len);
 
-    
+PUBLIC void endPostRequest(AFB_PostHandle *posthandle); 
 PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
     , const char *upload_data, size_t *upload_data_size, void **con_cls);
 

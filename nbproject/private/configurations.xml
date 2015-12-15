@@ -6,10 +6,14 @@
         <df name="CMakeFiles">
           <df name="3.3.2">
             <df name="CompilerIdC">
+              <in>CMakeCCompilerId.c</in>
             </df>
           </df>
           <df name="CMakeTmp">
           </df>
+          <df name="Progress">
+          </df>
+          <in>feature_tests.c</in>
         </df>
         <df name="src">
           <df name="CMakeFiles">
@@ -17,6 +21,8 @@
             </df>
           </df>
         </df>
+      </df>
+      <df name="doc">
       </df>
       <df name="include">
         <in>local-def.h</in>
@@ -43,6 +49,8 @@
           </df>
           <df name="CMakeTmp">
           </df>
+          <df name="Progress">
+          </df>
         </df>
         <df name="src">
           <df name="CMakeFiles">
@@ -50,6 +58,8 @@
             </df>
           </df>
         </df>
+      </df>
+      <df name="doc">
       </df>
       <df name="include">
       </df>
@@ -82,6 +92,8 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
+        <gdb_signals>
+        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>
@@ -98,8 +110,9 @@
           <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons
 --token=123456789</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789 --rootdir=/home/fulup/Workspace/afb-client/dist.dev</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789</runcommand>
+        <runcommand>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789 --rootdir=/home/fulup/Workspace/afb-client/dist.dev</runcommand>
         <rundir>build</rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>
