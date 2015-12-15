@@ -65,8 +65,6 @@
           <preBuildFirst>true</preBuildFirst>
         </preBuild>
       </makefileType>
-      <item path="src/SamplePost.c" ex="false" tool="0" flavor2="2">
-      </item>
       <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
           <incDir>
@@ -105,22 +103,12 @@
         </cTool>
       </item>
       <item path="src/dbus-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>build/src</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
         </cTool>
       </item>
       <item path="src/http-svc.c" ex="false" tool="0" flavor2="2">

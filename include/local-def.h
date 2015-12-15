@@ -111,13 +111,13 @@ typedef  struct {
   
 // Post handler
 typedef struct {
-  void*  handle;
-  int    len;
-  int    uid;
-  AFB_PostType type;
-  struct MHD_PostProcessor *pp;
-  AFB_apiCB  completeCB;   // callback when post is completed
-  void   *private;
+  void*  ctx;               // Application context
+  int    len;               // current len for post
+  int    uid;               // post uid for debug
+  AFB_PostType type;        // JSON or FORM
+  AFB_apiCB  completeCB;    // callback when post is completed
+  void   *private;          // use internally to keep track or partial buffer
+  struct MHD_PostProcessor *pp; // iterator handle
 } AFB_PostHandle;
 
 typedef struct {

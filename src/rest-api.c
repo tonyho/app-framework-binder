@@ -53,7 +53,7 @@ PUBLIC json_object* apiPingTest(AFB_request *request) {
     if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
     
     // check if we have some post data
-    if (request->post == NULL)  request->post="NoData"; 
+    if (request->post == NULL)  request->post->data="NoData"; 
     
     // check is we have a session and a plugin handle
     if (client == NULL) strcpy (session,"NoSession");       
@@ -61,7 +61,7 @@ PUBLIC json_object* apiPingTest(AFB_request *request) {
         
     // return response to caller
     response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d query={%s} session={%s} PostData: [%s] "
-               , pingcount++, request->client->cid, query, session, request->post);
+               , pingcount++, request->client->cid, query, session, request->post->data);
     return (response);
 }
 
@@ -92,30 +92,27 @@ PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
 }
 
 // Because of POST call multiple time requestApi we need to free POST handle here
-PUBLIC void endPostRequest(AFB_PostHandle *posthandle) {
+PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
 
-    if (posthandle->type == AFB_POST_JSON) {
-        if (verbose) fprintf(stderr, "End PostJson Request UID=%d\n", posthandle->uid);
+    if (postHandle->type == AFB_POST_JSON) {
+        if (verbose) fprintf(stderr, "End PostJson Request UID=%d\n", postHandle->uid);
     }
 
-    if (posthandle->type == AFB_POST_FORM) {
-        AFB_PostHandle *postform = (AFB_PostHandle*) posthandle->private;
-        if (verbose) fprintf(stderr, "End PostForm Request UID=%d\n", posthandle->uid);
+    if (postHandle->type == AFB_POST_FORM) {
+        AFB_PostHandle *postform = (AFB_PostHandle*) postHandle->private;
+        if (verbose) fprintf(stderr, "End PostForm Request UID=%d\n", postHandle->uid);
 
         // call API termination callback
-        if (!posthandle->private) {
-
-            && !posthandle->private->completeCB) {
-           posthandle->private->completeCB (posthandle->private); 
+        if (!postHandle->private) {
+            if (!postHandle->completeCB) postHandle->completeCB (postHandle->private);
         }
     }
-    freeRequest (posthandle->private);
-    free(posthandle);
-
+    freeRequest (postHandle->private);
+    free(postHandle);
 }
 
 // Check of apiurl is declare in this plugin and call it
-STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
+STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *context) {
     json_object *jresp, *jcall;
     int idx, status, sig;
     int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
@@ -174,7 +171,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
                 ctxClientGet(request, plugin);      
              
                 // Effectively call the API with a subset of the context
-                jresp = plugin->apis[idx].callback(request);
+                jresp = plugin->apis[idx].callback(request, context);
 
                 // Allocate Json object and build response
                 request->jresp  = json_object_new_object();
@@ -206,7 +203,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request) {
     return (AFB_FAIL);
 }
 
-STATIC AFB_error findAndCallApi (AFB_request *request, void *extractx) {
+STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     int idx;
     char *baseurl, *baseapi;
     AFB_error status;
@@ -214,7 +211,7 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *extractx) {
     // Search for a plugin with this urlpath
     for (idx = 0; request->plugins[idx] != NULL; idx++) {
         if (!strcmp(request->plugins[idx]->prefix, baseurl)) {
-            status =callPluginApi(request->plugins[idx], request, extractx);
+            status =callPluginApi(request->plugins[idx], request, context);
             break;
         }
     }
@@ -242,16 +239,16 @@ ExitOnError:
 // and callback Plugin API for each Item within PostForm.
 doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
               const char *filename, const char *mimetype,
-              const char *encoding, const char *data, uint64_t off,
+              const char *encoding, const char *data, uint64_t offset,
               size_t size) {
   
   AFB_error    status;
-  AFB_HttpItem item;
+  AFB_PostItem item;
     
   // retrieve API request from Post iterator handle  
-  AFB_PostHandle *postctx  = (AFB_PostHandle*)cls;
-  AFB_request *request = (AFB_request*)post->private;
-  AFB_PostRequest post;
+  AFB_PostHandle *postHandle  = (AFB_PostHandle*)cls;
+  AFB_request *request = (AFB_request*)postHandle->private;
+  AFB_PostRequest postRequest;
   
    
   // Create and Item value for Plugin API
@@ -262,7 +259,7 @@ doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   item.encoding = encoding;
   item.len      = size;
   item.data     = data;
-  item.off      = off;
+  item.offset   = offset;
   
   // Reformat Request to make it somehow similar to GET/PostJson case
   post.data= (char*) postctx;
@@ -330,14 +327,14 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     struct MHD_Response *webResponse;
     const char *serialized;
     AFB_request request;
-    AFB_PostHandle *posthandle = *con_cls;
+    AFB_PostHandle *posthandle;
     int ret;
   
     // if post data may come in multiple calls
     if (0 == strcmp(method, MHD_HTTP_METHOD_POST)) {
         const char *encoding, *param;
         int contentlen = -1;
-        AFB_PostHandle *posthandle = *con_cls;
+        posthandle = *con_cls;
 
         // This is the initial post event let's create form post structure POST datas come in multiple events
         if (posthandle == NULL) {
