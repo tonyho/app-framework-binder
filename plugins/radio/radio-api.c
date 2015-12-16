@@ -121,15 +121,25 @@ STATIC json_object* freeRadio (AFB_clientCtx *client) {
 
 /* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC json_object* power (AFB_request *request) {      /* AFB_SESSION_CREATE */
+STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
+
+    radioCtxHandleT *ctx;
+    json_object *jresp;
+
+    /* create a private client context */
+    ctx = initRadioCtx();
+    request->client->ctx = (radioCtxHandleT*)ctx;
+
+    jresp = json_object_new_object();
+    json_object_object_add(jresp, "token", json_object_new_string (request->client->token));
+}
+
+STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
     
     pluginHandleT *handle = request->client->plugin->handle; 
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
-
-    /* create a private client context if needed */
-    if (!ctx) ctx = initRadioCtx();
 
     /* no "?value=" parameter : return current state */
     if (!value) {
@@ -265,7 +275,7 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
-    json_object *jresp;
+    json_object *jresp = json_object_new_object();
     
     /* no "?value=" parameter : return current state */
     if (!value) {
@@ -279,8 +289,6 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
         /* radio playback */
         ctx->is_playing = 1;
         _radio_play (ctx->idx);
-
-        jresp = json_object_new_object();
         json_object_object_add (jresp, "play", json_object_new_string ("on"));
     }
 
@@ -289,8 +297,6 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
         /* radio stop */
         ctx->is_playing = 0;
         _radio_stop (ctx->idx);
-
-        jresp = json_object_new_object();
         json_object_object_add (jresp, "play-on", json_object_new_string ("off"));
     }
 
@@ -303,7 +309,8 @@ STATIC json_object* status (AFB_request *request) {
 
 
 STATIC AFB_restapi pluginApis[]= {
-  {"power"  , AFB_SESSION_CREATE, (AFB_apiCB)power      , "Radio API - power"},
+  {"init"   , AFB_SESSION_CREATE, (AFB_apiCB)init       , "Radio API - init"},
+  {"power"  , AFB_SESSION_CHECK,  (AFB_apiCB)power      , "Radio API - power"},
   {"mode"   , AFB_SESSION_CHECK,  (AFB_apiCB)mode       , "Radio API - mode"},
   {"freq"   , AFB_SESSION_CHECK,  (AFB_apiCB)freq       , "Radio API - freq"},
   {"mute"   , AFB_SESSION_CHECK,  (AFB_apiCB)mute       , "Radio API - mute"},

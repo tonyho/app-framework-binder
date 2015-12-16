@@ -2,6 +2,40 @@
 <configurationDescriptor version="97">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
     <df root="." name="0">
+      <df name="build">
+        <df name="CMakeFiles">
+          <df name="3.3.2">
+            <df name="CompilerIdC">
+              <in>CMakeCCompilerId.c</in>
+            </df>
+          </df>
+          <df name="afb-daemon.dir">
+          </df>
+          <df name="CMakeTmp">
+          </df>
+          <in>feature_tests.c</in>
+        </df>
+        <df name="plugins">
+          <df name="CMakeFiles">
+            <df name="plugins.dir">
+              <df name="audio">
+              </df>
+              <df name="radio">
+              </df>
+              <df name="samples">
+              </df>
+              <df name="session">
+              </df>
+            </df>
+          </df>
+        </df>
+        <df name="src">
+          <df name="CMakeFiles">
+            <df name="src.dir">
+            </df>
+          </df>
+        </df>
+      </df>
       <df name="doc">
         <df name="nbproject.template">
           <df name="private">
@@ -18,6 +52,9 @@
         </df>
         <df name="radio">
           <in>radio-api.c</in>
+          <in>radio-api.h</in>
+          <in>radio-rtlsdr.c</in>
+          <in>radio-rtlsdr.h</in>
         </df>
         <df name="samples">
           <in>HelloWorld.c</in>
@@ -40,6 +77,38 @@
       </df>
     </df>
     <df root="." name="1">
+      <df name="build">
+        <df name="CMakeFiles">
+          <df name="3.3.2">
+            <df name="CompilerIdC">
+            </df>
+          </df>
+          <df name="afb-daemon.dir">
+          </df>
+          <df name="CMakeTmp">
+          </df>
+        </df>
+        <df name="plugins">
+          <df name="CMakeFiles">
+            <df name="plugins.dir">
+              <df name="audio">
+              </df>
+              <df name="radio">
+              </df>
+              <df name="samples">
+              </df>
+              <df name="session">
+              </df>
+            </df>
+          </df>
+        </df>
+        <df name="src">
+          <df name="CMakeFiles">
+            <df name="src.dir">
+            </df>
+          </df>
+        </df>
+      </df>
       <df name="doc">
         <df name="nbproject.template">
           <df name="private">
@@ -87,6 +156,8 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
+        <gdb_signals>
+        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>
@@ -104,8 +175,9 @@
 --token=123456789</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789 --rootdir=/home/fulup/Workspace/afb-client/dist.dev</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789 --rootdir=/home/fulup/Workspace/afb-client/dist.dev --sessiondir=/tmp --port=1235</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789 --rootdir=/home/fulup/Workspace/afb-client/dist.dev</runcommand>
+        <runcommand>"${OUTPUT_PATH}" --verbose --alias=icons:/usr/share/icons --token=123456789 --rootdir=/home/fulup/Workspace/afb-client/dist.dev --sessiondir=/tmp --port=1235</runcommand>
         <rundir>build</rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>
