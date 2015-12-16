@@ -612,8 +612,9 @@ void initPlugins(AFB_session *session) {
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int i = 0;
 
-    plugins[i++] = afsvRegister(session),
+    plugins[i++] = tokenRegister(session),
     plugins[i++] = alsaRegister(session),
+    plugins[i++] = helloWorldRegister(session),
 #ifdef HAVE_RADIO_PLUGIN
     plugins[i++] = radioRegister(session),
 #endif

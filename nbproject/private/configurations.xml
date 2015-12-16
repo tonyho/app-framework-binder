@@ -13,9 +13,21 @@
         <in>proto-def.h</in>
       </df>
       <df name="plugins">
+        <df name="audio">
+          <in>audio-api.c</in>
+        </df>
+        <df name="radio">
+          <in>radio-api.c</in>
+        </df>
+        <df name="samples">
+          <in>HelloWorld.c</in>
+          <in>SamplePost.c</in>
+        </df>
+        <df name="session">
+          <in>token-api.c</in>
+        </df>
       </df>
       <df name="src">
-        <in>SamplePost.c</in>
         <in>afbs-api.c</in>
         <in>alsa-api.c</in>
         <in>config.c</in>
@@ -37,6 +49,14 @@
       <df name="include">
       </df>
       <df name="plugins">
+        <df name="audio">
+        </df>
+        <df name="radio">
+        </df>
+        <df name="samples">
+        </df>
+        <df name="session">
+        </df>
       </df>
       <df name="src">
       </df>

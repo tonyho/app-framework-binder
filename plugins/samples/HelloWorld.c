@@ -79,13 +79,11 @@ STATIC  AFB_restapi pluginApis[]= {
   {"pingnull" , AFB_SESSION_NONE, (AFB_apiCB)pingFail    , "Return NULL"},
   {"pingbug"  , AFB_SESSION_NONE, (AFB_apiCB)pingBug     , "Do a Memory Violation"},
   {"pingJson" , AFB_SESSION_NONE, (AFB_apiCB)pingJson    , "Return a JSON object"},
-  {"ctx-store", AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Verbose Mode"},
-  {"ctx-load" , AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Verbose Mode"},
   {NULL}
 };
 
 
-PUBLIC AFB_plugin *dbusRegister () {
+PUBLIC AFB_plugin *helloWorldRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON;
     plugin->info  = "Application Framework Binder Service";

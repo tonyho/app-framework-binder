@@ -181,7 +181,7 @@ STATIC  AFB_restapi pluginApis[]= {
   {NULL}
 };
 
-PUBLIC AFB_plugin *afsvRegister () {
+PUBLIC AFB_plugin *tokenRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON; 
     plugin->info  = "Application Framework Binder Service";

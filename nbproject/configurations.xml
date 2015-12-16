@@ -58,7 +58,26 @@
           <buildCommandWorkingDir>build</buildCommandWorkingDir>
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
-          <executablePath>build/src/afb-daemon</executablePath>
+          <executablePath>build/afb-daemon</executablePath>
+          <cTool flags="1">
+            <incDir>
+              <pElem>plugins/audio</pElem>
+              <pElem>/usr/include/json-c</pElem>
+              <pElem>include</pElem>
+              <pElem>/usr/include/uuid</pElem>
+              <pElem>build/plugins</pElem>
+              <pElem>plugins/samples</pElem>
+              <pElem>/usr/include/json-c</pElem>
+              <pElem>include</pElem>
+              <pElem>/usr/include/uuid</pElem>
+              <pElem>build/plugins</pElem>
+              <pElem>plugins/session</pElem>
+              <pElem>/usr/include/json-c</pElem>
+              <pElem>include</pElem>
+              <pElem>/usr/include/uuid</pElem>
+              <pElem>build/plugins</pElem>
+            </incDir>
+          </cTool>
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>build</preBuildCommandWorkingDir>
@@ -66,39 +85,6 @@
           <preBuildFirst>true</preBuildFirst>
         </preBuild>
       </makefileType>
-      <item path="plugins/audio/audio-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>plugins/audio</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/plugins</pElem>
-          </incDir>
-        </cTool>
-      </item>
-      <item path="plugins/samples/HelloWorld.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>plugins/samples</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/plugins</pElem>
-          </incDir>
-        </cTool>
-      </item>
-      <item path="plugins/session/token-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
-          <incDir>
-            <pElem>plugins/session</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/plugins</pElem>
-          </incDir>
-        </cTool>
-      </item>
       <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
           <incDir>
