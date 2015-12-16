@@ -203,6 +203,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                             } else {
                                 json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
                                 json_object_object_add(jcall, "token", json_object_new_string (request->client->token));                                
+                                json_object_object_add(jcall, "timeout", json_object_new_int (request->config->cntxTimeout));                                
                             }
                             break;
 
@@ -217,6 +218,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                             } else {
                                 json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
                                 json_object_object_add(jcall, "token", json_object_new_string (request->client->token));                                
+                                json_object_object_add(jcall, "timeout", json_object_new_int (request->config->cntxTimeout));                                
                             }
                             break;
 
