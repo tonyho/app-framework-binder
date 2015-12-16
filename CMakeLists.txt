@@ -37,8 +37,12 @@ PKG_CHECK_MODULES(json-c REQUIRED json-c)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd)
 PKG_CHECK_MODULES(uuid REQUIRED uuid)
 # Optional plugin dependencies
+PKG_CHECK_MODULES(alsa alsa)
 PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
 
+IF(alsa_FOUND)
+  MESSAGE(STATUS "ALSA found ; will compile Audio plugin... (PLUGIN)")
+ENDIF(alsa_FOUND)
 IF(librtlsdr_FOUND)
   MESSAGE(STATUS "librtlsdr found ; will compile Radio plugin... (PLUGIN)")
 ENDIF(librtlsdr_FOUND)
@@ -46,8 +50,8 @@ ENDIF(librtlsdr_FOUND)
 INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
 
-SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
-SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm)
+SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
+SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${alsa_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm)
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(plugins)

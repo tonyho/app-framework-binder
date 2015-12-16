@@ -16,36 +16,68 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "audio-api.h"
+#include "audio-alsa.h"
 
-#include "local-def.h"
 
-STATIC json_object* wrongApi (AFB_request *request, void* handle) {
-    int zero=0;
-    int bug=1234;
-    int impossible;
+/* ------ LOCAL HELPER FUNCTIONS --------- */
+
+/* private client context creation ; default values */
+STATIC audioCtxHandleT* initAudioCtx () {
+
+    audioCtxHandleT *ctx;
+
+    ctx = malloc (sizeof(audioCtxHandleT));
+    ctx->volume = 25;
+    ctx->rate = 22050;
+    ctx->channels = 2;
+
+    return ctx;
+}
+
+/* called when client session dies [e.g. client quits for more than 15mns] */
+STATIC json_object* freeAudio (AFB_clientCtx *client) {
+
+    //releaseAudio (client->plugin->handle, client->ctx);
+    free (client->ctx);
     
-    impossible=bug/zero;
+    return jsonNewMessage (AFB_SUCCESS, "Released radio and client context");
 }
 
 
+/* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC struct {
-    void * somedata;
-} handle;
+STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
+
+    audioCtxHandleT *ctx;
+    json_object *jresp;
+
+    /* create a private client context */
+    ctx = initAudioCtx();
+    request->client->ctx = (audioCtxHandleT*)ctx;
+    
+    _alsa_init("default", ctx);
+    
+    jresp = json_object_new_object();
+    json_object_object_add (jresp, "token", json_object_new_string (request->client->token));
+}
 
 
-STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , AFB_SESSION_NONE, (AFB_apiCB)apiPingTest,"Ping Application Framework"},
-  {"error"    , AFB_SESSION_NONE, (AFB_apiCB)wrongApi   , "Ping Application Framework"},
+STATIC AFB_restapi pluginApis[]= {
+  {"init"   , AFB_SESSION_CREATE, (AFB_apiCB)init       , "Audio API - init"},
+//  {"error"  , AFB_SESSION_CHECK,   (AFB_apiCB)wrongApi   , "Ping Application Framework"},
 
   {NULL}
 };
 
-PUBLIC AFB_plugin *alsaRegister () {
-    AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN_JSON;
-    plugin->info  = "Application Framework Binder Service";
-    plugin->prefix= "alsa";        
-    plugin->apis  = pluginApis;
+PUBLIC AFB_plugin *audioRegister () {
+    AFB_plugin *plugin = malloc (sizeof(AFB_plugin));
+    plugin->type   = AFB_PLUGIN_JSON;
+    plugin->info   = "Application Framework Binder - Audio plugin";
+    plugin->prefix = "audio";        
+    plugin->apis   = pluginApis;
+
+    plugin->freeCtxCB = freeAudio;
+
     return (plugin);
 };

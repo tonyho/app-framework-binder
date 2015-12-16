@@ -18,6 +18,7 @@ industry requirementsas the primary target for this code is AGL.
 
  optionally, for plugins :
 
+ * alsa ("libasound2-dev/alsa-devel");
  * rtl-sdr >= 0.5.0 (fetch and build from "git://git.osmocom.org/rtl-sdr");
 
  and the following tools:

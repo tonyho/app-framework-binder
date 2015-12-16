@@ -615,8 +615,10 @@ void initPlugins(AFB_session *session) {
     int i = 0;
 
     plugins[i++] = tokenRegister(session),
-    plugins[i++] = alsaRegister(session),
     plugins[i++] = helloWorldRegister(session),
+#ifdef HAVE_AUDIO_PLUGIN
+    plugins[i++] = audioRegister(session),
+#endif
 #ifdef HAVE_RADIO_PLUGIN
     plugins[i++] = radioRegister(session),
 #endif
