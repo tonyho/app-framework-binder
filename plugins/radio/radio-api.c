@@ -79,6 +79,30 @@ struct dev_ctx {
     output_ctx *output;
 };
 
+#define MAX_RADIO 10
+
+// Structure holding existing radio with current usage status
+typedef struct {
+    int   idx;
+    char *name;
+    int  used;
+} radioDevT;
+
+// Radio plugin handle should store everething API may need
+typedef struct {
+  radioDevT *radios[MAX_RADIO];  // pointer to existing radio
+  int devCount;
+} pluginHandleT;
+
+/* private client context [will be destroyed when client leaves] */
+typedef struct {
+    radioDevT *radio;       /* pointer to client radio            */
+    int idx;                /* radio index within global array    */
+    Mode mode;              /* radio mode: AM/FM                  */
+    float freq;             /* radio frequency (Mhz)              */
+    unsigned char mute;     /* radio muted: 0(false)/1(true)      */
+} radioCtxHandleT;
+
 
 STATIC void* _dongle_thread_fn (void *);
 STATIC void* _demod_thread_fn (void *);
@@ -91,66 +115,86 @@ STATIC void _radio_apply_params (struct dev_ctx *);
 STATIC void _radio_start_threads (struct dev_ctx *);
 STATIC void _radio_stop_threads (struct dev_ctx *);
 
-static unsigned int init_dev_count;
-static struct dev_ctx **dev_ctx;
+static unsigned int init_dev_count = 0;
+static struct dev_ctx **dev_ctx = NULL;
 
 /* ------------- RADIO IMPLEMENTATION ----------------- */
 
 
 // Radio initialization should be done only when user start the radio and not at plugin initialization
 // Making this call too early would impose to restart the binder to detect a radio.
-STATIC void initRadio () {
+STATIC unsigned char _radio_on (unsigned int num, radioCtxHandleT *ctx) {
  
-    init_dev_count = _radio_dev_count();
-    int i;
-
-    dev_ctx = (dev_ctx_T**) malloc(init_dev_count * sizeof(dev_ctx_T));
-
-    for (i = 0; i < init_dev_count; i++) {
-        dev_ctx[i] = (dev_ctx_T*) malloc(sizeof(dev_ctx_T));
-        dev_ctx[i]->dev = NULL;
-        dev_ctx[i]->mode = FM;
-        dev_ctx[i]->freq = 100.0;
-        dev_ctx[i]->mute = 0;
-        dev_ctx[i]->should_run = 0;
-        dev_ctx[i]->dongle = NULL;
-        dev_ctx[i]->demod = NULL;
-        dev_ctx[i]->output = NULL;
-        _radio_dev_init(dev_ctx[i], i);
+    if (num >= _radio_dev_count())
+        return 0;
+    
+    if (init_dev_count < _radio_dev_count()) {
+        init_dev_count = _radio_dev_count();
+        dev_ctx = (dev_ctx_T**) realloc (dev_ctx, init_dev_count * sizeof(dev_ctx_T));           
     }
+
+    dev_ctx[num] = (dev_ctx_T*) malloc (sizeof(dev_ctx_T));
+    dev_ctx[num]->dev = NULL;
+    dev_ctx[num]->mode = ctx->mode;
+    dev_ctx[num]->freq = ctx->freq;
+    dev_ctx[num]->mute = ctx->mute;
+    dev_ctx[num]->should_run = 0;
+    dev_ctx[num]->dongle = NULL;
+    dev_ctx[num]->demod = NULL;
+    dev_ctx[num]->output = NULL;
+    _radio_dev_init(dev_ctx[num], num);
+    
+    return 1;
 }
 
-STATIC void radio_off () {
-    int i;
+STATIC void _radio_off (unsigned int num) {
 
-    for (i = 0; i < init_dev_count; i++) {
-        _radio_dev_free(dev_ctx[i]);
-        free(dev_ctx[i]);
+    if (num >= _radio_dev_count())
+        return;
+
+    if (dev_ctx[num]) {
+        _radio_dev_free(dev_ctx[num]);
+        free(dev_ctx[num]);
     }
-    free(dev_ctx);
+    /* free(dev_ctx); */
 }
 
-STATIC void radio_set_mode (dev_ctx_T *dev_ctx, Mode mode) {
-    dev_ctx->mode = mode;
-    _radio_apply_params(dev_ctx);
+STATIC void _radio_set_mode (unsigned int num, Mode mode) {
+    if (!dev_ctx || !dev_ctx[num])
+        return;
+
+    dev_ctx[num]->mode = mode;
+    _radio_apply_params(dev_ctx[num]);
 }
 
-STATIC void radio_set_freq (dev_ctx_T *dev_ctx, float freq) {
-    dev_ctx->freq = freq;
-    _radio_apply_params(dev_ctx);
+STATIC void _radio_set_freq (unsigned int num, float freq) {
+    if (!dev_ctx || !dev_ctx[num])
+        return;
+
+    dev_ctx[num]->freq = freq;
+    _radio_apply_params(dev_ctx[num]);
 }
 
-STATIC void radio_set_mute (dev_ctx_T *dev_ctx, unsigned char mute) {
-    dev_ctx->mute = mute;
-    _radio_apply_params(dev_ctx);
+STATIC void _radio_set_mute (unsigned int num, unsigned char mute) {
+    if (!dev_ctx || !dev_ctx[num])
+        return;
+
+    dev_ctx[num]->mute = mute;
+    _radio_apply_params(dev_ctx[num]);
 }
 
-STATIC void radio_play (dev_ctx_T *dev_ctx) {
-    _radio_start_threads(dev_ctx);
+STATIC void _radio_play (unsigned int num) {
+    if (!dev_ctx || !dev_ctx[num])
+        return;
+
+    _radio_start_threads(dev_ctx[num]);
 }
 
-STATIC void radio_stop (dev_ctx_T *dev_ctx) {
-    _radio_stop_threads(dev_ctx);
+STATIC void _radio_stop (unsigned int num) {
+    if (!dev_ctx || !dev_ctx[num])
+        return;
+
+    _radio_stop_threads(dev_ctx[num]);
 }
 
  /* --- HELPER FUNCTIONS --- */
@@ -461,34 +505,11 @@ STATIC void* _output_thread_fn (void *ctx) {
 }
 
 
-// ********************************************************
+/* ********************************************************
 
-// FULUP integration proposal with client session context
+   FULUP integration proposal with client session context
 
-// ********************************************************
-
-
-#define MAX_RADIO 10
-
-// Structure holding existing radio with current usage status
-typedef struct {
-    int   idx;
-    char *name;
-    int  used;
-} radioDevT;
-
-// Radio plugin handle should store everething API may need
-typedef struct {
-  radioDevT *radios[MAX_RADIO];  // pointer to existing radio
-  int devCount;
-} pluginHandleT;
-
-// Client Context Structure Hold any specific to client [will be destroyed when client leave]
-typedef struct {
-    dev_ctx_T radio;       // pointer to client radio
-    int idx;               // index of radio within global array
-} ctxHandleT;
-
+   ******************************************************** */
 
 // It his was not a demo only, it should be smarter to enable hot plug/unplug
 STATIC void updateRadioDevList(pluginHandleT *handle) {
@@ -504,59 +525,70 @@ STATIC void updateRadioDevList(pluginHandleT *handle) {
 }
 
 
-// This is call at plugin load time [radio devices might still not be visible]
+/* global plugin context creation ; at loading time [radio devices might still not be visible] */
 STATIC pluginHandleT* initRadioPlugin() {
 
-  // Allocate Plugin handle  
-  pluginHandleT *handle = calloc (1,sizeof (pluginHandleT)); // init handle with zero
+  pluginHandleT *handle;
 
-  // Some initialization steps
-  updateRadioDevList(handle);
+  handle = calloc (1, sizeof(pluginHandleT));
+  updateRadioDevList (handle);
 
-  return (handle);
-}
-
-// Stop a radio free related ressource and make it avaliable for other clients
-STATIC AFB_error releaseRadio (pluginHandleT* handle, ctxHandleT *ctx) {
-    
-   // change radio status
-   (handle->radios[ctx->idx])->used = FALSE;
-
-   // stop related threads and free attached resources
-   radio_stop (&ctx->radio);
-
-   // May be some further cleanup ????
-
-   return (AFB_SUCCESS); // Could it fails ????
+  return handle;
 }
 
 
-// Start a radio and reserve exclusive usage to requesting client
-STATIC ctxHandleT  *reserveRadio (pluginHandleT* handle) {
-    ctxHandleT *client;
+/* private client context creation ; default values */
+STATIC radioCtxHandleT* initRadioCtx () {
+
+    radioCtxHandleT *ctx;
+
+    ctx = malloc (sizeof(radioCtxHandleT));
+    ctx->radio = NULL;
+    ctx->idx = -1;
+    ctx->mode = FM;
+    ctx->freq = 100.0;
+    ctx->mute = 0;
+
+    return ctx;
+}
+
+
+/* reserve a radio device to requesting client, start it */
+STATIC AFB_error reserveRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
     int idx;
-    
-   // loop on existing radio if any
+
+    /* loop on all devices, find an unused one */
     for (idx = 0; idx < _radio_dev_count(); idx++) {
-        if ((handle->radios[client->idx])->used = FALSE) break;
+        if (idx == MAX_RADIO) break;
+        if (handle->radios[idx]->used == FALSE) goto found_radio; /* found one */
     }
-    
-    // No avaliable radio return now
-    if (idx == MAX_RADIO) return (NULL);
-    
-   // Book radio
-   (handle->radios[client->idx])->used = TRUE;
-   
-   // create client handle 
-   client = calloc (1, sizeof (ctxHandleT));
-   
-   // stop related threads and free attached resources
-   _radio_start_threads (&client->radio);
-   
-   // May be some things to do ????
-   
-   
-   return (client);
+    return AFB_FAIL;
+
+   found_radio:
+    /* try to power it on, passing client context info such as frequency... */
+    _radio_on (idx, ctx);
+    /* TODO : try to re-iterate from the next ones if it failed ! */
+
+    /* globally mark it as reserved */
+    handle->radios[idx]->used = TRUE;
+
+    /* store relevant info to client context (direct pointer, index) */
+    ctx->radio = handle->radios[idx];
+    ctx->idx = idx;
+
+    return AFB_SUCCESS;
+}
+
+/* free a radio device from requesting client, stop it */
+STATIC AFB_error releaseRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
+
+   /* globally mark it as free */
+   handle->radios[ctx->idx]->used = FALSE;
+
+   /* power it off */
+   _radio_off (ctx->idx);
+
+   return AFB_SUCCESS;
 }
 
 // This is called when client session died [ex; client quit for more than 15mn]
@@ -567,54 +599,180 @@ STATIC json_object* freeRadio () {
 }
 
 
-STATIC json_object* powerOnOff (AFB_request *request) {
+STATIC json_object* power (AFB_request *request) {      /* AFB_SESSION_CREATE */
+    
+    pluginHandleT *handle = request->client->plugin->handle;
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    const char *value = getQueryValue (request, "value");
     json_object *jresp;
-    AFB_clientCtx *client = request->client; // get client context from request
-   
-    // Make sure binder was started with client session
-    if (client == NULL) {
-        request->errcode=MHD_HTTP_FORBIDDEN;
-        return (jsonNewMessage(AFB_FAIL, "Radio binder need session [--token=xxxx]"));        
-    }
-     
-    // If we have a handle radio was on let power it down
-    if (client->ctx != NULL) {
-        dev_ctx_T *dev_ctx = (dev_ctx_T *)client->ctx;
 
-        releaseRadio (client->plugin->handle, client->ctx);  // poweroff client related radio
-        
+    /* create a private client context if needed */
+    if (!ctx) ctx = initRadioCtx();
+
+    /* no "?value=" parameter : return current state */
+    if (!value) {
         jresp = json_object_new_object();
-        json_object_object_add(jresp, "power", json_object_new_string ("off"));        
-        return (jresp);
+        ctx->radio ?
+            json_object_object_add (jresp, "power", json_object_new_string ("on"))
+          : json_object_object_add (jresp, "power", json_object_new_string ("off"));
     }
+
+    /* "?value=" parameter is "1" or "on" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "on") ) {
+        if (!ctx->radio) {
+            if (reserveRadio (handle, ctx) == AFB_FAIL) {
+                request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+                return (jsonNewMessage (AFB_FAIL, "No more radio devices available"));
+            }
+        }
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "power-on", json_object_new_string ("ok"));
+    }
+
+    /* "?value=" parameter is "0" or "off" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
+        if (ctx->radio) {
+            if (releaseRadio (handle, ctx) == AFB_FAIL) {
+                request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+                return (jsonNewMessage (AFB_FAIL, "Unable to release radio device"));
+            }
+        }
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "power-off", json_object_new_string ("ok"));
+    }
+
+    return jresp;
+}
+
+STATIC json_object* mode (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp;
+    char *mode_str;
+
+    /* no "?value=" parameter : return current state */
+    if (!value) {
+        jresp = json_object_new_object();
+        ctx->mode ?
+            json_object_object_add (jresp, "mode", json_object_new_string ("AM"))
+          : json_object_object_add (jresp, "mode", json_object_new_string ("FM"));
+    }
+
+    /* "?value=" parameter is "1" or "on" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "AM") ) {
+        mode_str = strdup ("mode-AM");
+        ctx->mode = AM;
+    }
+
+    /* "?value=" parameter is "0" or "off" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "FM") ) {
+        mode_str = strdup ("mode-FM");
+        ctx->mode = FM;
+    }
+
+    else {
+        request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+        return (jsonNewMessage (AFB_FAIL, "Invalid value for mode"));
+    }
+       
+    _radio_set_mode (ctx->idx, ctx->mode);
         
-    // request a new client context token and check result 
-    if (AFB_UNAUTH == ctxTokenCreate (request)) {
-        request->errcode=MHD_HTTP_UNAUTHORIZED;
-        jresp= jsonNewMessage(AFB_FAIL, "You're not authorized to request a radio [make sure you have the right authentication token");
-        return (jresp);
+    jresp = json_object_new_object();
+    json_object_object_add (jresp, mode_str, json_object_new_string ("ok"));
+    
+    return jresp;
+}
+
+STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp = json_object_new_object();
+    char *freq_str;
+
+    /* no "?value=" parameter : return current state */
+    if (!value) {
+        asprintf (&freq_str, "%f", ctx->freq);
+        json_object_object_add (jresp, "freq", json_object_new_string (freq_str));
+    }
+
+    /* "?value=" parameter, set frequency */
+    else {
+        ctx->freq = strtof(value, NULL);
+        _radio_set_freq (ctx->idx, ctx->freq);
+        
+        asprintf (&freq_str, "freq-%f", ctx->freq);
+        json_object_object_add (jresp, freq_str, json_object_new_string ("ok"));
     }
     
-    // Client is clean let's look it we have an avaliable radio to propose
-    
-    // make sure we have last hot plug dongle visible
-    updateRadioDevList (client->plugin->handle); 
-    
-    // get try to get an unused radio
-    client->ctx = reserveRadio (client->plugin->handle);  
-    if (client->ctx == NULL) {
-       return (jsonNewMessage(AFB_FAIL, "Sory No More Radio Avaliable")); 
-    }  
-    
-    // At this point we should have something to retreive radio status before last poweroff [but this is only a demonstrator]
+    return jresp;
 }
 
-STATIC json_object* start (AFB_request *request) {
-    return NULL;
+STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp;
+    char *mute_str;
+
+    /* no "?value=" parameter : return current state */
+    if (!value) {
+        asprintf (&mute_str, "%d", ctx->mute);
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "mute", json_object_new_string (mute_str));
+    }
+
+    /* "?value=" parameter is "1" or "on" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "on") )
+        ctx->mute = 1;
+
+    /* "?value=" parameter is "0" or "off" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "off") )
+        ctx->mute = 0;
+        
+    else {
+        request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+        return (jsonNewMessage (AFB_FAIL, "Invalid value for mute"));
+    }
+       
+    _radio_set_mute (ctx->idx, ctx->mute);
+        
+    asprintf (&mute_str, "mute-%d", ctx->mute);
+    jresp = json_object_new_object();
+    json_object_object_add (jresp, mute_str, json_object_new_string ("ok"));
+    
+    return jresp;
 }
 
-STATIC json_object* stop (AFB_request *request) {
-    return NULL;
+STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp;
+    
+    if (!ctx->radio) {
+        request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+        return (jsonNewMessage (AFB_FAIL, "Radio device not powered on"));
+    }
+
+    /* "?value=" parameter is "1" or "on" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "on") ) {
+        /* radio playback */
+        _radio_play (ctx->idx);
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "play-on", json_object_new_string ("ok"));
+    }
+
+    /* "?value=" parameter is "0" or "off" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
+        /* radio stop */
+        _radio_stop (ctx->idx);
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "play-on", json_object_new_string ("ok"));
+    }
+
+    return jresp;
 }
 
 STATIC json_object* status (AFB_request *request) {
@@ -622,21 +780,23 @@ STATIC json_object* status (AFB_request *request) {
 }
 
 
-STATIC  AFB_restapi pluginApis[]= {
-  {"power"  , AFB_SESSION_CREATE, (AFB_apiCB)powerOnOff , "Ping Application Framework"},
-  {"start"  , AFB_SESSION_CHECK,  (AFB_apiCB)start      , "Ping Application Framework"},
-  {"stop"   , AFB_SESSION_CHECK,  (AFB_apiCB)stop       , "Ping Application Framework"},
-  {"status" , AFB_SESSION_RENEW,  (AFB_apiCB)status     , "Ping Application Framework"},
+STATIC AFB_restapi pluginApis[]= {
+  {"power"  , AFB_SESSION_CREATE, (AFB_apiCB)power      , "Radio API - power"},
+  {"mode"   , AFB_SESSION_CHECK,  (AFB_apiCB)mode       , "Radio API - mode"},
+  {"freq"   , AFB_SESSION_CHECK,  (AFB_apiCB)freq       , "Radio API - freq"},
+  {"mute"   , AFB_SESSION_CHECK,  (AFB_apiCB)mute       , "Radio API - mute"},
+  {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Radio API - play"},
+  {"status" , AFB_SESSION_RENEW,  (AFB_apiCB)status     , "Radio API - status"},
   {NULL}
 };
 
-PUBLIC AFB_plugin *radioRegister (AFB_session *session) {
-    AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
+PUBLIC AFB_plugin* radioRegister (AFB_session *session) {
+    AFB_plugin *plugin = malloc (sizeof(AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON;
     plugin->info  = "Application Framework Binder - Radio plugin";
     plugin->prefix  = "radio";
     plugin->apis  = pluginApis;
-    
+
     plugin->handle = initRadioPlugin();
     plugin->freeCtxCB = freeRadio;
 
