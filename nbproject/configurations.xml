@@ -48,7 +48,8 @@
       </toolsSet>
       <flagsDictionary>
         <element flagsID="0" commonFlags="-fPIE"/>
-        <element flagsID="1" commonFlags="-mtune=generic -march=x86-64 -fPIE"/>
+        <element flagsID="1" commonFlags="-mtune=generic -march=x86-64 -fPIC"/>
+        <element flagsID="2" commonFlags="-mtune=generic -march=x86-64 -fPIE"/>
       </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
@@ -65,46 +66,59 @@
           <preBuildFirst>true</preBuildFirst>
         </preBuild>
       </makefileType>
-      <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
+      <item path="plugins/audio/audio-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
           <incDir>
-            <pElem>src</pElem>
+            <pElem>plugins/audio</pElem>
             <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
             <pElem>/usr/include/uuid</pElem>
+            <pElem>build/plugins</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="plugins/samples/HelloWorld.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="1">
+          <incDir>
+            <pElem>plugins/samples</pElem>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>include</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>build/plugins</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="plugins/session/token-api.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="1">
+          <incDir>
+            <pElem>plugins/session</pElem>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>include</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>build/plugins</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>build/src</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
         </cTool>
       </item>
       <item path="src/alsa-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>build/src</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
             <pElem>src</pElem>
             <pElem>/usr/include/json-c</pElem>
@@ -123,22 +137,12 @@
         </cTool>
       </item>
       <item path="src/dbus-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>build/src</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
         </cTool>
       </item>
       <item path="src/http-svc.c" ex="false" tool="0" flavor2="2">
@@ -150,18 +154,10 @@
             <pElem>/usr/include/uuid</pElem>
             <pElem>build/src</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__PIE__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>__pie__=2</Elem>
-          </preprocessorList>
         </cTool>
       </item>
       <item path="src/main.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
             <pElem>src</pElem>
             <pElem>/usr/include/json-c</pElem>
@@ -193,12 +189,23 @@
         </cTool>
       </item>
       <item path="src/rest-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
             <pElem>src</pElem>
             <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
             <pElem>/usr/include/uuid</pElem>
+            <pElem>build/src</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/session.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src</pElem>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>include</pElem>
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
@@ -209,15 +216,6 @@
             <Elem>__pic__=2</Elem>
             <Elem>__pie__=2</Elem>
           </preprocessorList>
-        </cTool>
-      </item>
-      <item path="src/session.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="0">
-          <incDir>
-            <pElem>include</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
         </cTool>
       </item>
     </conf>

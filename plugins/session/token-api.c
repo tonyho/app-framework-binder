@@ -173,10 +173,10 @@ STATIC void clientContextFree(AFB_clientCtx *client) {
 
 STATIC  AFB_restapi pluginApis[]= {
   {"ping"          , AFB_SESSION_NONE  , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
-  {"token-create"  , AFB_SESSION_CREATE, (AFB_apiCB)clientContextCreate ,"Request Client Context Creation"},
-  {"token-refresh" , AFB_SESSION_RENEW , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
-  {"token-check"   , AFB_SESSION_CHECK , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},
-  {"token-reset"   , AFB_SESSION_CLOSE , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources"},
+  {"create"  , AFB_SESSION_CREATE, (AFB_apiCB)clientContextCreate ,"Request Client Context Creation"},
+  {"refresh" , AFB_SESSION_RENEW , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
+  {"check"   , AFB_SESSION_CHECK , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},
+  {"reset"   , AFB_SESSION_CLOSE , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources"},
   {"file-upload"   , AFB_SESSION_NONE  , (AFB_apiCB)ProcessPostForm     ,"Demo for file upload"},
   {NULL}
 };
@@ -185,7 +185,7 @@ PUBLIC AFB_plugin *afsvRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON; 
     plugin->info  = "Application Framework Binder Service";
-    plugin->prefix= "afbs";  // url base
+    plugin->prefix= "token";  // url base
     plugin->apis  = pluginApis;
     plugin->handle= (void*) "What ever you want";
     plugin->freeCtxCB= (void*) clientContextFree;

@@ -601,7 +601,7 @@ STATIC json_object* freeRadio () {
 
 STATIC json_object* power (AFB_request *request) {      /* AFB_SESSION_CREATE */
     
-    pluginHandleT *handle = request->client->plugin->handle;
+    pluginHandleT *handle = request->client->plugin->handle; 
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
