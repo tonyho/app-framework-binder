@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  * Reference: 
- * https://github.com/json-c/json-c/blob/master/linkhash.c
- * https://github.com/json-c/json-c/blob/master/linkhash.h
+ * http://stackoverflow.com/questions/25971505/how-to-delete-element-from-hsearch
+ *
  */
 
 
@@ -32,15 +32,20 @@
 
 
 #define AFB_SESSION_JTYPE "AFB_session"
-#define AFB_SESSION_JLIST "AFB_sessions"
+#define AFB_SESSION_JLIST "AFB_sessions.hash"
 #define AFB_SESSION_JINFO "AFB_infos"
 
 
 #define AFB_CURRENT_SESSION "active-session"  // file link name within sndcard dir
 #define AFB_DEFAULT_SESSION "current-session" // should be in sync with UI
 
-static pthread_mutex_t mutexHash;             // declare a mutex to protect hash table
-static struct hsearch_data sessions = {0};    // Create an empty hash table for sessions
+// Session UUID are store in a simple array [for 10 sessions this should be enough]
+static struct {
+  pthread_mutex_t mutex;          // declare a mutex to protect hash table
+  AFB_clientCtx **store;          // sessions store
+  int count;                      // current number of sessions
+  int max;
+} sessions;
 
 // verify we can read/write in session dir
 PUBLIC AFB_error sessionCheckdir (AFB_session *session) {
@@ -67,7 +72,7 @@ PUBLIC AFB_error sessionCheckdir (AFB_session *session) {
    return AFB_SUCCESS;
 }
 
-// let's return only sessions files
+// let's return only sessions.hash files
 STATIC int fileSelect (const struct dirent *entry) {
    return (strstr (entry->d_name, ".afb") != NULL);
 }
@@ -105,7 +110,7 @@ PUBLIC json_object *sessionList (AFB_session *session, AFB_request *request) {
     struct dirent **namelist;
     int  count, sessionDir;
 
-    // if directory for card's sessions does not exist create it
+    // if directory for card's sessions.hash does not exist create it
     ajgResponse = checkCardDirExit (session, request);
     if (ajgResponse != NULL) return ajgResponse;
 
@@ -119,7 +124,7 @@ PUBLIC json_object *sessionList (AFB_session *session, AFB_request *request) {
     close (sessionDir);
 
     if (count < 0) {
-        return (jsonNewMessage (AFB_FAIL,"Fail to scan sessions directory [%s/%s] error=%s", session->config->sessiondir, request->plugin, strerror(sessionDir)));
+        return (jsonNewMessage (AFB_FAIL,"Fail to scan sessions.hash directory [%s/%s] error=%s", session->config->sessiondir, request->plugin, strerror(sessionDir)));
     }
     if (count == 0) return (jsonNewMessage (AFB_EMPTY,"[%s] no session at [%s]", request->plugin, session->config->sessiondir));
 
@@ -189,7 +194,7 @@ PUBLIC json_object *sessionFromDisk (AFB_session *session, AFB_request *request,
     // check for current session request
     defsession = (strcmp (name, AFB_DEFAULT_SESSION) ==0);
 
-    // if directory for card's sessions does not exist create it
+    // if directory for card's sessions.hash does not exist create it
     response = checkCardDirExit (session, request);
     if (response != NULL) return response;
 
@@ -238,7 +243,7 @@ PUBLIC json_object * sessionToDisk (AFB_session *session, AFB_request *request, 
    // check for current session request
    defsession = (strcmp (name, AFB_DEFAULT_SESSION) ==0);
 
-   // if directory for card's sessions does not exist create it
+   // if directory for card's sessions.hash does not exist create it
    response = checkCardDirExit (session, request);
    if (response != NULL) return response;
 
@@ -326,64 +331,107 @@ STATIC void ctxUuidFreeCB (AFB_clientCtx *client) {
 
 // Create a new store in RAM, not that is too small it will be automatically extended
 PUBLIC void ctxStoreInit (int nbSession) {
-   int res; 
-   // let's create session hash table
-   res = hcreate_r(nbSession, &sessions);
+   int res;
+   
+   // let's create as store as hashtable does not have any
+   sessions.store = calloc (nbSession+1, sizeof(AFB_clientCtx));
+   sessions.max=nbSession;
 }
 
 STATIC AFB_clientCtx *ctxStoreSearch (const char* uuid) {
-    ENTRY item = {(char*) uuid};
-    ENTRY *pitem = &item;
-    // printf ("searching uuid=%s\n", uuid);
+    int  idx;
+    AFB_clientCtx *client;
     
-    pthread_mutex_lock(&mutexHash);
-    if (hsearch_r(item, FIND, &pitem, &sessions)) {
-        pthread_mutex_unlock(&mutexHash);
-        return  (AFB_clientCtx*) pitem->data;
+    if (uuid == NULL) return NULL;
+    
+    pthread_mutex_lock(&sessions.mutex);
+    
+    for (idx=0; idx < sessions.max; idx++) {
+        if (sessions.store[idx] && (0 == strcmp (uuid, sessions.store[idx]->uuid))) break;
     }
-    pthread_mutex_unlock(&mutexHash);
-    return NULL;
+    
+    if (idx == sessions.max) client=NULL;
+    else client= sessions.store[idx];
+    
+    pthread_mutex_unlock(&sessions.mutex);
+    
+    return (client);
 }
 
-// Reference http://stackoverflow.com/questions/25971505/how-to-delete-element-from-hsearch
-void ctxStoreAdd (AFB_clientCtx *client) {
-    ENTRY item = {client->uuid, (void*)client};
-    ENTRY *pitem = &item;
 
-    pthread_mutex_lock(&mutexHash);
-    if (hsearch_r(item, ENTER, &pitem, &sessions)) {
-        // printf ("storing uuid=%s\n", client->uuid);
-        pitem->data = (void *)client;
+STATIC AFB_error ctxStoreDel (AFB_clientCtx *client) {
+    int idx;
+    int status;
+    if (client == NULL) return (AFB_FAIL);
+
+    //fprintf (stderr, "ctxStoreDel request uuid=%s count=%d\n", client->uuid, sessions.count);
+    
+    pthread_mutex_lock(&sessions.mutex);
+    
+    for (idx=0; idx < sessions.max; idx++) {
+        if (sessions.store[idx] && (0 == strcmp (client->uuid, sessions.store[idx]->uuid))) break;
     }
-    pthread_mutex_unlock(&mutexHash);
+    
+    if (idx == sessions.max) status=AFB_FAIL;
+    else {
+        sessions.count --;
+        sessions.store[idx]=NULL;
+        status=AFB_SUCCESS;
+    }
+    
+    pthread_mutex_unlock(&sessions.mutex);
+    
+    return (status);
+    
+    // plugin registered a callback let's release semaphore and cleanup now
+    if ((client->plugin->freeCtxCB != NULL) && client->ctx) client->plugin->freeCtxCB(client);
 }
 
-void ctxStoreDel (AFB_clientCtx *client) {
-    ENTRY item = {client->uuid};
-    ENTRY *pitem = &item;
+STATIC AFB_error ctxStoreAdd (AFB_clientCtx *client) {
+    int idx;
+    int status;
+    if (client == NULL) return (AFB_FAIL);
 
-    pthread_mutex_lock(&mutexHash);
-    if (hsearch_r(item, FIND, &pitem, &sessions)) {
-        pitem->data = NULL;
+    //fprintf (stderr, "ctxStoreAdd request uuid=%s count=%d\n", client->uuid, sessions.count);
+    
+    pthread_mutex_lock(&sessions.mutex);
+    
+    for (idx=0; idx < sessions.max; idx++) {
+        if (NULL == sessions.store[idx]) break;
     }
-    pthread_mutex_unlock(&mutexHash);
+    
+    if (idx == sessions.max) status=AFB_FAIL;
+    else {
+        status=AFB_SUCCESS;
+        sessions.count ++;
+        sessions.store[idx]= client;
+    }
+    
+    pthread_mutex_unlock(&sessions.mutex);
+    
+    return (status);
 }
 
 // Check if context timeout or not
-STATIC int ctxStoreToOld (const void *k1, int timeout) {
+STATIC int ctxStoreToOld (AFB_clientCtx *ctx, int timeout) {
     int res;
-    AFB_clientCtx *ctx = (AFB_clientCtx*) k1;
     time_t now =  time(NULL);
     res = ((ctx->timeStamp + timeout) <= now);
     return (res);    
 }
 
-// Loop on every entry and remove old context sessions
-PUBLIC int ctxStoreGarbage (struct lh_table *lht, const int timeout) {
- 
-    if (verbose) fprintf (stderr, "****** Garbage Count=%d timeout=%d\n", lht->count, timeout);
-
-  
+// Loop on every entry and remove old context sessions.hash
+PUBLIC int ctxStoreGarbage (const int timeout) {
+    AFB_clientCtx *ctx;
+    long idx;
+    
+    // Loop on Sessions Table and remove anything that is older than timeout
+    for (idx=0; idx < sessions.max; idx++) {
+        ctx=sessions.store[idx];
+        if ((ctx != NULL) && (ctxStoreToOld(ctx, timeout))) {
+            ctxStoreDel (ctx);
+        }
+    }
 }
 
 // This function will return exiting client context or newly created client context
@@ -410,12 +458,17 @@ PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin) {
     if ((uuid != NULL) && (strnlen (uuid, 10) >= 10))   {
         int search;
         // search if client context exist and it not timeout let's use it
-        printf ("search old UID=%s\n", uuid);
         clientCtx = ctxStoreSearch (uuid);
 
-	if (clientCtx && ! ctxStoreToOld (clientCtx, request->config->cntxTimeout)) {
-            request->client=clientCtx;
-            return;            
+	if (clientCtx) {
+            if (ctxStoreToOld (clientCtx, request->config->cntxTimeout)) {
+                 // this session is too old let's delete it
+                ctxStoreDel (clientCtx);
+                clientCtx=NULL;
+            } else {
+                request->client=clientCtx;
+                return (AFB_SUCCESS);            
+            }
         }
     }
    
@@ -428,17 +481,18 @@ PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin) {
     clientCtx->plugin;    // provide plugin callbacks a hook to plugin
         
     // if table is full at 50% let's clean it up
-    // if(clientCtxs->count > (clientCtxs->size / 2)) ctxStoreGarbage(clientCtxs, request->config->cntxTimeout);
+    if(sessions.count > (sessions.max / 2)) ctxStoreGarbage(request->config->cntxTimeout);
     
     // finally add uuid into hashtable
-    ctxStoreAdd (clientCtx);
+    if (AFB_SUCCESS != ctxStoreAdd (clientCtx)) {
+        free (clientCtx);
+        return(AFB_FAIL);
+    }
     
-    // if (ret < 0) return (AFB_FAIL);
-    
-    if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
+    // if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
     request->client = clientCtx;
 
-    return (AFB_SUCCESS);
+    return(AFB_SUCCESS);
 }
 
 // Sample Generic Ping Debug API

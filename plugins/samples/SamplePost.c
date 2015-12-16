@@ -19,58 +19,6 @@
 
 #include "local-def.h"
 
-// Dummy sample of Client Application Context
-typedef struct {
-  int  something;       
-  void *whateveryouwant;
-} MyClientApplicationHandle;
-
-
-// Request Creation of new context if it does not exist
-STATIC json_object* clientContextCreate (AFB_request *request) {
-    json_object *jresp;
-
-    // add an application specific client context to session
-    request->client->ctx = malloc (sizeof (MyClientApplicationHandle));
-    
-    // Send response to UI
-    jresp = json_object_new_object();               
-    json_object_object_add(jresp, "token", json_object_new_string ("A New Token and Session Context Was Created"));
-
-    return (jresp);
-}
-
-// Before entering here token will be check and renew
-STATIC json_object* clientContextRefresh (AFB_request *request) {
-    json_object *jresp;
-
-  
-    jresp = json_object_new_object();
-    json_object_object_add(jresp, "token", json_object_new_string ("Token was refreshed"));              
-    
-    return (jresp);
-}
-
-
-// Session token will we verified before entering here
-STATIC json_object* clientContextCheck (AFB_request *request) {
-    
-    json_object *jresp = json_object_new_object();    
-    json_object_object_add(jresp, "isvalid", json_object_new_boolean (TRUE));       
-        
-    return (jresp); 
-}
-
-
-// Close and Free context
-STATIC json_object* clientContextReset (AFB_request *request) {
-    json_object *jresp;
-   
-    jresp = json_object_new_object();
-    json_object_object_add(jresp, "uuid", json_object_new_string (request->client->uuid));              
-    
-    return (jresp); 
-}
 
 // In this case or handle is quite basic
 typedef struct {
@@ -172,12 +120,8 @@ STATIC void clientContextFree(AFB_clientCtx *client) {
 }
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"          , AFB_SESSION_NONE  , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
-  {"token-create"  , AFB_SESSION_CREATE, (AFB_apiCB)clientContextCreate ,"Request Client Context Creation"},
-  {"token-refresh" , AFB_SESSION_RENEW , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
-  {"token-check"   , AFB_SESSION_CHECK , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},
-  {"token-reset"   , AFB_SESSION_CLOSE , (AFB_apiCB)clientContextReset  ,"Close Client Context and Free resources"},
-  {"file-upload"   , AFB_SESSION_NONE  , (AFB_apiCB)ProcessPostForm     ,"Demo for file upload"},
+  {"ping"   , AFB_SESSION_NONE  , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
+  {"upload" , AFB_SESSION_NONE  , (AFB_apiCB)ProcessPostForm     ,"Demo for file upload"},
   {NULL}
 };
 
@@ -185,7 +129,7 @@ PUBLIC AFB_plugin *afsvRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON; 
     plugin->info  = "Application Framework Binder Service";
-    plugin->prefix= "afbs";  // url base
+    plugin->prefix= "post";  // url base
     plugin->apis  = pluginApis;
     plugin->handle= (void*) "What ever you want";
     plugin->freeCtxCB= (void*) clientContextFree;

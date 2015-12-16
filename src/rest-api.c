@@ -95,7 +95,7 @@ PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
 PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
 
     if (postHandle->type == AFB_POST_JSON) {
-        if (verbose) fprintf(stderr, "End PostJson Request UID=%d\n", postHandle->uid);
+        // if (verbose) fprintf(stderr, "End PostJson Request UID=%d\n", postHandle->uid);
     }
 
     if (postHandle->type == AFB_POST_FORM) {
@@ -178,7 +178,13 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 if (AFB_SESSION_NONE != plugin->apis[idx].session) {
                     
                     // add client context to request
-                    ctxClientGet(request, plugin);
+                    if (ctxClientGet(request, plugin) != AFB_SUCCESS) {
+                        request->errcode=MHD_HTTP_INSUFFICIENT_STORAGE;
+                        json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                        json_object_object_add(jcall, "info", json_object_new_string ("Client Session Context Full !!!"));
+                        json_object_object_add(request->jresp, "request", jcall);
+                        return (AFB_DONE);                              
+                    };
                     
                     if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[0x%x] Uuid=[%s] Token=[%s]\n"
                            , request->plugin, request->api, plugin->apis[idx].session, request->client, request->client->uuid, request->client->token);                        
@@ -428,6 +434,12 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             
             // Let make sure we have the right encoding and a valid length
             encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
+            
+            // We are facing an empty post let's process it as a get
+            if (encoding == NULL) {
+                request= createRequest (connection, session, url);
+                goto ProcessApiCall;
+            }
         
             // Form post is handle through a PostProcessor and call API once per form key
             if (strcasestr(encoding, FORM_CONTENT) != NULL) {
@@ -467,7 +479,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 postHandle->type = AFB_POST_JSON;
                 postHandle->private = malloc(contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
 
-                if (verbose) fprintf(stderr, "Create PostJson[uid=%d] Size=%d\n", postHandle->uid, contentlen);
+                // if (verbose) fprintf(stderr, "Create PostJson[uid=%d] Size=%d\n", postHandle->uid, contentlen);
                 return MHD_YES;
 
             } else {
@@ -490,7 +502,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             
             // Process JsonPost request when buffer is completed let's call API    
             if (postHandle->type == AFB_POST_JSON) {
-                if (verbose) fprintf(stderr, "Updating PostJson[uid=%d]\n", postHandle->uid);
+                // if (verbose) fprintf(stderr, "Updating PostJson[uid=%d]\n", postHandle->uid);
 
                 memcpy(&postHandle->private[postHandle->len], upload_data, *upload_data_size);
                 postHandle->len = postHandle->len + *upload_data_size;
@@ -509,7 +521,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
 
             
             if (postHandle->type == AFB_POST_JSON) {
-                if (verbose) fprintf(stderr, "Processing PostJson[uid=%d]\n", postHandle->uid);
+                // if (verbose) fprintf(stderr, "Processing PostJson[uid=%d]\n", postHandle->uid);
 
                 param = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_LENGTH);
                 if (param) sscanf(param, "%i", &contentlen);
@@ -526,18 +538,18 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 postRequest.type = postHandle->type;
                 request->post = &postRequest;
 
-                if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);
+                // if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);
             }
         }
     } else {
         // this is a get we only need a request
         request= createRequest (connection, session, url);
     };
-    
+
+ProcessApiCall:    
     // Request is ready let's call API without any extra handle
     status = findAndCallApi (request, NULL);
-    
-ExitOnResponse:
+
     serialized = json_object_to_json_string(request->jresp);
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
     
