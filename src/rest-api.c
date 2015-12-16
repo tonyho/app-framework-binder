@@ -613,7 +613,6 @@ void initPlugins(AFB_session *session) {
     int i = 0;
 
     plugins[i++] = afsvRegister(session),
-    plugins[i++] = dbusRegister(session),
     plugins[i++] = alsaRegister(session),
 #ifdef HAVE_RADIO_PLUGIN
     plugins[i++] = radioRegister(session),

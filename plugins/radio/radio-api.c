@@ -461,38 +461,6 @@ STATIC void* _output_thread_fn (void *ctx) {
 }
 
 
-
-STATIC json_object* start (AFB_session *session, AFB_request *request, void* handle) {
-    json_object *response;
-    char query [512];
-
-    // request all query key/value
-    getQueryAll (request, query, sizeof(query));
-
-    // check if we have some post data
-    if (request->post == NULL)  request->post="NoData";
-
-    // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Start Radio plugin query={%s} PostData: \'%s\' ", query, request->post);
-
-    //if (verbose) fprintf(stderr, "%d: \n", pingcount);
-    return (response);
-}
-
-STATIC json_object* stop (AFB_session *session, AFB_request *request, void* handle) {
-    json_object *response;
-    char query [512];
-
-    getQueryAll (request, query, sizeof(query));
-
-    if (request->post == NULL)  request->post="NoData";
-
-    response = jsonNewMessage(AFB_SUCCESS, "Stop Radio plugin query={%s} PostData: \'%s\' ", query, request->post);
-
-    return (response);
-}
-
-
 // ********************************************************
 
 // FULUP integration proposal with client session context
@@ -641,11 +609,24 @@ STATIC json_object* powerOnOff (AFB_request *request) {
     // At this point we should have something to retreive radio status before last poweroff [but this is only a demonstrator]
 }
 
+STATIC json_object* start (AFB_request *request) {
+    return NULL;
+}
+
+STATIC json_object* stop (AFB_request *request) {
+    return NULL;
+}
+
+STATIC json_object* status (AFB_request *request) {
+    return NULL;
+}
+
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"power"  , (AFB_apiCB)powerOnOff , "Ping Application Framework"},
-  {"start"  , (AFB_apiCB)start      , "Ping Application Framework"},
-  {"stop"   , (AFB_apiCB)stop       , "Ping Application Framework"},
+  {"power"  , AFB_SESSION_CREATE, (AFB_apiCB)powerOnOff , "Ping Application Framework"},
+  {"start"  , AFB_SESSION_CHECK,  (AFB_apiCB)start      , "Ping Application Framework"},
+  {"stop"   , AFB_SESSION_CHECK,  (AFB_apiCB)stop       , "Ping Application Framework"},
+  {"status" , AFB_SESSION_RENEW,  (AFB_apiCB)status     , "Ping Application Framework"},
   {NULL}
 };
 

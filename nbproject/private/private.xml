@@ -6,6 +6,11 @@
     </data>
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
-        <group/>
+        <group>
+            <file>file:/home/mbc/git/afb-daemon-newapi/include/local-def.h</file>
+            <file>file:/home/mbc/git/afb-daemon-newapi/src/radio-api.c</file>
+            <file>file:/home/mbc/git/afb-daemon-newapi/src/afbs-api.c</file>
+            <file>file:/home/mbc/git/afb-daemon-newapi/src/dbus-api.c</file>
+        </group>
     </open-files>
 </project-private>

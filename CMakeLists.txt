@@ -1,6 +1,6 @@
 PROJECT(afb-daemon C)
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 SET(CMAKE_BUILD_TYPE, Debug)
 SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -35,10 +35,9 @@ ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 INCLUDE(FindPkgConfig)
 PKG_CHECK_MODULES(json-c REQUIRED json-c)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd)
+PKG_CHECK_MODULES(uuid REQUIRED uuid)
 # Optional plugin dependencies
 PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
-PKG_CHECK_MODULES(uuid REQUIRED uuid)
-
 
 IF(librtlsdr_FOUND)
   MESSAGE(STATUS "librtlsdr found ; will compile Radio plugin... (PLUGIN)")
@@ -51,3 +50,10 @@ SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DI
 SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm)
 
 ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(plugins)
+
+ADD_EXECUTABLE(afb-daemon $<TARGET_OBJECTS:src> $<TARGET_OBJECTS:plugins>)
+TARGET_LINK_LIBRARIES(afb-daemon ${link_libraries})
+
+INSTALL(TARGETS afb-daemon
+        RUNTIME DESTINATION bin)

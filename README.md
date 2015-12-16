@@ -23,7 +23,7 @@ industry requirementsas the primary target for this code is AGL.
  and the following tools:
 
  * pkg-config;
- * cmake >= 2.8.
+ * cmake >= 2.8.8.
 
 To install all dependencies under OpenSUSE (except rtl-sdr), please type:
 
