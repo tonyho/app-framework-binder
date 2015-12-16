@@ -27,23 +27,6 @@ STATIC json_object* wrongApi (AFB_request *request, void* handle) {
     impossible=bug/zero;
 }
 
-STATIC json_object* pingSample (AFB_request *request) {
-    static pingcount = 0;
-    json_object *response;
-    char query [512];
-
-    // request all query key/value
-    getQueryAll (request,query, sizeof(query)); 
-    
-    // check if we have some post data
-    if (request->post == NULL)  request->post="NoData";  
-        
-    // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} handle=[%s] PostData: \'%s\' " 
-                             , pingcount++, query, request->post);
-    
-    return (response);
-}
 
 
 STATIC struct {
@@ -52,10 +35,9 @@ STATIC struct {
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample , "Ping Application Framework"},
-  {"error"    , (AFB_apiCB)wrongApi   , "Ping Application Framework"},
-  {"ctx-store", (AFB_apiCB)pingSample , "Verbose Mode"},
-  {"ctx-load" , (AFB_apiCB)pingSample , "Verbose Mode"},
+  {"ping"     , AFB_SESSION_NONE, (AFB_apiCB)apiPingTest,"Ping Application Framework"},
+  {"error"    , AFB_SESSION_NONE, (AFB_apiCB)wrongApi   , "Ping Application Framework"},
+
   {NULL}
 };
 

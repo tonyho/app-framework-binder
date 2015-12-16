@@ -11,8 +11,6 @@
           </df>
           <df name="CMakeTmp">
           </df>
-          <df name="Progress">
-          </df>
           <in>feature_tests.c</in>
         </df>
         <df name="src">
@@ -29,6 +27,7 @@
         <in>proto-def.h</in>
       </df>
       <df name="src">
+        <in>SamplePost.c</in>
         <in>afbs-api.c</in>
         <in>alsa-api.c</in>
         <in>config.c</in>
@@ -48,8 +47,6 @@
             </df>
           </df>
           <df name="CMakeTmp">
-          </df>
-          <df name="Progress">
           </df>
         </df>
         <df name="src">

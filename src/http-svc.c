@@ -267,6 +267,9 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
     apiUrlLen = strlen (session->config->rootapi);
     baseUrlLen= strlen (session->config->rootbase);
     rootUrlLen= strlen (session->config->rootdir);
+    
+    // Initialise Client Session Hash Table
+    ctxStoreInit (CTX_NBCLIENTS);
      
     // TBD open libmagic cache [fail to pass EFENCE check]
     // initLibMagic (session);

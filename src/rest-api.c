@@ -107,7 +107,7 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
             if (!postHandle->completeCB) postHandle->completeCB (postHandle->private);
         }
     }
-    freeRequest (postHandle->private);
+    free(postHandle->private);
     free(postHandle);
 }
 
@@ -138,6 +138,11 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
     for (idx = 0; plugin->apis[idx].callback != NULL; idx++) {
         if (!strcmp(plugin->apis[idx].name, request->api)) {
             
+            // Request was found and at least partially executed
+            request->jresp  = json_object_new_object();
+            json_object_get (afbJsonType);  // increate jsontype reference count
+            json_object_object_add (request->jresp, "jtype", afbJsonType);
+            
             // prepare an object to store calling values
             jcall=json_object_new_object();
             json_object_object_add(jcall, "prefix", json_object_new_string (plugin->prefix));
@@ -158,25 +163,94 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 if (request->config->apiTimeout > 0) {
                     for (sig=0; signals[sig] != 0; sig++) {
                        if (signal (signals[sig], pluginError) == SIG_ERR) {
-                           request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
-                           request->jresp = jsonNewMessage(AFB_FATAL, "%s ERR: Signal/timeout handler activation fail.", configTime());
-                           return AFB_FAIL;
+                            request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
+                            json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                            json_object_object_add(jcall, "info", json_object_new_string ("Setting Timeout Handler Failed"));
+                            json_object_object_add(request->jresp, "request", jcall);
+                            return AFB_DONE;
                        }
                     }
                     // Trigger a timer to protect from unacceptable long time execution
                     alarm (request->config->apiTimeout);
                 }
+
+                // Out of SessionNone every call get a client context session
+                if (AFB_SESSION_NONE != plugin->apis[idx].session) {
+                    
+                    // add client context to request
+                    ctxClientGet(request, plugin);
+                    
+                    if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[0x%x] Uuid=[%s] Token=[%s]\n"
+                           , request->plugin, request->api, plugin->apis[idx].session, request->client, request->client->uuid, request->client->token);                        
+                    
+                    switch(plugin->apis[idx].session) {
+
+                        case AFB_SESSION_CREATE:
+                            if (request->client->token[0] != '\0') {
+                                request->errcode=MHD_HTTP_UNAUTHORIZED;
+                                json_object_object_add(jcall, "status", json_object_new_string ("exist"));
+                                json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CREATE Session already exist"));
+                                json_object_object_add(request->jresp, "request", jcall);
+                                return (AFB_DONE);                              
+                            }
+                        
+                            if (AFB_SUCCESS != ctxTokenCreate (request)) {
+                                request->errcode=MHD_HTTP_UNAUTHORIZED;
+                                json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                                json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CREATE Invalid Initial Token"));
+                                json_object_object_add(request->jresp, "request", jcall);
+                                return (AFB_DONE);
+                            } else {
+                                json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
+                                json_object_object_add(jcall, "token", json_object_new_string (request->client->token));                                
+                            }
+                            break;
+
+
+                        case AFB_SESSION_RENEW:
+                            if (AFB_SUCCESS != ctxTokenRefresh (request)) {
+                                request->errcode=MHD_HTTP_UNAUTHORIZED;
+                                json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                                json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_REFRESH Broken Exchange Token Chain"));
+                                json_object_object_add(request->jresp, "request", jcall);
+                                return (AFB_DONE);
+                            } else {
+                                json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
+                                json_object_object_add(jcall, "token", json_object_new_string (request->client->token));                                
+                            }
+                            break;
+
+                        case AFB_SESSION_CLOSE:
+                            if (AFB_SUCCESS != ctxTokenCheck (request)) {
+                                request->errcode=MHD_HTTP_UNAUTHORIZED;
+                                json_object_object_add(jcall, "status", json_object_new_string ("empty"));
+                                json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CLOSE Not a Valid Access Token"));
+                                json_object_object_add(request->jresp, "request", jcall);
+                                return (AFB_DONE);
+                            } else {
+                                json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
+                            }
+                            break;
+                        
+                        case AFB_SESSION_CHECK:
+                        default: 
+                            // default action is check
+                            if (AFB_SUCCESS != ctxTokenCheck (request)) {
+                                request->errcode=MHD_HTTP_UNAUTHORIZED;
+                                json_object_object_add(jcall, "status", json_object_new_string ("fail"));
+                                json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CHECK Invalid Active Token"));
+                                json_object_object_add(request->jresp, "request", jcall);
+                                return (AFB_DONE);
+                            }
+                            break;
+                    }
+                }
                 
-                // add client context to request
-                ctxClientGet(request, plugin);      
-             
                 // Effectively call the API with a subset of the context
                 jresp = plugin->apis[idx].callback(request, context);
 
-                // Allocate Json object and build response
-                request->jresp  = json_object_new_object();
-                json_object_get (afbJsonType);  // increate jsontype reference count
-                json_object_object_add (request->jresp, "jtype", afbJsonType);
+                // Session close is done after the API call so API can still use session in closing API
+                if (AFB_SESSION_CLOSE == plugin->apis[idx].session) ctxTokenReset (request);                    
                 
                 // API should return NULL of a valid Json Object
                 if (jresp == NULL) {
@@ -200,17 +274,18 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
             return (AFB_DONE);
         }
     }
+    
     return (AFB_FAIL);
 }
 
 STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     int idx;
-    char *baseurl, *baseapi;
     AFB_error status;
+    
    
     // Search for a plugin with this urlpath
     for (idx = 0; request->plugins[idx] != NULL; idx++) {
-        if (!strcmp(request->plugins[idx]->prefix, baseurl)) {
+        if (!strcmp(request->plugins[idx]->prefix, request->plugin)) {
             status =callPluginApi(request->plugins[idx], request, context);
             break;
         }
@@ -226,7 +301,10 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
         request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s]", request->api, request->plugin);
         goto ExitOnError;
     }
-   
+
+
+
+    
     // Everything look OK
     return (status);
     
@@ -262,10 +340,10 @@ doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   item.offset   = offset;
   
   // Reformat Request to make it somehow similar to GET/PostJson case
-  post.data= (char*) postctx;
-  post.len = size;
-  post.type= AFB_POST_FORM;;
-  request->post = &post;
+  postRequest.data= (char*) postHandle;
+  postRequest.len = size;
+  postRequest.type= AFB_POST_FORM;;
+  request->post = &postRequest;
   
   // effectively call plugin API                 
   status = findAndCallApi (request, &item);
@@ -274,10 +352,11 @@ doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   if (status != AFB_SUCCESS) return MHD_NO;
   
   // let's allow iterator to move to next item
-  return (MHD_YES;);
+  return (MHD_YES);
 }
 
 STATIC void freeRequest (AFB_request *request) {
+
  free (request->plugin);    
  free (request->api);    
  free (request);    
@@ -289,32 +368,32 @@ STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_sessio
     
     // Start with a clean request
     request = calloc (1, sizeof (AFB_request));
-    char *urlcpy1, urlcpy2;
+    char *urlcpy1, *urlcpy2;
+    char *baseapi, *baseurl;  
       
     // Extract plugin urlpath from request and make two copy because strsep overload copy
     urlcpy1 = urlcpy2 = strdup(url);
     baseurl = strsep(&urlcpy2, "/");
     if (baseurl == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
-        goto ExitOnError;
+        request->jresp = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
     }
 
     // let's compute URL and call API
     baseapi = strsep(&urlcpy2, "/");
     if (baseapi == NULL) {
-        errMessage = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
-        goto ExitOnError;
+        request->jresp = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
     }
     
     // build request structure
     request->connection = connection;
-    request->config = session.config;
+    request->config = session->config;
     request->url    = url;
     request->plugin = strdup (baseurl);
     request->api    = strdup (baseapi);
     request->plugins= session->plugins;
     
     free(urlcpy1);
+    return (request);
 }
 
 // process rest API query
@@ -326,41 +405,45 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     AFB_error status;
     struct MHD_Response *webResponse;
     const char *serialized;
-    AFB_request request;
-    AFB_PostHandle *posthandle;
+    AFB_request *request;
+    AFB_PostHandle *postHandle;
+    AFB_PostRequest postRequest;
     int ret;
   
     // if post data may come in multiple calls
     if (0 == strcmp(method, MHD_HTTP_METHOD_POST)) {
         const char *encoding, *param;
         int contentlen = -1;
-        posthandle = *con_cls;
+        postHandle = *con_cls;
 
         // This is the initial post event let's create form post structure POST datas come in multiple events
-        if (posthandle == NULL) {
-            fprintf(stderr, "This is the 1st Post Event postuid=%d\n", posthandle->uid);
+        if (postHandle == NULL) {
 
             // allocate application POST processor handle to zero
-            posthandle = cmalloc(1, sizeof (AFB_PostHandle));
-            posthandle->uid = postcount++; // build a UID for DEBUG
-            *con_cls = posthandle;         // attache POST handle to current HTTP request
+            postHandle = calloc(1, sizeof (AFB_PostHandle));
+            postHandle->uid = postcount++; // build a UID for DEBUG
+            *con_cls = postHandle;         // attache POST handle to current HTTP request
             
             // Let make sure we have the right encoding and a valid length
             encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
-            param = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_LENGTH);
-            if (param) sscanf(param, "%i", &contentlen);
         
             // Form post is handle through a PostProcessor and call API once per form key
             if (strcasestr(encoding, FORM_CONTENT) != NULL) {
-               
-                posthandle = malloc(sizeof (AFB_PostHandle)); // allocate application POST processor handle
-                posthandle->type   = AFB_POST_FORM;
-                posthandle->private= (void*)createRequest (connection, session, url);
-                posthandle->pp     = MHD_create_post_processor (connection, MAX_POST_SIZE, doPostIterate, posthandle);
-               
-                if (NULL == posthandle->pp) {
+                if (verbose) fprintf(stderr, "Create PostForm[uid=%d]\n", postHandle->uid);
+
+                request = createRequest (connection, session, url);
+                if (request->jresp != NULL) {
+                    errMessage = request->jresp;
+                    goto ExitOnError;
+                }
+                postHandle = malloc(sizeof (AFB_PostHandle)); // allocate application POST processor handle
+                postHandle->type   = AFB_POST_FORM;
+                postHandle->pp     = MHD_create_post_processor (connection, MAX_POST_SIZE, doPostIterate, postHandle);
+                postHandle->private= (void*)request;
+                
+                if (NULL == postHandle->pp) {
                     fprintf(stderr,"OOPS: Internal error fail to allocate MHD_create_post_processor\n");
-                    free (posthandle);
+                    free (postHandle);
                     return MHD_NO;
                 }
                 return MHD_YES;
@@ -369,40 +452,46 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             // POST json is store into a buffer and present in one piece to API
             if (strcasestr(encoding, JSON_CONTENT) != NULL) {
 
+                param = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_LENGTH);
+                if (param) sscanf(param, "%i", &contentlen);
+
+                // Because PostJson are build in RAM size is constrained
                 if (contentlen > MAX_POST_SIZE) {
                     errMessage = jsonNewMessage(AFB_FATAL, "Post Date to big %d > %d", contentlen, MAX_POST_SIZE);
                     goto ExitOnError;
                 }
 
-                if (posthandle == NULL) {
-                    posthandle->type = AFB_POST_JSON;
-                    posthandle->private = malloc(contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
+                // Size is OK, let's allocate a buffer to hold post data
+                postHandle->type = AFB_POST_JSON;
+                postHandle->private = malloc(contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
 
-                    if (verbose) fprintf(stderr, "Create PostJson[%d] Size=%d\n", posthandle->uid, contentlen);
-                    return MHD_YES;
-                }
+                if (verbose) fprintf(stderr, "Create PostJson[uid=%d] Size=%d\n", postHandle->uid, contentlen);
+                return MHD_YES;
 
+            } else {
                 // We only support Json and Form Post format
                 errMessage = jsonNewMessage(AFB_FATAL, "Post Date wrong type encoding=%s != %s", encoding, JSON_CONTENT);
                 goto ExitOnError;
-            }    
+                
+            }   
         }
 
         // This time we receive partial/all Post data. Note that even if we get all POST data. We should nevertheless
         // return MHD_YES and not process the request directly. Otherwise Libmicrohttpd is unhappy and fails with
         // 'Internal application error, closing connection'.            
         if (*upload_data_size) {
-            if (verbose) fprintf(stderr, "Update Post[%d]\n", posthandle->uid);
     
-            if (posthandle->type == AFB_POST_FORM) {
-                MHD_post_process (con_info->postprocessor, upload_data, *upload_data_size);
+            if (postHandle->type == AFB_POST_FORM) {
+                if (verbose) fprintf(stderr, "Processing PostForm[uid=%d]\n", postHandle->uid);
+                MHD_post_process (postHandle->pp, upload_data, *upload_data_size);
             }
             
             // Process JsonPost request when buffer is completed let's call API    
-            if (posthandle->type == AFB_POST_JSON) {
+            if (postHandle->type == AFB_POST_JSON) {
+                if (verbose) fprintf(stderr, "Updating PostJson[uid=%d]\n", postHandle->uid);
 
-                memcpy(&posthandle->private[posthandle->len], upload_data, *upload_data_size);
-                posthandle->len = posthandle->len + *upload_data_size;
+                memcpy(&postHandle->private[postHandle->len], upload_data, *upload_data_size);
+                postHandle->len = postHandle->len + *upload_data_size;
                 *upload_data_size = 0;
             }
             return MHD_YES;
@@ -411,25 +500,31 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             
             // Create a request structure to finalise the request
             request= createRequest (connection, session, url);
-
-            // We should only start to process DATA after Libmicrohttpd call or application handler with *upload_data_size==0
-            if (posthandle->type == AFB_POST_FORM) {
-                MHD_post_process (posthandle->pp, upload_data, *upload_data_size);
+            if (request->jresp != NULL) {
+                errMessage = request->jresp;
+                goto ExitOnError;
             }
+
             
-            if (posthandle->type == AFB_POST_JSON) {
+            if (postHandle->type == AFB_POST_JSON) {
+                if (verbose) fprintf(stderr, "Processing PostJson[uid=%d]\n", postHandle->uid);
+
+                param = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_LENGTH);
+                if (param) sscanf(param, "%i", &contentlen);
+
                 // At this level we're may verify that we got everything and process DATA
-                if (posthandle->len != contentlen) {
-                    errMessage = jsonNewMessage(AFB_FATAL, "Post Data Incomplete UID=%d Len %d != %s", posthandle->uid, contentlen, posthandle->len);
+                if (postHandle->len != contentlen) {
+                    errMessage = jsonNewMessage(AFB_FATAL, "Post Data Incomplete UID=%d Len %d != %d", postHandle->uid, contentlen, postHandle->len);
                     goto ExitOnError;
                 }
 
                 // Before processing data, make sure buffer string is properly ended
-                posthandle->private[posthandle->len] = '\0';
-                request->post.data = posthandle->private;
-                request->post.type = posthandle->type;
+                postHandle->private[postHandle->len] = '\0';
+                postRequest.data = postHandle->private;
+                postRequest.type = postHandle->type;
+                request->post = &postRequest;
 
-                if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", posthandle->uid, request.post);
+                if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);
             }
         }
     } else {
@@ -441,23 +536,23 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     status = findAndCallApi (request, NULL);
     
 ExitOnResponse:
-    freeRequest (request);
-    serialized = json_object_to_json_string(request.jresp);
+    serialized = json_object_to_json_string(request->jresp);
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
     
     // client did not pass token on URI let's use cookies 
-    if ((!request.restfull) && (request.client != NULL)) {
+    if ((!request->restfull) && (request->client != NULL)) {
        char cookie[64]; 
-       snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request.client->uuid); 
+       snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request->client->uuid); 
        MHD_add_response_header (webResponse, MHD_HTTP_HEADER_SET_COOKIE, cookie);
     }
     
     // if requested add an error status
-    if (request.errcode != 0)  ret=MHD_queue_response (connection, request.errcode, webResponse);
+    if (request->errcode != 0)  ret=MHD_queue_response (connection, request->errcode, webResponse);
     else MHD_queue_response(connection, MHD_HTTP_OK, webResponse);
     
     MHD_destroy_response(webResponse);
-    json_object_put(request.jresp); // decrease reference rqtcount to free the json object
+    json_object_put(request->jresp); // decrease reference rqtcount to free the json object
+    freeRequest (request);
     return MHD_YES;
 
 ExitOnError:

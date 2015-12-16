@@ -77,7 +77,7 @@ typedef int BOOL;
 extern int verbose;  // this is the only global variable
 
 // Plugin Type
-typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginT;
+typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginE;
 
 // prebuild json error are constructed in config.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
@@ -116,7 +116,7 @@ typedef struct {
   int    uid;               // post uid for debug
   AFB_PostType type;        // JSON or FORM
   AFB_apiCB  completeCB;    // callback when post is completed
-  void   *private;          // use internally to keep track or partial buffer
+  char   *private;          // use internally to keep track or partial buffer
   struct MHD_PostProcessor *pp; // iterator handle
 } AFB_PostHandle;
 
@@ -183,9 +183,13 @@ typedef struct {
      size_t  len;
 } AFB_redirect_msg;
 
+// Enum for Session/Token/Authentication middleware
+typedef enum  {AFB_SESSION_NONE, AFB_SESSION_CREATE, AFB_SESSION_CLOSE, AFB_SESSION_RENEW, AFB_SESSION_CHECK} AFB_sessionE;
+
 // API definition
 typedef struct {
   char *name;
+  AFB_sessionE session;
   AFB_apiCB callback;
   char *info;
   AFB_privateApi *private;
@@ -193,7 +197,7 @@ typedef struct {
 
 // Plugin definition
 typedef struct {
-  AFB_pluginT type;  
+  AFB_pluginE type;  
   char *info;
   char *prefix;
   size_t prefixlen;

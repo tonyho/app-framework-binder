@@ -49,6 +49,7 @@ PUBLIC AFB_error ctxTokenCreate (AFB_request *request);
 PUBLIC AFB_error ctxTokenCheck (AFB_request *request);
 PUBLIC AFB_error ctxTokenReset (AFB_request *request);
 PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin);
+PUBLIC void      ctxStoreInit (int);
 
 
 

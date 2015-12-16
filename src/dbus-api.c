@@ -30,7 +30,7 @@ STATIC json_object* pingSample (AFB_request *request) {
     if (len == 0) strcpy (query,"NoSearchQueryList");
     
     // check if we have some post data
-    if (request->post == NULL)  request->post="NoData";  
+    if (request->post == NULL)  request->post->data="NoData";  
         
     // return response to caller
     response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);
@@ -75,12 +75,12 @@ STATIC json_object* pingJson (AFB_session *session, AFB_request *request) {
 
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"     , (AFB_apiCB)pingSample  , "Ping Application Framework"},
-  {"pingnull" , (AFB_apiCB)pingFail    , "Return NULL"},
-  {"pingbug"  , (AFB_apiCB)pingBug     , "Do a Memory Violation"},
-  {"pingJson" , (AFB_apiCB)pingJson    , "Return a JSON object"},
-  {"ctx-store", (AFB_apiCB)pingSample  , "Verbose Mode"},
-  {"ctx-load" , (AFB_apiCB)pingSample  , "Verbose Mode"},
+  {"ping"     , AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Ping Application Framework"},
+  {"pingnull" , AFB_SESSION_NONE, (AFB_apiCB)pingFail    , "Return NULL"},
+  {"pingbug"  , AFB_SESSION_NONE, (AFB_apiCB)pingBug     , "Do a Memory Violation"},
+  {"pingJson" , AFB_SESSION_NONE, (AFB_apiCB)pingJson    , "Return a JSON object"},
+  {"ctx-store", AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Verbose Mode"},
+  {"ctx-load" , AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Verbose Mode"},
   {NULL}
 };
 
