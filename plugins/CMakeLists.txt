@@ -1,4 +1,4 @@
-SET(PLUGINS_SOURCES audio/audio-api.c session/token-api.c)
+SET(PLUGINS_SOURCES audio/audio-api.c session/token-api.c samples/HelloWorld.c)
 
 IF(librtlsdr_FOUND)
   SET(PLUGINS_SOURCES ${PLUGINS_SOURCES} radio/radio-api.c)
