@@ -4,6 +4,7 @@
     <df root="." name="0">
       <df name="plugins">
         <df name="audio">
+          <in>audio-alsa.c</in>
           <in>audio-api.c</in>
         </df>
         <df name="radio">
@@ -87,6 +88,8 @@
           <incDir>
             <pElem>include</pElem>
             <pElem>/usr/include/json-c</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>/usr/include/libusb-1.0</pElem>
             <pElem>build/plugins</pElem>
           </incDir>
@@ -96,7 +99,6 @@
         <cTool>
           <incDir>
             <pElem>plugins/audio</pElem>
-            <pElem>/usr/include/uuid</pElem>
           </incDir>
         </cTool>
       </folder>
@@ -111,7 +113,6 @@
         <cTool>
           <incDir>
             <pElem>plugins/samples</pElem>
-            <pElem>/usr/include/uuid</pElem>
           </incDir>
         </cTool>
       </folder>
@@ -119,15 +120,26 @@
         <cTool>
           <incDir>
             <pElem>plugins/session</pElem>
-            <pElem>/usr/include/uuid</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>__PIC__=2</Elem>
+            <Elem>__REGISTER_PREFIX__=</Elem>
+            <Elem>__USER_LABEL_PREFIX__=</Elem>
+            <Elem>__pic__=2</Elem>
+          </preprocessorList>
         </cTool>
       </folder>
-      <item path="plugins/audio/audio-api.c" ex="false" tool="0" flavor2="2">
+      <item path="plugins/audio/audio-alsa.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>build/plugins</pElem>
+          </incDir>
         </cTool>
       </item>
-      <item path="plugins/radio/radio-api.c" ex="false" tool="0" flavor2="2">
+      <item path="plugins/audio/audio-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
           <incDir>
             <pElem>/usr/include/json-c</pElem>
@@ -137,9 +149,21 @@
           </incDir>
         </cTool>
       </item>
+      <item path="plugins/radio/radio-api.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="1">
+          <incDir>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>include</pElem>
+            <pElem>plugins/audio</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>build/plugins</pElem>
+          </incDir>
+        </cTool>
+      </item>
       <item path="plugins/radio/radio-rtlsdr.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
           <incDir>
+            <pElem>plugins/audio</pElem>
             <pElem>include</pElem>
             <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
@@ -193,6 +217,7 @@
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
+            <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
@@ -225,6 +250,7 @@
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
+            <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
@@ -243,6 +269,7 @@
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
+            <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
@@ -279,6 +306,7 @@
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
+            <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
@@ -297,6 +325,7 @@
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
+            <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>

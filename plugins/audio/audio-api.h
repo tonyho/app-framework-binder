@@ -22,9 +22,9 @@
 #include "audio-alsa.h"
 
 /* global plugin handle, should store everything we may need */
-typedef struct {
+/*typedef struct {
   int devCount;
-} pluginHandleT;
+} pluginHandleT;*/
   
 /* structure holding one audio card with current usage status */
 typedef struct {

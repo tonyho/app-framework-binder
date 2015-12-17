@@ -510,7 +510,7 @@ int main(int argc, char *argv[])  {
     }
 
     // let's not take the risk to run as ROOT
-    if (getuid() == 0)  goto errorNoRoot;
+    //if (getuid() == 0)  goto errorNoRoot;
 
     // check session dir and create if it does not exist
     if (sessionCheckdir (session) != AFB_SUCCESS) goto errSessiondir;
@@ -597,9 +597,9 @@ errorSetuid:
   fprintf (stderr,"\nERR:AFB-daemon Failed to change UID to username=[%s]\n\n", session->config->setuid);
   exit (-1);
   
-errorNoRoot:
-  fprintf (stderr,"\nERR:AFB-daemon Not allow to run as root [use --seteuid=username option]\n\n");
-  exit (-1);
+//errorNoRoot:
+//  fprintf (stderr,"\nERR:AFB-daemon Not allow to run as root [use --seteuid=username option]\n\n");
+//  exit (-1);
 
 errorPidFile:
   fprintf (stderr,"\nERR:AFB-daemon Failed to write pid file [%s]\n\n", session->config->pidfile);

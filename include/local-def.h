@@ -18,6 +18,8 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+#ifndef LOCAL_DEF_H
+#define LOCAL_DEF_H
 
 #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
@@ -256,3 +258,5 @@ typedef struct {
 
 
 #include "proto-def.h"
+
+#endif /* LOCAL_DEF_H */

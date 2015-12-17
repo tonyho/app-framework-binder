@@ -19,6 +19,8 @@
 #include "radio-api.h"
 #include "radio-rtlsdr.h"
 
+static audioCtxHandleT *actx = NULL;
+
 /* ------------- RADIO RTLSDR IMPLEMENTATION ---------------- */
 
 /* --- PUBLIC FUNCTIONS --- */
@@ -46,6 +48,13 @@ PUBLIC unsigned char _radio_on (unsigned int num, radioCtxHandleT *ctx) {
     dev_ctx[num]->output = NULL;
     _radio_dev_init(dev_ctx[num], num);
     
+    actx = malloc (sizeof(audioCtxHandleT));
+    actx->idx = -1;
+    actx->volume = 25;
+    actx->channels = 2;
+    actx->mute = 0;
+    _alsa_init ("default", actx);
+    
     return 1;
 }
 
@@ -58,7 +67,11 @@ PUBLIC void _radio_off (unsigned int num) {
         _radio_dev_free(dev_ctx[num]);
         free(dev_ctx[num]);
     }
+    
     /* free(dev_ctx); */
+
+    _alsa_free ("default");
+    free (actx);
 }
 
 PUBLIC void _radio_set_mode (unsigned int num, Mode mode) {
@@ -398,8 +411,8 @@ STATIC void* _output_thread_fn (void *ctx) {
     while (dev_ctx->should_run) {
            pthread_wait(&output->ok, &output->ok_m);
            pthread_rwlock_rdlock(&output->lck);
-        //if (!dev_ctx->mute)
-        //    mRadio->PlayAlsa((void*)&output->buf, output->buf_len);
+           if (!dev_ctx->mute)
+            _alsa_play(actx->idx, (void*)&output->buf, output->buf_len);
            pthread_rwlock_unlock(&output->lck);
     }
 

@@ -23,9 +23,9 @@
 
 #include "local-def.h"
 
-typedef struct dev_ctx dev_ctx_T;
+typedef struct adev_ctx adev_ctx_T;
 
-struct dev_ctx {
+struct adev_ctx {
   char *name;
   snd_pcm_t *dev;
   snd_pcm_hw_params_t *params;
@@ -37,6 +37,6 @@ struct dev_ctx {
 PUBLIC unsigned int _alsa_get_volume (unsigned int);
 PUBLIC unsigned char _alsa_get_mute (unsigned int);
 
-static struct dev_ctx **dev_ctx = NULL;
+static struct adev_ctx **adev_ctx = NULL;
 
 #endif /* AUDIO_ALSA_H */

@@ -21,6 +21,9 @@
 
 #include "radio-rtlsdr.h"
 
+#include "../audio/audio-api.h"
+#include "../audio/audio-alsa.h"
+
 /* -------------- PLUGIN DEFINITIONS ----------------- */
 
 #define MAX_RADIO 10

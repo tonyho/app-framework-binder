@@ -298,7 +298,7 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
         /* radio stop */
         ctx->is_playing = 0;
         _radio_stop (ctx->idx);
-        json_object_object_add (jresp, "play-on", json_object_new_string ("off"));
+        json_object_object_add (jresp, "play", json_object_new_string ("off"));
     }
 
     return jresp;

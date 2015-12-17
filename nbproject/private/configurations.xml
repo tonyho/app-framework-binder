@@ -48,7 +48,10 @@
       </df>
       <df name="plugins">
         <df name="audio">
+          <in>audio-alsa.c</in>
+          <in>audio-alsa.h</in>
           <in>audio-api.c</in>
+          <in>audio-api.h</in>
         </df>
         <df name="radio">
           <in>radio-api.c</in>
@@ -156,8 +159,6 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
-        <gdb_signals>
-        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>
