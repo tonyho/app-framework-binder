@@ -158,7 +158,7 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
     }
 
     /* "?value=" parameter is "0" or "off" */
-    if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
+    else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
         ctx->mute = 0;
         _alsa_set_mute (ctx->idx, ctx->mute);
 

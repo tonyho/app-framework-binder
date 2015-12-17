@@ -160,7 +160,7 @@ PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
 
     }
 
-    return (unsigned char)mute;
+    return (unsigned char)!mute;
 }
 
 PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
@@ -169,7 +169,7 @@ PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
         return;
 
     if (snd_mixer_selem_has_playback_switch (dev_ctx[num]->mixer_elm))
-        snd_mixer_selem_set_playback_switch_all (dev_ctx[num]->mixer_elm, mute);
+        snd_mixer_selem_set_playback_switch_all (dev_ctx[num]->mixer_elm, !mute);
 }
 
 PUBLIC void _alsa_set_rate (unsigned int num, unsigned int rate) {
