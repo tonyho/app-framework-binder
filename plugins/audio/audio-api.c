@@ -168,8 +168,14 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
     return jresp;
 }
 
-STATIC json_object* status (AFB_request *request) {      /* AFB_SESSION_RENEW */
-    return NULL;
+STATIC json_object* refresh (AFB_request *request) {     /* AFB_SESSION_RENEW */
+    json_object *jresp = json_object_new_object();
+    json_object_object_add(jresp, "token", json_object_new_string (request->client->token));
+    return jresp;
+}
+
+STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
+    return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Radio API");
 }
 
 
@@ -178,7 +184,8 @@ STATIC AFB_restapi pluginApis[]= {
   {"volume"  , AFB_SESSION_CHECK,  (AFB_apiCB)volume    , "Audio API - volume"},
   {"channels", AFB_SESSION_CHECK,  (AFB_apiCB)channels  , "Audio API - channels"},
   {"mute"    , AFB_SESSION_CHECK,  (AFB_apiCB)mute      , "Audio API - mute"},
-  {"status"  , AFB_SESSION_RENEW,  (AFB_apiCB)status    , "Audio API - status"},
+  {"refresh",  AFB_SESSION_RENEW,  (AFB_apiCB)refresh   , "Audio API - refresh"},
+  {"ping"   ,  AFB_SESSION_NONE,   (AFB_apiCB)ping      , "Audio API - ping"},
   {NULL}
 };
 

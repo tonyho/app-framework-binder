@@ -97,17 +97,23 @@ STATIC AFB_error reserveRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
 /* free a radio device from requesting client, power it off */
 STATIC AFB_error releaseRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
 
-   /* power it off */
-   _radio_off (ctx->idx);
+    /* stop playing if it was doing this (blocks otherwise) */
+    if (ctx->is_playing) {
+        ctx->is_playing = 0;
+        _radio_stop (ctx->idx);
+    }
 
-   /* globally mark it as free */
-   handle->radios[ctx->idx]->used = FALSE;
+    /* power it off */
+    _radio_off (ctx->idx);
 
-   /* clean client context */
-   ctx->radio = NULL;
-   ctx->idx = -1;
+    /* globally mark it as free */
+    handle->radios[ctx->idx]->used = FALSE;
 
-   return AFB_SUCCESS;
+    /* clean client context */
+    ctx->radio = NULL;
+    ctx->idx = -1;
+
+    return AFB_SUCCESS;
 }
 
 /* called when client session dies [e.g. client quits for more than 15mns] */
@@ -133,6 +139,7 @@ STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
 
     jresp = json_object_new_object();
     json_object_object_add(jresp, "token", json_object_new_string (request->client->token));
+    return jresp;
 }
 
 STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
@@ -150,8 +157,8 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
           : json_object_object_add (jresp, "power", json_object_new_string ("off"));
     }
 
-    /* "?value=" parameter is "1" or "on" */
-    else if ( atoi(value) == 1 || !strcasecmp(value, "on") ) {
+    /* "?value=" parameter is "1" or "true" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
         if (!ctx->radio) {
             if (reserveRadio (handle, ctx) == AFB_FAIL) {
                 request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
@@ -162,8 +169,8 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
         json_object_object_add (jresp, "power", json_object_new_string ("on"));
     }
 
-    /* "?value=" parameter is "0" or "off" */
-    else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
+    /* "?value=" parameter is "0" or "false" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
         if (ctx->radio) {
             if (releaseRadio (handle, ctx) == AFB_FAIL) {
                 request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
@@ -181,31 +188,26 @@ STATIC json_object* mode (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
-    json_object *jresp;
+    json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
-    if (!value) {
-        jresp = json_object_new_object();
+    if (!value || !ctx->radio) {
         ctx->mode ?
             json_object_object_add (jresp, "mode", json_object_new_string ("AM"))
           : json_object_object_add (jresp, "mode", json_object_new_string ("FM"));
     }
 
-    /* "?value=" parameter is "1" or "on" */
+    /* "?value=" parameter is "1" or "AM" */
     else if ( atoi(value) == 1 || !strcasecmp(value, "AM") ) {
         ctx->mode = AM;
         _radio_set_mode (ctx->idx, ctx->mode);
-
-        jresp = json_object_new_object();
         json_object_object_add (jresp, "mode", json_object_new_string ("AM"));
     }
 
-    /* "?value=" parameter is "0" or "off" */
+    /* "?value=" parameter is "0" or "FM" */
     else if ( atoi(value) == 0 || !strcasecmp(value, "FM") ) {
         ctx->mode = FM;
         _radio_set_mode (ctx->idx, ctx->mode);
-
-        jresp = json_object_new_object();
         json_object_object_add (jresp, "mode", json_object_new_string ("FM"));
     }
     
@@ -220,7 +222,7 @@ STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
     char freq_str[256];
 
     /* no "?value=" parameter : return current state */
-    if (!value) {
+    if (!value || !ctx->radio) {
         snprintf (freq_str, sizeof(freq_str), "%f", ctx->freq);
         json_object_object_add (jresp, "freq", json_object_new_string (freq_str));
     }
@@ -229,7 +231,7 @@ STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
     else {
         ctx->freq = strtof (value, NULL);
         _radio_set_freq (ctx->idx, ctx->freq);
-        
+
         snprintf (freq_str, sizeof(freq_str), "%f", ctx->freq);
         json_object_object_add (jresp, "freq", json_object_new_string (freq_str));
     }
@@ -241,31 +243,27 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
-    json_object *jresp;
+    json_object *jresp = json_object_new_object();
     char *mute_str;
 
     /* no "?value=" parameter : return current state */
-    if (!value) {
+    if (!value || !ctx->radio) {
         ctx->mute ?
             json_object_object_add (jresp, "mute", json_object_new_string ("on"))
           : json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
 
-    /* "?value=" parameter is "1" or "on" */
-    else if ( atoi(value) == 1 || !strcasecmp(value, "on") ) {
+    /* "?value=" parameter is "1" or "true" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
         ctx->mute = 1;
         _radio_set_mute (ctx->idx, ctx->mute);
-        
-        jresp = json_object_new_object();
         json_object_object_add (jresp, "mute", json_object_new_string ("on"));
     }
 
-    /* "?value=" parameter is "0" or "off" */
+    /* "?value=" parameter is "0" or "false" */
     else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
         ctx->mute = 0;
         _radio_set_mute (ctx->idx, ctx->mute);
-        
-        jresp = json_object_new_object();
         json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
     
@@ -279,22 +277,22 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
     json_object *jresp = json_object_new_object();
     
     /* no "?value=" parameter : return current state */
-    if (!value) {
+    if (!value || !ctx->radio) {
         ctx->is_playing ?
             json_object_object_add (jresp, "play", json_object_new_string ("on"))
           : json_object_object_add (jresp, "play", json_object_new_string ("off"));
     }
 
-    /* "?value=" parameter is "1" or "on" */
-    else if ( atoi(value) == 1 || !strcasecmp(value, "on") ) {
+    /* "?value=" parameter is "1" or "true" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
         /* radio playback */
         ctx->is_playing = 1;
         _radio_play (ctx->idx);
         json_object_object_add (jresp, "play", json_object_new_string ("on"));
     }
 
-    /* "?value=" parameter is "0" or "off" */
-    else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
+    /* "?value=" parameter is "0" or "false" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
         /* radio stop */
         ctx->is_playing = 0;
         _radio_stop (ctx->idx);
@@ -304,8 +302,14 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
     return jresp;
 }
 
-STATIC json_object* status (AFB_request *request) {
-    return NULL;
+STATIC json_object* refresh (AFB_request *request) {     /* AFB_SESSION_RENEW */
+    json_object *jresp = json_object_new_object();
+    json_object_object_add(jresp, "token", json_object_new_string (request->client->token));
+    return jresp;
+}
+
+STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
+    return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Radio API");
 }
 
 
@@ -316,7 +320,8 @@ STATIC AFB_restapi pluginApis[]= {
   {"freq"   , AFB_SESSION_CHECK,  (AFB_apiCB)freq       , "Radio API - freq"},
   {"mute"   , AFB_SESSION_CHECK,  (AFB_apiCB)mute       , "Radio API - mute"},
   {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Radio API - play"},
-  {"status" , AFB_SESSION_RENEW,  (AFB_apiCB)status     , "Radio API - status"},
+  {"refresh", AFB_SESSION_RENEW,  (AFB_apiCB)refresh    , "Radio API - refresh"},
+  {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Radio API - ping"},
   {NULL}
 };
 
