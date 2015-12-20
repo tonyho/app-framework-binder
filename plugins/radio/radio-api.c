@@ -219,6 +219,7 @@ STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
+    double freq;
     char freq_str[256];
 
     /* no "?value=" parameter : return current state */
@@ -229,8 +230,9 @@ STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     /* "?value=" parameter, set frequency */
     else {
-        ctx->freq = strtof (value, NULL);
-        _radio_set_freq (ctx->idx, ctx->freq);
+        freq = strtod (value, NULL);
+        _radio_set_freq (ctx->idx, freq);
+        ctx->freq = (float)freq;
 
         snprintf (freq_str, sizeof(freq_str), "%f", ctx->freq);
         json_object_object_add (jresp, "freq", json_object_new_string (freq_str));

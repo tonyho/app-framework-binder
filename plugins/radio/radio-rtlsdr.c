@@ -82,11 +82,11 @@ PUBLIC void _radio_set_mode (unsigned int num, Mode mode) {
     _radio_apply_params(dev_ctx[num]);
 }
 
-PUBLIC void _radio_set_freq (unsigned int num, float freq) {
+PUBLIC void _radio_set_freq (unsigned int num, double freq) {
     if (!dev_ctx || !dev_ctx[num])
         return;
 
-    dev_ctx[num]->freq = freq;
+    dev_ctx[num]->freq = (float)freq;
     _radio_apply_params(dev_ctx[num]);
 }
 
