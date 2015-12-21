@@ -223,7 +223,7 @@ STATIC AFB_restapi pluginApis[]= {
   {NULL}
 };
 
-PUBLIC AFB_plugin *audioRegister () {
+PUBLIC AFB_plugin *pluginRegister () {
     AFB_plugin *plugin = malloc (sizeof(AFB_plugin));
     plugin->type   = AFB_PLUGIN_JSON;
     plugin->info   = "Application Framework Binder - Audio plugin";

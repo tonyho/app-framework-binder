@@ -11,6 +11,7 @@ SET(PROJECT_VERSION "0.1")
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
+INCLUDE(GNUInstallDirs)
 
 CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
 CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
@@ -51,12 +52,16 @@ INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
 
 SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
-SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${alsa_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm)
+SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${alsa_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm -ldl)
+SET(plugin_install_dir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/afb)
+
+ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(plugins)
 
-ADD_EXECUTABLE(afb-daemon $<TARGET_OBJECTS:src> $<TARGET_OBJECTS:plugins>)
+ADD_EXECUTABLE(afb-daemon $<TARGET_OBJECTS:src>)
+INCLUDE_DIRECTORIES(${include_dirs})
 TARGET_LINK_LIBRARIES(afb-daemon ${link_libraries})
 
 INSTALL(TARGETS afb-daemon

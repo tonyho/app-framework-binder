@@ -22,6 +22,8 @@
 
 #include "../include/local-def.h"
 
+#include <dirent.h>
+#include <dlfcn.h>
 #include <setjmp.h>
 #include <signal.h>
 
@@ -629,20 +631,46 @@ STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
 }
 
 void initPlugins(AFB_session *session) {
-    static AFB_plugin * plugins[10];
+    static AFB_plugin **plugins;
+    AFB_plugin* (*pluginRegisterFct)(void);
+    void *plugin;
+    char *pluginPath;
+    struct dirent *pluginDir;
+    DIR *dir;
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int i = 0;
 
-    plugins[i++] = tokenRegister(session);
-    plugins[i++] = helloWorldRegister(session);
-    plugins[i++] = samplePostRegister(session);
-#ifdef HAVE_AUDIO_PLUGIN
-    plugins[i++] = audioRegister(session);
-#endif
-#ifdef HAVE_RADIO_PLUGIN
-    plugins[i++] = radioRegister(session),
-#endif
+    if ((dir = opendir(PLUGIN_INSTALL_DIR)) == NULL) {
+        fprintf(stderr, "Could not open plugin directory=%s\n", PLUGIN_INSTALL_DIR);
+        return;
+    }
+
+    while ((pluginDir = readdir(dir)) != NULL) {
+
+        if (!strstr (pluginDir->d_name, ".so"))
+            continue;
+
+        asprintf (&pluginPath, PLUGIN_INSTALL_DIR "/%s", pluginDir->d_name);
+        plugin = dlopen (pluginPath, RTLD_NOW | RTLD_LOCAL);
+        pluginRegisterFct = dlsym (plugin, "pluginRegister");
+        free (pluginPath);
+        if (!plugin) {
+            if (verbose) fprintf(stderr, "[%s] is not a binary plugin, continuing...\n", pluginDir->d_name);
+            continue;
+        } else if (!pluginRegisterFct) {
+            if (verbose) fprintf(stderr, "[%s] is not an AFB plugin, continuing...\n", pluginDir->d_name);
+            continue;
+        }
+
+        if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading it\n", pluginDir->d_name);
+        plugins = (AFB_plugin **) realloc (plugins, (i+1)*sizeof(AFB_plugin));
+        plugins[i] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
+        plugins[i] = (**pluginRegisterFct)();
+        i++;
+    }
     plugins[i++] = NULL;
+
+    closedir (dir);
     
     // complete plugins and save them within current sessions    
     session->plugins = RegisterJsonPlugins(plugins);

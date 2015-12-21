@@ -34,11 +34,7 @@ PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request);
 void initPlugins (AFB_session *session);
 
 typedef AFB_plugin* (*AFB_pluginCB)();
-PUBLIC  AFB_plugin* tokenRegister ();
-PUBLIC  AFB_plugin* audioRegister ();
-PUBLIC  AFB_plugin* helloWorldRegister ();
-PUBLIC  AFB_plugin* radioRegister ();
-PUBLIC  AFB_plugin* samplePostRegister ();
+PUBLIC  AFB_plugin* pluginRegister ();
 
 // Session handling
 PUBLIC AFB_error sessionCheckdir     (AFB_session *session);
