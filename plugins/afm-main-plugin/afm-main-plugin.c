@@ -85,7 +85,7 @@ static AFB_plugin plug_desc = {
 
 AFB_plugin *pluginRegister()
 {
-	jbus = create_jbus(1, "/org/AGL/afm-main");
+	jbus = create_jbus(1, "/org/AGL/afmMain");
 	return jbus ? &plug_desc : NULL;
 }
 
