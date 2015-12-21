@@ -25,24 +25,25 @@
 /* private client context creation ; default values */
 STATIC audioCtxHandleT* initAudioCtx () {
 
-    audioCtxHandleT *actx;
+    audioCtxHandleT *ctx;
 
-    actx = malloc (sizeof(audioCtxHandleT));
-    actx->idx = -1;
-    actx->volume = 25;
-    actx->channels = 2;
-    actx->mute = 0;
+    ctx = malloc (sizeof(audioCtxHandleT));
+    ctx->idx = -1;
+    ctx->volume = 25;
+    ctx->channels = 2;
+    ctx->mute = 0;
+    ctx->is_playing = 0;
 
-    return actx;
+    return ctx;
 }
 
-STATIC AFB_error releaseAudio (audioCtxHandleT *actx) {
+STATIC AFB_error releaseAudio (audioCtxHandleT *ctx) {
 
     /* power it off */
-    _alsa_free (actx->idx);
+    _alsa_free (ctx->idx);
 
     /* clean client context */
-    actx->idx = -1;
+    ctx->idx = -1;
 
     return AFB_SUCCESS;
 }
@@ -61,15 +62,15 @@ STATIC json_object* freeAudio (AFB_clientCtx *client) {
 
 STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
 
-    audioCtxHandleT *actx;
+    audioCtxHandleT *ctx;
     json_object *jresp;
     int idx;
 
     /* create a private client context */
-    actx = initAudioCtx();
-    request->client->ctx = (audioCtxHandleT*)actx;
+    ctx = initAudioCtx();
+    request->client->ctx = (audioCtxHandleT*)ctx;
     
-    _alsa_init("default", actx);
+    _alsa_init("default", ctx);
     
     jresp = json_object_new_object();
     json_object_object_add (jresp, "token", json_object_new_string (request->client->token));
@@ -78,7 +79,7 @@ STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
 
 STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *actx = (audioCtxHandleT*)request->client->ctx;
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
     int volume;
@@ -86,8 +87,8 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
 
     /* no "?value=" parameter : return current state */
     if (!value) {
-        actx->volume = _alsa_get_volume (actx->idx);
-        snprintf (volume_str, sizeof(volume_str), "%d", actx->volume);
+        ctx->volume = _alsa_get_volume (ctx->idx);
+        snprintf (volume_str, sizeof(volume_str), "%d", ctx->volume);
         jresp = json_object_new_object();
         json_object_object_add (jresp, "volume", json_object_new_string(volume_str));
     }
@@ -99,10 +100,10 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
             request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
             return (jsonNewMessage (AFB_FAIL, "Volume must be between 0 and 100"));
         }
-        actx->volume = volume;
-        _alsa_set_volume (actx->idx, actx->volume);
+        ctx->volume = volume;
+        _alsa_set_volume (ctx->idx, ctx->volume);
 
-        snprintf (volume_str, sizeof(volume_str), "%d", actx->volume);
+        snprintf (volume_str, sizeof(volume_str), "%d", ctx->volume);
         jresp = json_object_new_object();
         json_object_object_add (jresp, "volume", json_object_new_string(volume_str));
     }
@@ -112,23 +113,23 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
 
 STATIC json_object* channels (AFB_request *request) {    /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *actx = (audioCtxHandleT*)request->client->ctx;
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
     char channels_str[256];
 
     /* no "?value=" parameter : return current state */
     if (!value) {
-        snprintf (channels_str, sizeof(channels_str), "%d", actx->channels);
+        snprintf (channels_str, sizeof(channels_str), "%d", ctx->channels);
         json_object_object_add (jresp, "channels", json_object_new_string (channels_str));
     }
 
     /* "?value=" parameter, set channels */
     else {
-        actx->channels = atoi (value);
-        _alsa_set_channels (actx->idx, actx->channels);
+        ctx->channels = atoi (value);
+        _alsa_set_channels (ctx->idx, ctx->channels);
 
-        snprintf (channels_str, sizeof(channels_str), "%d", actx->channels);
+        snprintf (channels_str, sizeof(channels_str), "%d", ctx->channels);
         json_object_object_add (jresp, "channels", json_object_new_string (channels_str));
     }
 
@@ -137,32 +138,64 @@ STATIC json_object* channels (AFB_request *request) {    /* AFB_SESSION_CHECK */
 
 STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *actx = (audioCtxHandleT*)request->client->ctx;
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
     if (!value) {
-        actx->mute = _alsa_get_mute (actx->idx);
-        actx->mute ?
+        ctx->mute = _alsa_get_mute (ctx->idx);
+        ctx->mute ?
             json_object_object_add (jresp, "mute", json_object_new_string ("on"))
           : json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
 
-    /* "?value=" parameter is "1" or "on" */
-    else if ( atoi(value) == 1 || !strcasecmp(value, "on") ) {
-        actx->mute = 1;
-        _alsa_set_mute (actx->idx, actx->mute);
+    /* "?value=" parameter is "1" or "true" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
+        ctx->mute = 1;
+        _alsa_set_mute (ctx->idx, ctx->mute);
 
         json_object_object_add (jresp, "mute", json_object_new_string ("on"));
     }
 
-    /* "?value=" parameter is "0" or "off" */
-    else if ( atoi(value) == 0 || !strcasecmp(value, "off") ) {
-        actx->mute = 0;
-        _alsa_set_mute (actx->idx, actx->mute);
+    /* "?value=" parameter is "0" or "false" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
+        ctx->mute = 0;
+        _alsa_set_mute (ctx->idx, ctx->mute);
 
         json_object_object_add (jresp, "mute", json_object_new_string ("off"));
+    }
+
+    return jresp;
+}
+
+STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request->client->ctx;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp = json_object_new_object();
+
+    /* no "?value=" parameter : return current state */
+    if (!value) {
+        ctx->is_playing ?
+            json_object_object_add (jresp, "play", json_object_new_string ("on"))
+          : json_object_object_add (jresp, "play", json_object_new_string ("off"));
+    }
+
+    /* "?value=" parameter is "1" or "true" */
+    else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
+        ctx->is_playing = 1;
+        _alsa_play (ctx->idx);
+
+        json_object_object_add (jresp, "play", json_object_new_string ("on"));
+    }
+
+    /* "?value=" parameter is "0" or "false" */
+    else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
+        ctx->is_playing = 0;
+        _alsa_stop (ctx->idx);
+
+        json_object_object_add (jresp, "play", json_object_new_string ("off"));
     }
 
     return jresp;
@@ -184,8 +217,9 @@ STATIC AFB_restapi pluginApis[]= {
   {"volume"  , AFB_SESSION_CHECK,  (AFB_apiCB)volume    , "Audio API - volume"},
   {"channels", AFB_SESSION_CHECK,  (AFB_apiCB)channels  , "Audio API - channels"},
   {"mute"    , AFB_SESSION_CHECK,  (AFB_apiCB)mute      , "Audio API - mute"},
-  {"refresh",  AFB_SESSION_RENEW,  (AFB_apiCB)refresh   , "Audio API - refresh"},
-  {"ping"   ,  AFB_SESSION_NONE,   (AFB_apiCB)ping      , "Audio API - ping"},
+  {"play"    , AFB_SESSION_CHECK,  (AFB_apiCB)play      , "Audio API - play"},
+  {"refresh" , AFB_SESSION_RENEW,  (AFB_apiCB)refresh   , "Audio API - refresh"},
+  {"ping"    , AFB_SESSION_NONE,   (AFB_apiCB)ping      , "Audio API - ping"},
   {NULL}
 };
 

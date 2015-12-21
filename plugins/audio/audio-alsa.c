@@ -64,30 +64,32 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     }
 
     /* allocate the global array if it hasn't been done */
-    if (!adev_ctx) {
-        adev_ctx = (adev_ctx_T**) malloc (sizeof(adev_ctx_T));
-        adev_ctx[0] = (adev_ctx_T*) malloc (sizeof(adev_ctx_T));
-        adev_ctx[0]->name = NULL;
-        adev_ctx[0]->dev = NULL;
+    if (!dev_ctx) {
+        dev_ctx = (dev_ctx_T**) malloc (sizeof(dev_ctx_T));
+        dev_ctx[0] = (dev_ctx_T*) malloc (sizeof(dev_ctx_T));
+        dev_ctx[0]->name = NULL;
+        dev_ctx[0]->dev = NULL;
     }
 
     /* is a card with similar name already opened ? */
-    for (num = 0; num < (sizeof(adev_ctx)/sizeof(adev_ctx_T)); num++) {
-        if (adev_ctx[num]->name &&
-           !strcmp (adev_ctx[num]->name, name))
+    for (num = 0; num < (sizeof(dev_ctx)/sizeof(dev_ctx_T)); num++) {
+        if (dev_ctx[num]->name &&
+           !strcmp (dev_ctx[num]->name, name))
             return 0;
     }
     num++;
 
     /* it's not... let us add it to the global array */
-    adev_ctx = (adev_ctx_T**) realloc (adev_ctx, (num+1)*sizeof(adev_ctx_T));
-    adev_ctx[num] = (adev_ctx_T*) malloc (sizeof(adev_ctx_T));
-    adev_ctx[num]->name = strdup (name);
-    adev_ctx[num]->dev = dev;
-    adev_ctx[num]->params = params;
-    adev_ctx[num]->mixer_elm = mixer_elm;
-    adev_ctx[num]->vol_max = vol_max;
-    adev_ctx[num]->vol = vol;
+    dev_ctx = (dev_ctx_T**) realloc (dev_ctx, (num+1)*sizeof(dev_ctx_T));
+    dev_ctx[num] = (dev_ctx_T*) malloc (sizeof(dev_ctx_T));
+    dev_ctx[num]->name = strdup (name);
+    dev_ctx[num]->dev = dev;
+    dev_ctx[num]->params = params;
+    dev_ctx[num]->mixer_elm = mixer_elm;
+    dev_ctx[num]->vol_max = vol_max;
+    dev_ctx[num]->vol = vol;
+    dev_ctx[num]->thr_should_run = 0;
+    dev_ctx[num]->thr_finished = 0;
 
     /* make the client context aware of current card state */
     ctx->volume = _alsa_get_volume (num);
@@ -101,64 +103,73 @@ PUBLIC void _alsa_free (const char *name) {
 
     int num;
 
-    for (num = 0; num < (sizeof(adev_ctx)/sizeof(adev_ctx_T)); num++) {
-        if (adev_ctx[num]->name &&
-           !strcmp (adev_ctx[num]->name, name)) {
-            snd_pcm_close (adev_ctx[num]->dev);
-            snd_pcm_hw_params_free (adev_ctx[num]->params);
-            free (adev_ctx[num]->name);
-            adev_ctx[num]->name = NULL;
-            adev_ctx[num]->dev = NULL;
-            free(adev_ctx[num]);
+    for (num = 0; num < (sizeof(dev_ctx)/sizeof(dev_ctx_T)); num++) {
+        if (dev_ctx[num]->name &&
+           !strcmp (dev_ctx[num]->name, name)) {
+            snd_pcm_close (dev_ctx[num]->dev);
+            snd_pcm_hw_params_free (dev_ctx[num]->params);
+            free (dev_ctx[num]->name);
+            dev_ctx[num]->name = NULL;
+            dev_ctx[num]->dev = NULL;
+            free(dev_ctx[num]);
             return;
         }
     }
 }
 
-PUBLIC void _alsa_play (unsigned int num, void *buf, int len) {
+PUBLIC void _alsa_play (unsigned int num) {
 
-    if (!adev_ctx || !adev_ctx[num]) {
+    if (!dev_ctx || !dev_ctx[num] || dev_ctx[num]->thr_should_run ||
+        access (AUDIO_BUFFER, F_OK) == -1)
         return;
-    }
-    int16_t *cbuf = (int16_t *)buf;
-    int frames = len / 2;
-    int res;
 
-    if ((res = snd_pcm_writei (adev_ctx[num]->dev, cbuf, frames)) != frames) {
-        snd_pcm_recover (adev_ctx[num]->dev, res, 0);
-        snd_pcm_prepare (adev_ctx[num]->dev);
-    }
-    /* snd_pcm_drain (adev_ctx[num]->dev); */
+    dev_ctx[num]->thr_should_run = 1;
+    dev_ctx[num]->thr_finished = 0;
+    pthread_create(&dev_ctx[num]->thr, NULL, _play_thread_fn, (void*)dev_ctx[num]);
+}
+
+PUBLIC void _alsa_stop (unsigned int num) {
+
+    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->thr_should_run)
+        return;
+
+    /* stop the "while" loop in thread */
+    dev_ctx[num]->thr_should_run = 0;
+
+    while (!dev_ctx[num]->thr_finished)
+        usleep(100000);
+
+    pthread_join(dev_ctx[num]->thr, NULL);
 }
 
 PUBLIC unsigned int _alsa_get_volume (unsigned int num) {
 
-    if (!adev_ctx || !adev_ctx[num] || !adev_ctx[num]->mixer_elm)
+    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm)
         return;
 
-    snd_mixer_selem_get_playback_volume (adev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_LEFT, &adev_ctx[num]->vol);
+    snd_mixer_selem_get_playback_volume (dev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_LEFT, &dev_ctx[num]->vol);
 
-    return (unsigned int)(adev_ctx[num]->vol*100)/adev_ctx[num]->vol_max;
+    return (unsigned int)(dev_ctx[num]->vol*100)/dev_ctx[num]->vol_max;
 }
 
 PUBLIC unsigned int _alsa_set_volume (unsigned int num, unsigned int vol) {
 
-    if (!adev_ctx || !adev_ctx[num] || !adev_ctx[num]->mixer_elm || vol > 100)
+    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm || vol > 100)
         return;
 
-   snd_mixer_selem_set_playback_volume_all (adev_ctx[num]->mixer_elm, (vol*adev_ctx[num]->vol_max)/100);
+   snd_mixer_selem_set_playback_volume_all (dev_ctx[num]->mixer_elm, (vol*dev_ctx[num]->vol_max)/100);
 }
 
 PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
 
     int mute = 0;
 
-    if (!adev_ctx || !adev_ctx[num] || !adev_ctx[num]->mixer_elm)
+    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm)
         return;
 
-    if (snd_mixer_selem_has_playback_switch (adev_ctx[num]->mixer_elm)) {
-        snd_mixer_selem_get_playback_switch (adev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_LEFT, &mute); 
-        snd_mixer_selem_get_playback_switch (adev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_RIGHT, &mute); 
+    if (snd_mixer_selem_has_playback_switch (dev_ctx[num]->mixer_elm)) {
+        snd_mixer_selem_get_playback_switch (dev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_LEFT, &mute); 
+        snd_mixer_selem_get_playback_switch (dev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_RIGHT, &mute); 
 
     }
 
@@ -167,25 +178,60 @@ PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
 
 PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
 
-    if (!adev_ctx || !adev_ctx[num] || !adev_ctx[num]->mixer_elm || 1 < mute < 0)
+    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm || 1 < mute < 0)
         return;
 
-    if (snd_mixer_selem_has_playback_switch (adev_ctx[num]->mixer_elm))
-        snd_mixer_selem_set_playback_switch_all (adev_ctx[num]->mixer_elm, !mute);
+    if (snd_mixer_selem_has_playback_switch (dev_ctx[num]->mixer_elm))
+        snd_mixer_selem_set_playback_switch_all (dev_ctx[num]->mixer_elm, !mute);
 }
 
 PUBLIC void _alsa_set_rate (unsigned int num, unsigned int rate) {
 
-    if (!adev_ctx || !adev_ctx[num])
+    if (!dev_ctx || !dev_ctx[num])
         return;
 
-    snd_pcm_hw_params_set_rate_near (adev_ctx[num]->dev, adev_ctx[num]->params, &rate, 0);
+    snd_pcm_hw_params_set_rate_near (dev_ctx[num]->dev, dev_ctx[num]->params, &rate, 0);
 }
 
 PUBLIC void _alsa_set_channels (unsigned int num, unsigned int channels) {
 
-    if (!adev_ctx || !adev_ctx[num])
+    if (!dev_ctx || !dev_ctx[num])
         return;
 
-    snd_pcm_hw_params_set_channels (adev_ctx[num]->dev, adev_ctx[num]->params, channels);
+    snd_pcm_hw_params_set_channels (dev_ctx[num]->dev, dev_ctx[num]->params, channels);
+}
+
+ /* ---- LOCAL THREADED FUNCTIONS ---- */
+
+STATIC void* _play_thread_fn (void *ctx) {
+
+    dev_ctx_T *dev_ctx = (dev_ctx_T *)ctx;
+    FILE *file = NULL;
+    char *buf = NULL;
+    long size;
+    int frames, res;
+
+    file = fopen (AUDIO_BUFFER, "rb");
+
+    while (dev_ctx->thr_should_run && file && (access (AUDIO_BUFFER, F_OK) != -1) ) {
+        fseek (file, 0, SEEK_END);
+        size = ftell (file);
+        buf = (char*) realloc (buf, size * sizeof(char));
+        frames = (size * sizeof(char)) / 4;
+
+        fseek (file, 0, SEEK_SET);
+        fread (buf, 1, size, file);
+        fflush (file);
+
+        if ((res = snd_pcm_writei (dev_ctx->dev, buf, frames)) != frames) {
+            snd_pcm_recover (dev_ctx->dev, res, 0);
+            snd_pcm_prepare (dev_ctx->dev);
+        }
+        /* snd_pcm_drain (dev_ctx->dev); */
+    }
+    if (buf) free(buf);
+    if (file) fclose(file);
+
+    dev_ctx->thr_finished = 1;
+    return 0;
 }

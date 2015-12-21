@@ -22,9 +22,9 @@
 #include "audio-alsa.h"
 
 /* global plugin handle, should store everything we may need */
-/*typedef struct {
+typedef struct {
   int devCount;
-} pluginHandleT;*/
+} pluginHandleT;
   
 /* structure holding one audio card with current usage status */
 typedef struct {
@@ -34,11 +34,12 @@ typedef struct {
 
 /* private client context [will be destroyed when client leaves] */
 typedef struct {
-  audioDevT *radio;        /* pointer to client audio card          */
-  int idx;                 /* audio card index within global array  */
-  unsigned int volume;     /* audio volume : 0-100                  */
-  unsigned int channels;   /* audio channels : 1(mono)/2(stereo)... */
-  unsigned char mute;      /* audio muted : 0(false)/1(true)        */
+  audioDevT *radio;         /* pointer to client audio card          */
+  int idx;                  /* audio card index within global array  */
+  unsigned int volume;      /* audio volume : 0-100                  */
+  unsigned int channels;    /* audio channels : 1(mono)/2(stereo)... */
+  unsigned char mute;       /* audio muted : 0(false)/1(true)        */
+  unsigned char is_playing; /* audio is playing: 0(false)/1(true) */
 } audioCtxHandleT;
 
 

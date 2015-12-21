@@ -19,24 +19,29 @@
 #ifndef AUDIO_ALSA_H
 #define AUDIO_ALSA_H
 
+#include <pthread.h>
 #include <alsa/asoundlib.h>
 
 #include "local-def.h"
 
-typedef struct adev_ctx adev_ctx_T;
+typedef struct dev_ctx dev_ctx_T;
 
-struct adev_ctx {
+struct dev_ctx {
   char *name;
   snd_pcm_t *dev;
   snd_pcm_hw_params_t *params;
   snd_mixer_elem_t *mixer_elm;
   long vol_max;
   long vol;
+  pthread_t thr;
+  unsigned char thr_should_run;
+  unsigned char thr_finished;
 };
 
+STATIC void* _play_thread_fn (void *);
 PUBLIC unsigned int _alsa_get_volume (unsigned int);
 PUBLIC unsigned char _alsa_get_mute (unsigned int);
 
-static struct adev_ctx **adev_ctx = NULL;
+static struct dev_ctx **dev_ctx = NULL;
 
 #endif /* AUDIO_ALSA_H */

@@ -76,6 +76,8 @@ typedef int BOOL;
 #define STATIC    static
 #define FAILED    -1
 
+#define AUDIO_BUFFER "/tmp/buf"
+
 extern int verbose;  // this is the only global variable
 
 // Plugin Type
