@@ -57,7 +57,7 @@ PUBLIC json_object* getPingTest(AFB_request *request) {
 
 
 // Helper to retrieve argument from  connection
-PUBLIC const char* getQueryValue(AFB_request * request, char *name) {
+PUBLIC const char* getQueryValue(const AFB_request * request, const char *name) {
     const char *value;
 
     value = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, name);

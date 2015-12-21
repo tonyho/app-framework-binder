@@ -21,7 +21,7 @@
 
 // helper-api
 PUBLIC json_object* getPingTest(AFB_request *request);
-PUBLIC const char* getQueryValue (AFB_request * request, char *name);
+PUBLIC const char* getQueryValue (const AFB_request * request, const char *name);
 PUBLIC int getQueryAll(AFB_request * request, char *query, size_t len);
 PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request);
 PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) ;
