@@ -16,6 +16,12 @@
           <in>feature_tests.c</in>
         </df>
         <df name="plugins">
+          <df name="audio">
+            <df name="CMakeFiles">
+              <df name="audio-api.dir">
+              </df>
+            </df>
+          </df>
           <df name="CMakeFiles">
             <df name="plugins.dir">
               <df name="audio">
@@ -23,6 +29,24 @@
               <df name="samples">
               </df>
               <df name="session">
+              </df>
+            </df>
+          </df>
+          <df name="radio">
+            <df name="CMakeFiles">
+            </df>
+          </df>
+          <df name="samples">
+            <df name="CMakeFiles">
+              <df name="helloWorld-api.dir">
+              </df>
+              <df name="samplePost-api.dir">
+              </df>
+            </df>
+          </df>
+          <df name="session">
+            <df name="CMakeFiles">
+              <df name="token-api.dir">
               </df>
             </df>
           </df>
@@ -90,6 +114,12 @@
           </df>
         </df>
         <df name="plugins">
+          <df name="audio">
+            <df name="CMakeFiles">
+              <df name="audio-api.dir">
+              </df>
+            </df>
+          </df>
           <df name="CMakeFiles">
             <df name="plugins.dir">
               <df name="audio">
@@ -97,6 +127,24 @@
               <df name="samples">
               </df>
               <df name="session">
+              </df>
+            </df>
+          </df>
+          <df name="radio">
+            <df name="CMakeFiles">
+            </df>
+          </df>
+          <df name="samples">
+            <df name="CMakeFiles">
+              <df name="helloWorld-api.dir">
+              </df>
+              <df name="samplePost-api.dir">
+              </df>
+            </df>
+          </df>
+          <df name="session">
+            <df name="CMakeFiles">
+              <df name="token-api.dir">
               </df>
             </df>
           </df>
@@ -155,8 +203,6 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
-        <gdb_signals>
-        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>

@@ -98,8 +98,12 @@
       <folder path="0/plugins/audio">
         <cTool>
           <incDir>
-            <pElem>build/plugins</pElem>
+            <pElem>build/plugins/audio</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
+            <Elem>audio_api_EXPORTS</Elem>
+          </preprocessorList>
         </cTool>
       </folder>
       <folder path="0/plugins/radio">
@@ -115,15 +119,22 @@
       <folder path="0/plugins/samples">
         <cTool>
           <incDir>
-            <pElem>build/plugins</pElem>
+            <pElem>build/plugins/samples</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
+          </preprocessorList>
         </cTool>
       </folder>
       <folder path="0/plugins/session">
         <cTool>
           <incDir>
-            <pElem>build/plugins</pElem>
+            <pElem>build/plugins/session</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
+            <Elem>token_api_EXPORTS</Elem>
+          </preprocessorList>
         </cTool>
       </folder>
       <item path="plugins/audio/audio-alsa.c" ex="false" tool="0" flavor2="2">
@@ -144,10 +155,16 @@
       </item>
       <item path="plugins/samples/HelloWorld.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <preprocessorList>
+            <Elem>helloWorld_api_EXPORTS</Elem>
+          </preprocessorList>
         </cTool>
       </item>
       <item path="plugins/samples/SamplePost.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
+          <preprocessorList>
+            <Elem>samplePost_api_EXPORTS</Elem>
+          </preprocessorList>
         </cTool>
       </item>
       <item path="plugins/session/token-api.c" ex="false" tool="0" flavor2="2">
@@ -193,6 +210,7 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -221,6 +239,7 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -235,6 +254,7 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -267,6 +287,7 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -281,6 +302,7 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
         </cTool>
       </item>
