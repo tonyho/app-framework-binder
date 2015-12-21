@@ -86,7 +86,7 @@ STATIC void clientContextFree(AFB_clientCtx *client) {
 }
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"    , AFB_SESSION_NONE  , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
+  {"ping"    , AFB_SESSION_NONE  , (AFB_apiCB)getPingTest         ,"Ping Rest Test Service"},
   {"create"  , AFB_SESSION_CREATE, (AFB_apiCB)clientContextCreate ,"Request Client Context Creation"},
   {"refresh" , AFB_SESSION_RENEW , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
   {"check"   , AFB_SESSION_CHECK , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},

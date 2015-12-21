@@ -30,76 +30,9 @@
 #define AFB_MSG_JTYPE "AJB_reply"
 
 
-// handle to hold queryAll values
-typedef struct {
-     char    *msg;
-     int     idx;
-     size_t  len;
-} queryHandleT;
 
 static json_object     *afbJsonType;
 
-
-// Sample Generic Ping Debug API
-PUBLIC json_object* apiPingTest(AFB_request *request) {
-    static pingcount = 0;
-    json_object *response;
-    char query  [256];
-    char session[256];
-
-    int len;
-    AFB_clientCtx *client=request->client; // get client context from request
-    
-    // request all query key/value
-    len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
-    
-    // check if we have some post data
-    if (request->post == NULL)  request->post->data="NoData"; 
-    
-    // check is we have a session and a plugin handle
-    if (client == NULL) strcpy (session,"NoSession");       
-    else snprintf(session, sizeof(session),"uuid=%s token=%s ctx=0x%x handle=0x%x", client->uuid, client->token, client->ctx, client->ctx); 
-        
-    // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d query={%s} session={%s} PostData: [%s] "
-               , pingcount++, request->client->cid, query, session, request->post->data);
-    return (response);
-}
-
-
-// Helper to retrieve argument from  connection
-PUBLIC const char* getQueryValue(AFB_request * request, char *name) {
-    const char *value;
-
-    value = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, name);
-    return (value);
-}
-
-STATIC int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, const char *value) {
-    queryHandleT *query = (queryHandleT*)handle;
-        
-    query->idx += snprintf (&query->msg[query->idx],query->len," %s: \'%s\',", key, value);
-}
-
-// Helper to retrieve argument from  connection
-PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
-    queryHandleT query;
-    buffer[0] = '\0'; // start with an empty string
-    query.msg= buffer;
-    query.len= len;
-    query.idx= 0;
-
-    MHD_get_connection_values (request->connection, MHD_GET_ARGUMENT_KIND, getQueryCB, &query);
-    return (len);
-}
-
-
-// Helper to retreive POST handle
-PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request) {
-    if (request->post == NULL) return (NULL);
-    return ((AFB_PostHandle*) request->post->data);
-}
 
 // Because of POST call multiple time requestApi we need to free POST handle here
 // Note this method is called from http-svc just before closing session
@@ -640,8 +573,8 @@ void initPlugins(AFB_session *session) {
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int i = 0;
 
-    if ((dir = opendir(PLUGIN_INSTALL_DIR)) == NULL) {
-        fprintf(stderr, "Could not open plugin directory=%s\n", PLUGIN_INSTALL_DIR);
+    if ((dir = opendir(session->config->plugins)) == NULL) {
+        fprintf(stderr, "Could not open plugin directory=%s\n", session->config->plugins);
         return;
     }
 
@@ -650,7 +583,7 @@ void initPlugins(AFB_session *session) {
         if (!strstr (pluginDir->d_name, ".so"))
             continue;
 
-        asprintf (&pluginPath, PLUGIN_INSTALL_DIR "/%s", pluginDir->d_name);
+        asprintf (&pluginPath, "%s/%s", session->config->plugins, pluginDir->d_name);
         plugin = dlopen (pluginPath, RTLD_NOW | RTLD_LOCAL);
         pluginRegisterFct = dlsym (plugin, "pluginRegister");
         free (pluginPath);

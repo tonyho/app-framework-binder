@@ -108,7 +108,7 @@ static  AFB_options cliOptions [] = {
   {SET_CONFIG_EXIT  ,0,"saveonly"        , "Save config on disk and then exit"},
 
   {SET_SMACK        ,1,"smack"           , "Set Smack Label [default demo]"},
-  {SET_PLUGINS      ,1,"mods"            , "Enable module [default all]"},
+  {SET_PLUGINS      ,1,"plugins"         , "Load Plugins from dir [default = PLUGIN_INSTALL_DIR"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
   
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
@@ -159,7 +159,7 @@ void signalQuit (int signum) {
          fprintf (stderr,"  --%-15s %s\n", command, cliOptions[ind].help);
       }
     }
-    fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --smack=xxxx --token='azerty' --mods=alsa:dbus\n", name);
+    fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --smack=xxxx --token='azerty' --plugins=build/plugins\n", name);
 } // end printHelp
 
 /*----------------------------------------------------------
@@ -357,7 +357,6 @@ int main(int argc, char *argv[])  {
 
     case SET_PLUGINS:
        if (optarg == 0) goto needValueForOption;
-       fprintf (stderr, "Not Implemented yet\n");
        cliconfig.plugins = optarg;
        break;
 

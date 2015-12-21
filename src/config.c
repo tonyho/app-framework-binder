@@ -114,8 +114,8 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
        session->config->smack= cliconfig->smack;
    }
 
-   if  (cliconfig->smack == NULL) {
-       session->config->plugins = "all";
+   if  (cliconfig->plugins == NULL) {
+       session->config->plugins = PLUGIN_INSTALL_DIR;
    } else {
        session->config->plugins= cliconfig->plugins;
    }

@@ -17,19 +17,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-   $Id: $
 */
 
-// Rest-api
-
-PUBLIC json_object* apiPingTest(AFB_request *request);
+// helper-api
+PUBLIC json_object* getPingTest(AFB_request *request);
 PUBLIC const char* getQueryValue (AFB_request * request, char *name);
 PUBLIC int getQueryAll(AFB_request * request, char *query, size_t len);
+PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request);
+PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) ;
+PUBLIC AFB_PostCtx* getPostContext (AFB_request *request);
 
+// rest-api
 PUBLIC void endPostRequest(AFB_PostHandle *posthandle); 
 PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
     , const char *upload_data, size_t *upload_data_size, void **con_cls);
-PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request);
 
 void initPlugins (AFB_session *session);
 

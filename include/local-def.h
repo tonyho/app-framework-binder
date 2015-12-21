@@ -107,6 +107,13 @@ typedef struct {
 
 typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM} AFB_PostType;
 
+// Post Upload File Handle
+typedef struct {
+   int   fd; 
+   char *path; 
+   json_object* jerror;
+} AFB_PostCtx;
+
 typedef  struct {
     int  len;   // post element size
     char *data; // post data in raw format
