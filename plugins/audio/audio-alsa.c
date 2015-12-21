@@ -58,6 +58,19 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     snd_mixer_selem_id_set_name (mixer_sid, "Master");
 
     mixer_elm = snd_mixer_find_selem (mixer, mixer_sid);
+    if (!mixer_elm) {
+        /* no "Master" mixer ; we are probably on a board... search ! */
+        for (mixer_elm = snd_mixer_first_elem (mixer); mixer_elm != NULL;
+             mixer_elm = snd_mixer_elem_next (mixer_elm)) {
+            if (snd_mixer_elem_info (mixer_elm) < 0)
+                continue;
+            snd_mixer_selem_get_id (mixer_elm, mixer_sid);
+            if (strstr (snd_mixer_selem_id_get_name (mixer_sid), "Master") ||
+                strstr (snd_mixer_selem_id_get_name (mixer_sid), "Playback"))
+                break;
+        }
+    }
+
     if (mixer_elm) {
         snd_mixer_selem_get_playback_volume_range (mixer_elm, &vol_min, &vol_max);
         snd_mixer_selem_get_playback_volume (mixer_elm, SND_MIXER_SCHN_FRONT_LEFT, &vol);
