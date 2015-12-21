@@ -48,12 +48,11 @@ STATIC json_object* UploadAppli (AFB_request *request, AFB_PostItem *item) {
     // This is called after PostForm and then after DonePostForm
     if (item == NULL) {
         AFB_PostCtx *postFileCtx = getPostContext(request);      
-        if (postFileCtx != NULL) {
+        if (postFileCtx != NULL) {            
+            // Do something intelligent here to install application
             
-            // request Application Framework to install application
-            
-            request->errcode = MHD_HTTP_OK;   // or error is something went wrong;   
-            request->jresp   = jsonNewMessage(AFB_FAIL,"UploadFile Post Request file=[%s] done", postFileCtx->path);
+            postFileCtx->errcode = MHD_HTTP_OK;   // or error is something went wrong;   
+            postFileCtx->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Appli done");
         }
     }
     
@@ -64,10 +63,8 @@ STATIC json_object* UploadAppli (AFB_request *request, AFB_PostItem *item) {
 // Simples Upload case just upload a file
 STATIC json_object* UploadMusic (AFB_request *request, AFB_PostItem *item) {
     
-    char *destination = "musics";
-
     // upload multi iteration logic is handle by getPostedFile
-    return (getPostFile (request, item, destination));
+    return (getPostFile (request, item, "musics"));
 }
 
 // PostForm callback is called multiple times (one or each key within form, or once per file buffer)
@@ -85,7 +82,7 @@ STATIC json_object* UploadImage (AFB_request *request, AFB_PostItem *item) {
         if (postFileCtx != NULL) {
             // Do something with your newly upload filepath=postFileCtx->path
             request->errcode = MHD_HTTP_OK;     
-            request->jresp   = jsonNewMessage(AFB_FAIL,"UploadFile Post Request file=[%s] done", postFileCtx->path);    
+            request->jresp   = jsonNewMessage(AFB_FAIL,"UploadFile Post Image done");    
             
             // Note: should not return here in order getPostedFile to clear Post resources.
         }

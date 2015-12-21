@@ -18,6 +18,7 @@
  */
 
 #include "../include/local-def.h"
+#include <dirent.h>
 
 
 // handle to hold queryAll values
@@ -101,101 +102,100 @@ PUBLIC AFB_PostCtx* getPostContext (AFB_request *request) {
 PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) {
 
     AFB_PostHandle *postHandle = getPostHandle(request);
-    AFB_PostCtx *appCtx;
+    AFB_PostCtx *postFileCtx;
     char filepath[512];
     int len;
             
     // This is called after PostForm and then after DonePostForm
     if (item == NULL) {
         json_object* jresp;
-        appCtx = (AFB_PostCtx*) postHandle->ctx;
+        postFileCtx = (AFB_PostCtx*) postHandle->ctx;
         
         // No Post Application Context [something really bad happen]
-        if (appCtx == NULL) {
+        if (postFileCtx == NULL) {
             request->errcode = MHD_HTTP_EXPECTATION_FAILED;
             return(jsonNewMessage(AFB_FAIL,"Error: PostForm no PostContext to free\n"));          
         }
         
-        // We have a context but last Xform iteration fail.
-        if (appCtx->jerror != NULL) {
-            // request->errcode = appCtx->errcode;
-            jresp = appCtx->jerror;  // retrieve previous error from postCtx
-        } else jresp = jsonNewMessage(AFB_FAIL,"UploadFile Post Request file=[%s] done", appCtx->path);
+        // We have a context but last Xform iteration fail or application set a message
+        if (postFileCtx->jresp != NULL) {
+            jresp = postFileCtx->jresp;  // retrieve previous error from postCtx
+            if (postFileCtx->errcode != 0) request->errcode=postFileCtx->errcode;
+        }
+        else jresp = jsonNewMessage(AFB_FAIL,"getPostFile Post Request done");
         
         // Error or not let's free all resources
-        close(appCtx->fd);
-        free (appCtx->path);
-        free (appCtx);
+        close(postFileCtx->fd);
+        free (postFileCtx->path);
+        free (postFileCtx);
         return (jresp);  
     }
     
     // Make sure it's a valid PostForm request
     if (!request->post && request->post->type != AFB_POST_FORM) {
-        appCtx->jerror= jsonNewMessage(AFB_FAIL,"This is not a valid PostForm request\n");
+        postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"This is not a valid PostForm request\n");
         goto ExitOnError;
     } 
     
     // Check this is a file element
     if (item->filename == NULL) {
-        appCtx->jerror= jsonNewMessage(AFB_FAIL,"No Filename attached to key=%s\n", item->key);
+        postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"No Filename attached to key=%s\n", item->key);
         goto ExitOnError;
     }
     
     // Check we got something in buffer
     if (item->len <= 0) {       
-        appCtx->jerror= jsonNewMessage(AFB_FAIL,"Buffer size NULL key=%s]\n", item->key);
+        postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Buffer size NULL key=%s]\n", item->key);
         goto ExitOnError;
     }
 
     // Extract Application Context from posthandle [NULL == 1st iteration]    
-    appCtx = (AFB_PostCtx*) postHandle->ctx;
+    postFileCtx = (AFB_PostCtx*) postHandle->ctx;
 
     // This is the 1st Item iteration let's open output file and allocate necessary resources
-    if (appCtx == NULL)  {
-        int destDir;
+    if (postFileCtx == NULL)  {
+        DIR* destDir;
         
         // Create an application specific context
-        appCtx = calloc (1, sizeof(AFB_PostCtx)); // May place anything here until post->completeCB handle resources liberation
-        appCtx->path = strdup (filepath);
+        postFileCtx = calloc (1, sizeof(AFB_PostCtx)); // May place anything here until post->completeCB handle resources liberation
+        postFileCtx->path = strdup (filepath);
         
         // attach application to postHandle
-        postHandle->ctx = (void*) appCtx;   // May place anything here until post->completeCB handle resources liberation  
+        postHandle->ctx = (void*) postFileCtx;   // May place anything here until post->completeCB handle resources liberation  
         
         // Build destination directory full path
         if (destination[0] != '/') {
            strncpy (filepath, request->config->sessiondir, sizeof(filepath)); 
-           strncat (filepath, destination, sizeof(filepath)); 
            strncat (filepath, "/", sizeof(filepath));
            strncat (filepath, destination, sizeof(filepath)); 
         } else strncpy (filepath, destination, sizeof(filepath));
         
 
         // make sure destination directory exist
-        destDir = openat (filepath, request->plugin,  O_DIRECTORY);
-        if (destDir < 0) {
-          destDir = mkdir(filepath,O_RDWR | S_IRWXU | S_IRGRP); 
-          if (destDir < 0) {
-            appCtx->jerror= jsonNewMessage(AFB_FAIL,"Fail to Create destination directory=[%s] error=%s\n", filepath, strerror(errno));
+        destDir = opendir (filepath);
+        if (destDir == NULL) {
+          if ( 0 <= mkdir(filepath,O_RDWR | S_IRWXU | S_IRGRP)) {
+            postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to Create destination directory=[%s] error=%s\n", filepath, strerror(errno));
             goto ExitOnError;
           }
-        } else close (destDir);
+        } else closedir (destDir);
         
         strncat (filepath, "/", sizeof(filepath));
         strncat (filepath, item->filename, sizeof(filepath));  
 
-        if((appCtx->fd = open(filepath, O_RDWR |O_CREAT, S_IRWXU|S_IRGRP)) < 0) {
-            appCtx->jerror= jsonNewMessage(AFB_FAIL,"Fail to Create destination=[%s] error=%s\n", filepath, strerror(errno));
+        if((postFileCtx->fd = open(filepath, O_RDWR |O_CREAT, S_IRWXU|S_IRGRP)) <= 0) {
+            postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to Create destination File=[%s] error=%s\n", filepath, strerror(errno));
             goto ExitOnError;
         } 
     } else {     
         // reuse existing application context
-        appCtx = (AFB_PostCtx*) postHandle->ctx;  
+        postFileCtx = (AFB_PostCtx*) postHandle->ctx;  
     } 
 
     // Check we successfully wrote full buffer
-    len = write (appCtx->fd, item->data, item->len);
+    len = write (postFileCtx->fd, item->data, item->len);
     if (item->len != len) {
-        appCtx->jerror= jsonNewMessage(AFB_FAIL,"Fail to write file [%s] at [%s] error=\n", item->filename, strerror(errno));
+        postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to write file [%s] at [%s] error=\n", item->filename, strerror(errno));
         goto ExitOnError;
     }
   

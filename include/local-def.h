@@ -111,7 +111,8 @@ typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM} AFB_PostType;
 typedef struct {
    int   fd; 
    char *path; 
-   json_object* jerror;
+   int  errcode;
+   json_object* jresp;
 } AFB_PostCtx;
 
 typedef  struct {
