@@ -57,7 +57,7 @@ STATIC json_object* pingBug (AFB_request *request) {
 
 
 // For samples https://linuxprograms.wordpress.com/2010/05/20/json-c-libjson-tutorial/
-STATIC json_object* pingJson (AFB_session *session, AFB_request *request) {
+STATIC json_object* pingJson (AFB_request *request) {
     json_object *jresp, *embed;    
     
     jresp = json_object_new_object();
