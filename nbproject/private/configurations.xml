@@ -20,8 +20,6 @@
             <df name="plugins.dir">
               <df name="audio">
               </df>
-              <df name="radio">
-              </df>
               <df name="samples">
               </df>
               <df name="session">
@@ -95,8 +93,6 @@
           <df name="CMakeFiles">
             <df name="plugins.dir">
               <df name="audio">
-              </df>
-              <df name="radio">
               </df>
               <df name="samples">
               </df>

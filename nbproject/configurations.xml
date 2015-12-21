@@ -13,6 +13,7 @@
         </df>
         <df name="samples">
           <in>HelloWorld.c</in>
+          <in>SamplePost.c</in>
         </df>
         <df name="session">
           <in>token-api.c</in>
@@ -90,8 +91,6 @@
             <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
             <pElem>/usr/include/alsa</pElem>
-            <pElem>/usr/include/libusb-1.0</pElem>
-            <pElem>build/plugins</pElem>
           </incDir>
         </cTool>
       </folder>
@@ -105,7 +104,10 @@
       <folder path="0/plugins/radio">
         <cTool>
           <incDir>
+            <pElem>/usr/include/libusb-1.0</pElem>
+            <pElem>build/plugins</pElem>
             <pElem>plugins/radio</pElem>
+            <pElem>plugins/audio</pElem>
           </incDir>
         </cTool>
       </folder>
@@ -113,6 +115,7 @@
         <cTool>
           <incDir>
             <pElem>plugins/samples</pElem>
+            <pElem>build/plugins</pElem>
           </incDir>
         </cTool>
       </folder>
@@ -120,13 +123,8 @@
         <cTool>
           <incDir>
             <pElem>plugins/session</pElem>
+            <pElem>build/plugins</pElem>
           </incDir>
-          <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-          </preprocessorList>
         </cTool>
       </folder>
       <item path="plugins/audio/audio-alsa.c" ex="false" tool="0" flavor2="2">
@@ -151,27 +149,17 @@
       </item>
       <item path="plugins/radio/radio-api.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
-          <incDir>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
-            <pElem>plugins/audio</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/plugins</pElem>
-          </incDir>
         </cTool>
       </item>
       <item path="plugins/radio/radio-rtlsdr.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
-          <incDir>
-            <pElem>plugins/audio</pElem>
-            <pElem>include</pElem>
-            <pElem>/usr/include/json-c</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/plugins</pElem>
-          </incDir>
         </cTool>
       </item>
       <item path="plugins/samples/HelloWorld.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="1">
+        </cTool>
+      </item>
+      <item path="plugins/samples/SamplePost.c" ex="false" tool="0" flavor2="2">
         <cTool flags="1">
         </cTool>
       </item>
@@ -218,7 +206,6 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
-            <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
             <Elem>__USER_LABEL_PREFIX__=</Elem>
@@ -251,7 +238,6 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
-            <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
             <Elem>__USER_LABEL_PREFIX__=</Elem>
@@ -270,7 +256,6 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
-            <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
             <Elem>__USER_LABEL_PREFIX__=</Elem>
@@ -307,7 +292,6 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
-            <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
             <Elem>__USER_LABEL_PREFIX__=</Elem>
@@ -326,7 +310,6 @@
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
-            <Elem>HAVE_RADIO_PLUGIN=1</Elem>
             <Elem>__PIC__=2</Elem>
             <Elem>__REGISTER_PREFIX__=</Elem>
             <Elem>__USER_LABEL_PREFIX__=</Elem>

@@ -22,117 +22,156 @@
 
 // In this case or handle is quite basic
 typedef struct {
-   int fd; 
+   int   fd; 
+   char *path; 
+   json_object* jerror;
 } appPostCtx;
 
-// This function is call when PostForm processing is completed
-STATIC void DonePostForm (AFB_request *request) {
-    AFB_PostHandle  *postHandle = (AFB_PostHandle*)request->post->data;
-    appPostCtx *appCtx= postHandle->ctx;
+// With content-type=json data are directly avaliable in request->post->data
+STATIC json_object* GetJsonByPost (AFB_request *request) {
+    json_object* jresp;
+    char query [256];
+    int  len;
     
-    // Close upload file ID
-    close (appCtx->fd);
+    // check if we have some post data
+    if (request->post == NULL)  request->post->data="NoData"; 
+    
+    // Get all query string [Note real app should probably use value=getQueryValue(request,"key")]
+    len = getQueryAll (request, query, sizeof(query));
+    if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
+    
+    // for debug/test return response to caller
+    jresp = jsonNewMessage(AFB_SUCCESS, "GetJsonByPost query={%s} PostData: [%s]", query, request->post->data);
+    
+    return (jresp);    
+}
 
-    // Free application specific handle
-    free (postHandle->ctx);
+// This function is call when PostForm processing is completed
+STATIC void DonePostForm (AFB_request *request) { 
     
-    if (verbose) fprintf (stderr, "DonePostForm upload done\n");
+    // Retrieve PostHandle Context from request
+    AFB_PostHandle *postHandle = getPostHandle(request);
+    appPostCtx *appCtx= (appPostCtx*) postHandle->ctx;
+
+    if (verbose) fprintf (stderr, "DonePostForm file=[%s]upload done\n", appCtx->path);
+    
+
 }
 
 
-// WARNING: PostForm callback are call multiple time (one or each key within form)
-// When processing POST_JSON request->data hold a PostHandle and not data directly as for POST_JSON
-STATIC json_object* ProcessPostForm (AFB_request *request, AFB_PostItem *item) {
+// PostForm callback is called multiple times (one or each key within form, or once per file buffer)
+// When processing POST_FORM request->data holds a PostHandle and not data directly as for POST_JSON
+// When file has been fully uploaded call is call with item==NULL it is application responsibility to free appPostCtx
+STATIC json_object* UploadFile (AFB_request *request, AFB_PostItem *item) {
 
-    AFB_PostHandle  *postHandle;
+    AFB_PostHandle *postHandle = getPostHandle(request);
     appPostCtx *appCtx;
     char filepath[512];
+    int len;
             
-    // When Post is fully processed the same callback is call with a item==NULL
+    // This is called after PostForm and then after DonePostForm
     if (item == NULL) {
-        // Close file, Free handle
+        json_object* jresp;
+        appCtx = (appPostCtx*) postHandle->ctx;
         
-        request->errcode = MHD_HTTP_OK;
-        return(jsonNewMessage(AFB_SUCCESS,"File [%s] uploaded at [%s] error=\n", item->filename, request->config->sessiondir));  
+        // No Post Application Context [something really bad happen]
+        if (appCtx == NULL) {
+            request->errcode = MHD_HTTP_EXPECTATION_FAILED;
+            return(jsonNewMessage(AFB_FAIL,"Error: PostForm no PostContext to free\n"));          
+        }
+        
+        // We have a context but last Xform iteration fail.
+        if (appCtx->jerror != NULL) {
+            request->errcode = MHD_HTTP_EXPECTATION_FAILED;
+            jresp = appCtx->jerror;  // retrieve previous error from postCtx
+        } else jresp = jsonNewMessage(AFB_FAIL,"UploadFile Post Request file=[%s] done", appCtx->path);
+        
+        // Error or not let's free all resources
+        close(appCtx->fd);
+        free (appCtx->path);
+        free (appCtx);
+        return (jresp);  
     }
     
-    // Let's make sure this is a valid PostForm request
+    // Make sure it's a valid PostForm request
     if (!request->post && request->post->type != AFB_POST_FORM) {
-        request->errcode = MHD_HTTP_FORBIDDEN;
-        return(jsonNewMessage(AFB_FAIL,"This is not a valid PostForm request\n"));          
-    } else {
-        // In AFB_POST_FORM case post->data is a PostForm handle
-        postHandle = (AFB_PostHandle*) request->post->data;
-        appCtx = (appPostCtx*) postHandle->ctx;
+        appCtx->jerror= jsonNewMessage(AFB_FAIL,"This is not a valid PostForm request\n");
+        goto ExitOnError;
+    } 
+    
+    // Check this is a file element
+    if (item->filename == NULL) {
+        appCtx->jerror= jsonNewMessage(AFB_FAIL,"No Filename attached to key=%s\n", item->key);
+        goto ExitOnError;
+    }
+    
+    // Check we got something in buffer
+    if (item->len <= 0) {       
+        appCtx->jerror= jsonNewMessage(AFB_FAIL,"Buffer size NULL key=%s]\n", item->key);
+        goto ExitOnError;
     }
 
-    // Check this is a file element
-    if (0 != strcmp (item->key, "file")) {
-        request->errcode = MHD_HTTP_FORBIDDEN;
-        return (jsonNewMessage(AFB_FAIL,"No File within element key=%s\n", item->key));
-    }
+    // Extract Application Context from posthandle [NULL == 1st iteration]    
+    appCtx = (appPostCtx*) postHandle->ctx;
 
     // This is the 1st Item iteration let's open output file and allocate necessary resources
-    if (postHandle->ctx == NULL)  {
-        int fd;
+    if (appCtx == NULL)  {
+        // Create an application specific context
+        appCtx = calloc (1, sizeof(appPostCtx)); // May place anything here until post->completeCB handle resources liberation
+        appCtx->path = strdup (filepath);
         
+        // attach application to postHandle
+        postHandle->ctx = (void*) appCtx;   // May place anything here until post->completeCB handle resources liberation  
+        
+        // Allocate an application specific handle to this post
         strncpy (filepath, request->config->sessiondir, sizeof(filepath));
         strncat (filepath, "/", sizeof(filepath));
         strncat (filepath, item->filename, sizeof(filepath));  
 
-        if((fd = open(request->config->sessiondir, O_RDONLY)) < 0) {
-            request->errcode = MHD_HTTP_FORBIDDEN;
-            return (jsonNewMessage(AFB_FAIL,"Fail to Upload file [%s] at [%s] error=\n", item->filename, request->config->sessiondir, strerror(errno)));
-        };            
+        if((appCtx->fd = open(filepath, O_RDWR |O_CREAT, S_IRWXU|S_IRGRP)) < 0) {
+            appCtx->jerror= jsonNewMessage(AFB_FAIL,"Fail to Create destination=[%s] error=%s\n", filepath, strerror(errno));
+            goto ExitOnError;
+        } 
+    } else {     
+        // reuse existing application context
+        appCtx = (appPostCtx*) postHandle->ctx;  
+    } 
 
-        // Create an application specific context
-        appCtx = malloc (sizeof(appPostCtx)); // May place anything here until post->completeCB handle resources liberation
-        appCtx->fd = fd;
-        
-        // attach application to postHandle
-        postHandle->ctx = (void*) appCtx;   // May place anything here until post->completeCB handle resources liberation        
-        postHandle->completeCB = (AFB_apiCB)DonePostForm; // CallBack when Form Processing is finished
-        
-    } else {
-        // this is not the call, FD is already open
-        appCtx = (appPostCtx*) postHandle->ctx;
-    }
-
-    // We have something to write
-    if (item->len > 0) {
-        
-        if (!write (appCtx->fd, item->data, item->len)) {
-            request->errcode = MHD_HTTP_FORBIDDEN;
-            return (jsonNewMessage(AFB_FAIL,"Fail to write file [%s] at [%s] error=\n", item->filename, strerror(errno)));
-        }
+    // Check we successfully wrote full buffer
+    len = write (appCtx->fd, item->data, item->len);
+    if (item->len != len) {
+        appCtx->jerror= jsonNewMessage(AFB_FAIL,"Fail to write file [%s] at [%s] error=\n", item->filename, strerror(errno));
+        goto ExitOnError;
     }
   
-    // every event should return Sucess or Form processing stop
+    // every intermediary iteration should return Success & NULL
     request->errcode = MHD_HTTP_OK;
+    return NULL;
+    
+ExitOnError:    
+    request->errcode = MHD_HTTP_EXPECTATION_FAILED;
     return NULL;
 }
 
-// This function is call when Client Session Context is removed
-// Note: when freeCtxCB==NULL standard free/malloc is called
-STATIC void clientContextFree(AFB_clientCtx *client) {
-    fprintf (stderr,"Plugin[%s] Closing Session uuid=[%s]\n", client->plugin->prefix, client->uuid);
-    free (client->ctx);
-}
 
+// NOTE: this sample does not use session to keep test a basic as possible
+//       in real application upload-xxx should be protected with AFB_SESSION_CHECK
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"   , AFB_SESSION_NONE  , (AFB_apiCB)apiPingTest         ,"Ping Rest Test Service"},
-  {"upload" , AFB_SESSION_NONE  , (AFB_apiCB)ProcessPostForm     ,"Demo for file upload"},
+  {"ping"         , AFB_SESSION_NONE  , (AFB_apiCB)apiPingTest    ,"Ping Rest Test Service"},
+  {"upload-json"  , AFB_SESSION_NONE  , (AFB_apiCB)GetJsonByPost  ,"Demo for Json Buffer on Post"},
+  {"upload-image" , AFB_SESSION_NONE  , (AFB_apiCB)UploadFile     ,"Demo for file upload"},
+  {"upload-music" , AFB_SESSION_NONE  , (AFB_apiCB)UploadFile     ,"Demo for file upload"},
+  {"upload-appli" , AFB_SESSION_NONE  , (AFB_apiCB)UploadFile     ,"Demo for file upload"},
   {NULL}
 };
 
-PUBLIC AFB_plugin *afsvRegister () {
+PUBLIC AFB_plugin *samplePostRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON; 
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "post";  // url base
     plugin->apis  = pluginApis;
     plugin->handle= (void*) "What ever you want";
-    plugin->freeCtxCB= (void*) clientContextFree;
     
     return (plugin);
 };

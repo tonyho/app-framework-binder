@@ -29,6 +29,7 @@ PUBLIC int getQueryAll(AFB_request * request, char *query, size_t len);
 PUBLIC void endPostRequest(AFB_PostHandle *posthandle); 
 PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
     , const char *upload_data, size_t *upload_data_size, void **con_cls);
+PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request);
 
 void initPlugins (AFB_session *session);
 
@@ -37,6 +38,7 @@ PUBLIC  AFB_plugin* tokenRegister ();
 PUBLIC  AFB_plugin* audioRegister ();
 PUBLIC  AFB_plugin* helloWorldRegister ();
 PUBLIC  AFB_plugin* radioRegister ();
+PUBLIC  AFB_plugin* samplePostRegister ();
 
 // Session handling
 PUBLIC AFB_error sessionCheckdir     (AFB_session *session);

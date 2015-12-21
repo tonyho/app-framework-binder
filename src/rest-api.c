@@ -17,7 +17,7 @@
  * 
  * Contain all generic part to handle REST/API
  * 
- *  https://www.gnu.org/software/libmicrohttpd/tutorial.html [search 'FILE *fp']
+ *  https://www.gnu.org/software/libmicrohttpd/tutorial.html [search 'largepost.c']
  */
 
 #include "../include/local-def.h"
@@ -65,6 +65,7 @@ PUBLIC json_object* apiPingTest(AFB_request *request) {
     return (response);
 }
 
+
 // Helper to retrieve argument from  connection
 PUBLIC const char* getQueryValue(AFB_request * request, char *name) {
     const char *value;
@@ -91,7 +92,15 @@ PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     return (len);
 }
 
+
+// Helper to retreive POST handle
+PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request) {
+    if (request->post == NULL) return (NULL);
+    return ((AFB_PostHandle*) request->post->data);
+}
+
 // Because of POST call multiple time requestApi we need to free POST handle here
+// Note this method is called from http-svc just before closing session
 PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
 
     if (postHandle->type == AFB_POST_JSON) {
@@ -99,13 +108,7 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
     }
 
     if (postHandle->type == AFB_POST_FORM) {
-        AFB_PostHandle *postform = (AFB_PostHandle*) postHandle->private;
-        if (verbose) fprintf(stderr, "End PostForm Request UID=%d\n", postHandle->uid);
-
-        // call API termination callback
-        if (!postHandle->private) {
-            if (!postHandle->completeCB) postHandle->completeCB (postHandle->private);
-        }
+         if (verbose) fprintf(stderr, "End PostForm Request UID=%d\n", postHandle->uid);
     }
     free(postHandle->private);
     free(postHandle);
@@ -256,6 +259,9 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 
                 // Effectively call the API with a subset of the context
                 jresp = plugin->apis[idx].callback(request, context);
+                
+                // handle intemediatry Post Iterates out of band
+                if ((jresp == NULL) && (request->errcode == MHD_HTTP_OK)) return (AFB_SUCCESS);
 
                 // Session close is done after the API call so API can still use session in closing API
                 if (AFB_SESSION_CLOSE == plugin->apis[idx].session) ctxTokenReset (request);                    
@@ -281,8 +287,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
             }       
             return (AFB_DONE);
         }
-    }
-    
+    }   
     return (AFB_FAIL);
 }
 
@@ -305,13 +310,10 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     }  
     
     // plugin callback did not return a valid Json Object
-    if (status != AFB_DONE) {
+    if (status == AFB_FAIL) {
         request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s]", request->api, request->plugin);
         goto ExitOnError;
     }
-
-
-
     
     // Everything look OK
     return (status);
@@ -336,6 +338,7 @@ doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   AFB_request *request = (AFB_request*)postHandle->private;
   AFB_PostRequest postRequest;
   
+  fprintf (stderr, "postHandle key=%s filename=%s len=%d mime=%s\n", key, filename, size, mimetype);
    
   // Create and Item value for Plugin API
   item.kind     = kind;
@@ -355,7 +358,6 @@ doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   
   // effectively call plugin API                 
   status = findAndCallApi (request, &item);
-  
   // when returning no processing of postform stop
   if (status != AFB_SUCCESS) return MHD_NO;
   
@@ -430,7 +432,6 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             // allocate application POST processor handle to zero
             postHandle = calloc(1, sizeof (AFB_PostHandle));
             postHandle->uid = postcount++; // build a UID for DEBUG
-            *con_cls = postHandle;         // attache POST handle to current HTTP request
             
             // Let make sure we have the right encoding and a valid length
             encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
@@ -454,6 +455,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 postHandle->type   = AFB_POST_FORM;
                 postHandle->pp     = MHD_create_post_processor (connection, MAX_POST_SIZE, doPostIterate, postHandle);
                 postHandle->private= (void*)request;
+                *con_cls = postHandle;  // update context with posthandle
                 
                 if (NULL == postHandle->pp) {
                     fprintf(stderr,"OOPS: Internal error fail to allocate MHD_create_post_processor\n");
@@ -485,8 +487,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             } else {
                 // We only support Json and Form Post format
                 errMessage = jsonNewMessage(AFB_FATAL, "Post Date wrong type encoding=%s != %s", encoding, JSON_CONTENT);
-                goto ExitOnError;
-                
+                goto ExitOnError;                
             }   
         }
 
@@ -496,18 +497,18 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
         if (*upload_data_size) {
     
             if (postHandle->type == AFB_POST_FORM) {
-                if (verbose) fprintf(stderr, "Processing PostForm[uid=%d]\n", postHandle->uid);
+                // if (verbose) fprintf(stderr, "Processing PostForm[uid=%d]\n", postHandle->uid);
                 MHD_post_process (postHandle->pp, upload_data, *upload_data_size);
             }
             
             // Process JsonPost request when buffer is completed let's call API    
             if (postHandle->type == AFB_POST_JSON) {
                 // if (verbose) fprintf(stderr, "Updating PostJson[uid=%d]\n", postHandle->uid);
-
                 memcpy(&postHandle->private[postHandle->len], upload_data, *upload_data_size);
                 postHandle->len = postHandle->len + *upload_data_size;
-                *upload_data_size = 0;
             }
+            
+            *upload_data_size = 0;
             return MHD_YES;
             
         } else {  // we have finish with Post reception let's finish the work
@@ -518,7 +519,13 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 errMessage = request->jresp;
                 goto ExitOnError;
             }
-
+            
+            // Postform add application context handle to request
+            if (postHandle->type == AFB_POST_FORM) {
+               postRequest.data = (char*) postHandle;
+               postRequest.type = postHandle->type;
+               request->post = &postRequest;
+            }
             
             if (postHandle->type == AFB_POST_JSON) {
                 // if (verbose) fprintf(stderr, "Processing PostJson[uid=%d]\n", postHandle->uid);
@@ -626,10 +633,11 @@ void initPlugins(AFB_session *session) {
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int i = 0;
 
-    plugins[i++] = tokenRegister(session),
-    plugins[i++] = helloWorldRegister(session),
+    plugins[i++] = tokenRegister(session);
+    plugins[i++] = helloWorldRegister(session);
+    plugins[i++] = samplePostRegister(session);
 #ifdef HAVE_AUDIO_PLUGIN
-    plugins[i++] = audioRegister(session),
+    plugins[i++] = audioRegister(session);
 #endif
 #ifdef HAVE_RADIO_PLUGIN
     plugins[i++] = radioRegister(session),

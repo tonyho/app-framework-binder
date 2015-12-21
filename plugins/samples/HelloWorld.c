@@ -73,7 +73,8 @@ STATIC json_object* pingJson (AFB_session *session, AFB_request *request) {
     return jresp;
 }
 
-
+// NOTE: this sample does not use session to keep test a basic as possible
+//       in real application most APIs should be protected with AFB_SESSION_CHECK
 STATIC  AFB_restapi pluginApis[]= {
   {"ping"     , AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Ping Application Framework"},
   {"pingnull" , AFB_SESSION_NONE, (AFB_apiCB)pingFail    , "Return NULL"},
