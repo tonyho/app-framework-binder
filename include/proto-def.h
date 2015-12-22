@@ -43,11 +43,11 @@ PUBLIC json_object *sessionList      (AFB_session *session, AFB_request *request
 PUBLIC json_object *sessionToDisk    (AFB_session *session, AFB_request *request, char *name,json_object *jsonSession);
 PUBLIC json_object *sessionFromDisk  (AFB_session *session, AFB_request *request, char *name);
 
-PUBLIC AFB_error ctxTokenRefresh (AFB_request *request);
-PUBLIC AFB_error ctxTokenCreate (AFB_request *request);
-PUBLIC AFB_error ctxTokenCheck (AFB_request *request);
-PUBLIC AFB_error ctxTokenReset (AFB_request *request);
-PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_session *session, int idx);
+PUBLIC AFB_error ctxTokenRefresh (AFB_clientCtx *clientCtx, AFB_request *request);
+PUBLIC AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request);
+PUBLIC AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request);
+PUBLIC AFB_error ctxTokenReset (AFB_clientCtx *clientCtx, AFB_request *request);
+PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx);
 PUBLIC void      ctxStoreInit (int);
 
 

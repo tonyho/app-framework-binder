@@ -53,6 +53,7 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
 STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *context) {
     json_object *jresp, *jcall;
     int idx, status, sig;
+    AFB_clientCtx *clientCtx;
     int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
     
     /*---------------------------------------------------------------
@@ -60,8 +61,8 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
     +---------------------------------------------------------------- */
     void pluginError (int signum) {
       sigset_t sigset;
-      AFB_clientCtx *context;
-              
+   
+      
       // unlock signal to allow a new signal to come
       sigemptyset (&sigset);
       sigaddset   (&sigset, signum);
@@ -116,7 +117,8 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 if (AFB_SESSION_NONE != plugin->apis[idx].session) {
                     
                     // add client context to request
-                    if (ctxClientGet(request, idx) != AFB_SUCCESS) {
+                    clientCtx = ctxClientGet(request, idx);
+                    if (clientCtx != NULL) {
                         request->errcode=MHD_HTTP_INSUFFICIENT_STORAGE;
                         json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                         json_object_object_add(jcall, "info", json_object_new_string ("Client Session Context Full !!!"));
@@ -125,12 +127,12 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                     };
                     
                     if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[0x%x] Uuid=[%s] Token=[%s]\n"
-                           , request->plugin, request->api, plugin->apis[idx].session, request->client, request->client->uuid, request->client->token);                        
+                           , request->plugin, request->api, plugin->apis[idx].session, clientCtx, clientCtx->uuid, clientCtx->token);                        
                     
                     switch(plugin->apis[idx].session) {
 
                         case AFB_SESSION_CREATE:
-                            if (request->client->token[0] != '\0') {
+                            if (clientCtx->token[0] != '\0') {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("exist"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CREATE Session already exist"));
@@ -138,50 +140,50 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                                 return (AFB_DONE);                              
                             }
                         
-                            if (AFB_SUCCESS != ctxTokenCreate (request)) {
+                            if (AFB_SUCCESS != ctxTokenCreate (clientCtx, request)) {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CREATE Invalid Initial Token"));
                                 json_object_object_add(request->jresp, "request", jcall);
                                 return (AFB_DONE);
                             } else {
-                                json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
-                                json_object_object_add(jcall, "token", json_object_new_string (request->client->token));                                
+                                json_object_object_add(jcall, "uuid", json_object_new_string (clientCtx->uuid));                                
+                                json_object_object_add(jcall, "token", json_object_new_string (clientCtx->token));                                
                                 json_object_object_add(jcall, "timeout", json_object_new_int (request->config->cntxTimeout));                                
                             }
                             break;
 
 
                         case AFB_SESSION_RENEW:
-                            if (AFB_SUCCESS != ctxTokenRefresh (request)) {
+                            if (AFB_SUCCESS != ctxTokenRefresh (clientCtx, request)) {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_REFRESH Broken Exchange Token Chain"));
                                 json_object_object_add(request->jresp, "request", jcall);
                                 return (AFB_DONE);
                             } else {
-                                json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
-                                json_object_object_add(jcall, "token", json_object_new_string (request->client->token));                                
+                                json_object_object_add(jcall, "uuid", json_object_new_string (clientCtx->uuid));                                
+                                json_object_object_add(jcall, "token", json_object_new_string (clientCtx->token));                                
                                 json_object_object_add(jcall, "timeout", json_object_new_int (request->config->cntxTimeout));                                
                             }
                             break;
 
                         case AFB_SESSION_CLOSE:
-                            if (AFB_SUCCESS != ctxTokenCheck (request)) {
+                            if (AFB_SUCCESS != ctxTokenCheck (clientCtx, request)) {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("empty"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CLOSE Not a Valid Access Token"));
                                 json_object_object_add(request->jresp, "request", jcall);
                                 return (AFB_DONE);
                             } else {
-                                json_object_object_add(jcall, "uuid", json_object_new_string (request->client->uuid));                                
+                                json_object_object_add(jcall, "uuid", json_object_new_string (clientCtx->uuid));                                
                             }
                             break;
                         
                         case AFB_SESSION_CHECK:
                         default: 
                             // default action is check
-                            if (AFB_SUCCESS != ctxTokenCheck (request)) {
+                            if (AFB_SUCCESS != ctxTokenCheck (clientCtx, request)) {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CHECK Invalid Active Token"));
@@ -195,11 +197,11 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 // Effectively call the API with a subset of the context
                 jresp = plugin->apis[idx].callback(request, context);
                 
-                // handle intemediatry Post Iterates out of band
+                // handle intermediary Post Iterates out of band
                 if ((jresp == NULL) && (request->errcode == MHD_HTTP_OK)) return (AFB_SUCCESS);
 
                 // Session close is done after the API call so API can still use session in closing API
-                if (AFB_SESSION_CLOSE == plugin->apis[idx].session) ctxTokenReset (request);                    
+                if (AFB_SESSION_CLOSE == plugin->apis[idx].session) ctxTokenReset (clientCtx, request);                    
                 
                 // API should return NULL of a valid Json Object
                 if (jresp == NULL) {
@@ -500,9 +502,9 @@ ProcessApiCall:
     webResponse = MHD_create_response_from_buffer(strlen(serialized), (void*) serialized, MHD_RESPMEM_MUST_COPY);
     
     // client did not pass token on URI let's use cookies 
-    if ((!request->restfull) && (request->client != NULL)) {
+    if ((!request->restfull) && (request->context != NULL)) {
        char cookie[64]; 
-       snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request->client->uuid); 
+       snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request->uuid); 
        MHD_add_response_header (webResponse, MHD_HTTP_HEADER_SET_COOKIE, cookie);
     }
     

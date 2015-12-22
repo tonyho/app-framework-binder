@@ -97,6 +97,7 @@ extern char *ERROR_LABEL[];
 
 
 typedef json_object* (*AFB_apiCB)();
+typedef void (*AFB_freeCtxCB)(void*, char*);
 
 // Error code are requested through function to manage json usage count
 typedef struct {
@@ -218,23 +219,23 @@ typedef struct {
   AFB_restapi *apis;
   void *handle;
   int  ctxCount;
-  AFB_apiCB freeCtxCB;  // callback to free application context [null for standard free]
+  AFB_freeCtxCB freeCtxCB;  // callback to free application context [null for standard free]
 } AFB_plugin;
 
 
 // User Client Session Context
 typedef struct {
-  int  cid;             // index 0 if global
   char uuid[37];        // long term authentication of remote client
   char token[37];       // short term authentication of remote client
   time_t timeStamp;     // last time token was refresh
   int   restfull;       // client does not use cookie
-  void **ctx;           // application specific context [one per plugin]]
+  void **contexts;      // application specific context [one per plugin]]
   AFB_plugin **plugins; // we need plugins reference to cleanup session outside of call context
 } AFB_clientCtx;
 
 // MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
 typedef struct {
+  const char *uuid;
   const char *url;
   char *plugin;
   char *api;

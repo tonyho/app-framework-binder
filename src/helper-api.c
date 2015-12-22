@@ -34,9 +34,7 @@ PUBLIC json_object* getPingTest(AFB_request *request) {
     json_object *response;
     char query  [256];
     char session[256];
-
     int len;
-    AFB_clientCtx *client=request->client; // get client context from request
     
     // request all query key/value
     len = getQueryAll (request, query, sizeof(query));
@@ -44,14 +42,10 @@ PUBLIC json_object* getPingTest(AFB_request *request) {
     
     // check if we have some post data
     if (request->post == NULL)  request->post->data="NoData"; 
-    
-    // check is we have a session and a plugin handle
-    if (client == NULL) strncpy (session,"NoSession", sizeof(session));       
-    else snprintf(session, sizeof(session),"uuid=%s token=%s ctx=0x%x handle=0x%x", client->uuid, client->token, client->ctx, client->ctx); 
-        
+          
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d CtxtId=%d query={%s} session={%s} PostData: [%s] "
-               , pingcount++, request->client->cid, query, session, request->post->data);
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d uuid=%s query={%s} session={0x%x} PostData: [%s] "
+               , pingcount++, request->uuid, query, session, request->post->data);
     return (response);
 }
 

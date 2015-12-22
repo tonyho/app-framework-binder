@@ -31,7 +31,7 @@ STATIC json_object* clientContextCreate (AFB_request *request) {
     json_object *jresp;
 
     // add an application specific client context to session
-    request->client->ctx = malloc (sizeof (MyClientApplicationHandle));
+    request->context = malloc (sizeof (MyClientApplicationHandle));
     
     // Send response to UI
     jresp = json_object_new_object();               
@@ -66,23 +66,24 @@ STATIC json_object* clientContextCheck (AFB_request *request) {
 STATIC json_object* clientContextReset (AFB_request *request) {
     json_object *jresp;
    
-    jresp = json_object_new_object();
-    json_object_object_add(jresp, "uuid", json_object_new_string (request->client->uuid));              
+    /* after this call token will be reset
+     *  - no further access to API will be possible 
+     *  - every context from any used plugin will be freed
+     */
     
+    jresp = json_object_new_object();
+    json_object_object_add(jresp, "info", json_object_new_string ("Token and all resources are released"));
+    
+    // WARNING: if you free context resource manually here do not forget to set request->context=NULL; 
     return (jresp); 
 }
-
-// In this case or handle is quite basic
-typedef struct {
-   int fd; 
-} appPostCtx;
 
 
 // This function is call when Client Session Context is removed
 // Note: when freeCtxCB==NULL standard free/malloc is called
-STATIC void clientContextFree(AFB_clientCtx *client) {
-    fprintf (stderr,"Plugin[%s] Closing Session uuid=[%s]\n", client->plugin->prefix, client->uuid);
-    free (client->ctx);
+STATIC void clientContextFree(void *context, char* uuid) {
+    fprintf (stderr,"Plugin[token] Closing Session uuid=[%s]\n", uuid);
+    free (context);
 }
 
 STATIC  AFB_restapi pluginApis[]= {
