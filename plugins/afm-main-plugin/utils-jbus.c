@@ -272,6 +272,7 @@ static DBusHandlerResult incoming_resp(DBusConnection *connection, DBusMessage *
 		reply = json_tokener_parse(str);
 		status = reply ? 0 : -1;
 		jrw->onresp_j(iserror ? -1 : status, reply, jrw->data);
+		json_object_put(reply);
 	}
 
 	free(jrw);
@@ -318,6 +319,7 @@ static DBusHandlerResult incoming_call(DBusConnection *connection, DBusMessage *
 		if (query == NULL)
 			return reply_invalid_request(jreq);
 		srv->oncall_j(jreq, query);
+		json_object_put(query);
 	}
 	return DBUS_HANDLER_RESULT_HANDLED;
 }
@@ -350,8 +352,10 @@ static DBusHandlerResult incoming_signal(DBusConnection *connection, DBusMessage
 		else {
 			/* handling json only */
 			obj = json_tokener_parse(str);
-			if (obj != NULL)
+			if (obj != NULL) {
 				sig->onsignal_j(obj);
+				json_object_put(obj);
+			}
 		}
 	}
 	return DBUS_HANDLER_RESULT_HANDLED;
@@ -607,10 +611,16 @@ char *jbus_call_ss_sync(struct jbus *jbus, const char *method, const char *query
 
 struct json_object *jbus_call_sj_sync(struct jbus *jbus, const char *method, const char *query)
 {
-	const char *str = jbus_call_ss_sync(jbus, method, query);
-	return str ? json_tokener_parse(str) : NULL;
+	struct json_object *obj;
+	char *str = jbus_call_ss_sync(jbus, method, query);
+	if (str == NULL)
+		obj = NULL;
+	else {
+		obj = json_tokener_parse(str);
+		free(str);
+	}
+	return obj;
 }
-
 
 char *jbus_call_js_sync(struct jbus *jbus, const char *method, struct json_object *query)
 {
