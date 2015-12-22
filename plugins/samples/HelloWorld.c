@@ -88,7 +88,7 @@ PUBLIC AFB_plugin *pluginRegister () {
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type  = AFB_PLUGIN_JSON;
     plugin->info  = "Application Framework Binder Service";
-    plugin->prefix= "dbus";        
+    plugin->prefix= "hello";
     plugin->apis  = pluginApis;
     return (plugin);
 };

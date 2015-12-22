@@ -573,9 +573,11 @@ void initPlugins(AFB_session *session) {
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int i = 0;
 
+    plugins = (AFB_plugin **) malloc (sizeof(AFB_plugin));
+
     if ((dir = opendir(session->config->plugins)) == NULL) {
-        fprintf(stderr, "Could not open plugin directory=%s\n", session->config->plugins);
-        return;
+        fprintf(stderr, "Could not open plugin directory [%s], exiting...\n", session->config->plugins);
+        exit (-1);
     }
 
     while ((pluginDir = readdir(dir)) != NULL) {
@@ -601,10 +603,15 @@ void initPlugins(AFB_session *session) {
         plugins[i] = (**pluginRegisterFct)();
         i++;
     }
-    plugins[i++] = NULL;
+    plugins[i] = NULL;
 
     closedir (dir);
-    
+
+    if (plugins[0] == NULL) {
+        fprintf(stderr, "No plugins found, afb-daemon is unlikely to work in this configuration, exiting...\n");
+        exit (-1);
+    }
+
     // complete plugins and save them within current sessions    
     session->plugins = RegisterJsonPlugins(plugins);
 }
