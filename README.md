@@ -15,6 +15,7 @@ industry requirementsas the primary target for this code is AGL.
  * libmicrohttpd ("libmicrohttpd-dev/devel");
  * json-c ("libjson-c-dev/devel");
  * uuid ("uuid-dev/libuuid-devel");
+ * dbus ("libdbus-1-dev/dbus-1-devel");
 
  optionally, for plugins :
 
