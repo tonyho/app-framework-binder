@@ -230,6 +230,7 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     int idx;
     AFB_error status;
     
+    if (!request->api || !request->plugin) return (AFB_FAIL);
    
     // Search for a plugin with this urlpath
     for (idx = 0; request->plugins[idx] != NULL; idx++) {
@@ -240,13 +241,13 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     }
     // No plugin was found
     if (request->plugins[idx] == NULL) {
-        request->jresp = jsonNewMessage(AFB_FATAL, "No Plugin=[%s]", request->plugin);
+        request->jresp = jsonNewMessage(AFB_FATAL, "No Plugin=[%s] Url=%s", request->plugin, request->url);
         goto ExitOnError;
     }  
     
     // plugin callback did not return a valid Json Object
     if (status == AFB_FAIL) {
-        request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s]", request->api, request->plugin);
+        request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->api, request->plugin, request->url);
         goto ExitOnError;
     }
     
@@ -321,12 +322,16 @@ STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_sessio
     baseurl = strsep(&urlcpy2, "/");
     if (baseurl == NULL) {
         request->jresp = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
+        request->errcode = MHD_HTTP_BAD_REQUEST;
+        goto Done;
     }
 
     // let's compute URL and call API
     baseapi = strsep(&urlcpy2, "/");
     if (baseapi == NULL) {
-        request->jresp = jsonNewMessage(AFB_FATAL, "Invalid API call url=[%s]", url);
+        request->jresp = jsonNewMessage(AFB_FATAL, "Invalid API call plugin=[%s] url=[%s]", baseurl, url);
+        request->errcode = MHD_HTTP_BAD_REQUEST;
+        goto Done;
     }
     
     // build request structure
@@ -336,7 +341,8 @@ STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_sessio
     request->plugin = strdup (baseurl);
     request->api    = strdup (baseapi);
     request->plugins= session->plugins;
-    
+
+Done:    
     free(urlcpy1);
     return (request);
 }
@@ -383,10 +389,8 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 if (verbose) fprintf(stderr, "Create PostForm[uid=%d]\n", postHandle->uid);
 
                 request = createRequest (connection, session, url);
-                if (request->jresp != NULL) {
-                    errMessage = request->jresp;
-                    goto ExitOnError;
-                }
+                if (request->jresp != NULL) goto ProcessApiCall;
+
                 postHandle = malloc(sizeof (AFB_PostHandle)); // allocate application POST processor handle
                 postHandle->type   = AFB_POST_FORM;
                 postHandle->pp     = MHD_create_post_processor (connection, MAX_POST_SIZE, doPostIterate, postHandle);
