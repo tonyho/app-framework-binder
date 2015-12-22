@@ -51,3 +51,4 @@ extern int jbus_add_service_j(struct jbus *jbus, const char *method, void (*onca
 extern int jbus_start_serving(struct jbus *jbus);
 extern int jbus_send_signal_s(struct jbus *jbus, const char *name, const char *content);
 extern int jbus_send_signal_j(struct jbus *jbus, const char *name, struct json_object *content);
+
