@@ -77,6 +77,16 @@ STATIC json_object* clientContextReset (AFB_request *request) {
     // WARNING: if you free context resource manually here do not forget to set request->context=NULL; 
     return (jresp); 
 }
+// Close and Free context
+STATIC json_object* clientGetPing (AFB_request *request) {
+    static count=0;
+    json_object *jresp;
+
+    jresp = json_object_new_object();
+    json_object_object_add(jresp, "count", json_object_new_int (count ++));
+    
+    return (jresp); 
+}
 
 
 // This function is call when Client Session Context is removed
@@ -87,7 +97,7 @@ STATIC void clientContextFree(void *context, char* uuid) {
 }
 
 STATIC  AFB_restapi pluginApis[]= {
-  {"ping"    , AFB_SESSION_NONE  , (AFB_apiCB)getPingTest         ,"Ping Rest Test Service"},
+  {"ping"    , AFB_SESSION_NONE  , (AFB_apiCB)clientGetPing       ,"Ping Rest Test Service"},
   {"create"  , AFB_SESSION_CREATE, (AFB_apiCB)clientContextCreate ,"Request Client Context Creation"},
   {"refresh" , AFB_SESSION_RENEW , (AFB_apiCB)clientContextRefresh,"Refresh Client Context Token"},
   {"check"   , AFB_SESSION_CHECK , (AFB_apiCB)clientContextCheck  ,"Check Client Context Token"},

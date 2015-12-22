@@ -50,10 +50,11 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
 }
 
 // Check of apiurl is declare in this plugin and call it
-STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *context) {
+STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context) {
     json_object *jresp, *jcall;
     int idx, status, sig;
     AFB_clientCtx *clientCtx;
+    AFB_plugin *plugin = request->plugins[plugidx];
     int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
     
     /*---------------------------------------------------------------
@@ -117,8 +118,8 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 if (AFB_SESSION_NONE != plugin->apis[idx].session) {
                     
                     // add client context to request
-                    clientCtx = ctxClientGet(request, idx);
-                    if (clientCtx != NULL) {
+                    clientCtx = ctxClientGet(request, plugidx);
+                    if (clientCtx == NULL) {
                         request->errcode=MHD_HTTP_INSUFFICIENT_STORAGE;
                         json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                         json_object_object_add(jcall, "info", json_object_new_string ("Client Session Context Full !!!"));
@@ -237,7 +238,7 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     // Search for a plugin with this urlpath
     for (idx = 0; request->plugins[idx] != NULL; idx++) {
         if (!strcmp(request->plugins[idx]->prefix, request->plugin)) {
-            status =callPluginApi(request->plugins[idx], request, context);
+            status =callPluginApi(request, idx, context);
             break;
         }
     }

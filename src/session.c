@@ -476,6 +476,7 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
     if (clientCtx == NULL) {        
         clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
         clientCtx->contexts = calloc (1, request->config->pluginCount * (sizeof (void*)));        
+        clientCtx->plugins  = request->plugins;       
     }
     
     uuid_generate(newuuid);         // create a new UUID
@@ -500,7 +501,7 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
 PUBLIC AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request) {
     const char *token;
     
-    if (request->context == NULL) return AFB_EMPTY;
+    if (clientCtx->contexts == NULL) return AFB_EMPTY;
     
     // this time have to extract token from query list
     token = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, "token");
@@ -558,7 +559,7 @@ PUBLIC AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request)
     uuid_unparse_lower(newuuid, clientCtx->token);
     
     // keep track of time for session timeout and further clean up
-    clientCtx->timeStamp=time(NULL); 
+    clientCtx->timeStamp=time(NULL);
     
     // Token is also store in context but it might be convenient for plugin to access it directly
     return (AFB_SUCCESS);
