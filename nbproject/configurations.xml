@@ -259,21 +259,19 @@
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -314,21 +312,19 @@
         </cTool>
       </item>
       <item path="src/main.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -366,21 +362,19 @@
         </cTool>
       </item>
       <item path="src/session.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
+            <pElem>include</pElem>
             <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
-            <pElem>include</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
             <Elem>HAVE_AUDIO_PLUGIN=1</Elem>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
           </preprocessorList>
         </cTool>
       </item>

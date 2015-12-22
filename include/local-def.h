@@ -181,6 +181,7 @@ typedef struct {
   int  cacheTimeout;
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
+  int  pluginCount;        // loaded plugins count
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 } AFB_config;
 
@@ -228,8 +229,8 @@ typedef struct {
   char token[37];       // short term authentication of remote client
   time_t timeStamp;     // last time token was refresh
   int   restfull;       // client does not use cookie
-  void *ctx;            // application specific context
-  AFB_plugin *plugin;   // provide callback and easy access to plugin
+  void **ctx;           // application specific context [one per plugin]]
+  AFB_plugin **plugins; // we need plugins reference to cleanup session outside of call context
 } AFB_clientCtx;
 
 // MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
@@ -239,9 +240,9 @@ typedef struct {
   char *api;
   AFB_PostRequest *post;
   json_object *jresp;
-  AFB_clientCtx *client;      // needed because libmicrohttp cannot create an empty response
-  int   restfull;             // request is resfull [uuid token provided]
-  int   errcode;              // http error code
+  void *context;             // Hold Client Context when using session
+  int  restfull;             // request is resfull [uuid token provided]
+  int  errcode;              // http error code
   sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
   AFB_config *config;         // plugin may need access to config
   struct MHD_Connection *connection;
@@ -261,7 +262,6 @@ typedef struct {
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  forceexit;         // when autoconfig from script force exit before starting server
   AFB_plugin **plugins;   // pointer to REST/API plugins 
-  int pluginCount;        // loaded plugins count
   magic_t  magic;         // Mime type file magic lib
   sigjmp_buf restartCkpt; // context save for restart set/longjmp
 } AFB_session;

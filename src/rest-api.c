@@ -116,7 +116,7 @@ STATIC AFB_error callPluginApi(AFB_plugin *plugin, AFB_request *request, void *c
                 if (AFB_SESSION_NONE != plugin->apis[idx].session) {
                     
                     // add client context to request
-                    if (ctxClientGet(request, plugin) != AFB_SUCCESS) {
+                    if (ctxClientGet(request, idx) != AFB_SUCCESS) {
                         request->errcode=MHD_HTTP_INSUFFICIENT_STORAGE;
                         json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                         json_object_object_add(jcall, "info", json_object_new_string ("Client Session Context Full !!!"));
@@ -621,5 +621,5 @@ void initPlugins(AFB_session *session) {
 
     // complete plugins and save them within current sessions    
     session->plugins = RegisterJsonPlugins(plugins);
-    session->pluginCount = num;
+    session->config->pluginCount = num;
 }

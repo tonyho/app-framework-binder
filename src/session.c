@@ -315,15 +315,16 @@ OnErrorExit:
 }
 
 
-
-
 // Free context [XXXX Should be protected again memory abort XXXX]
 STATIC void ctxUuidFreeCB (AFB_clientCtx *client) {
   
     // If application add a handle let's free it now
     if (client->ctx != NULL) {
+        int idx;
+        AFB_plugin **plugins = client->plugins;
         
         // Free client handle with a standard Free function, with app callback or ignore it
+        for (idx=0; idx < )
         if (client->plugin->freeCtxCB == NULL) free (client->ctx); 
         else if (client->plugin->freeCtxCB != (void*)-1) client->plugin->freeCtxCB(client); 
     }
@@ -435,7 +436,7 @@ PUBLIC int ctxStoreGarbage (const int timeout) {
 }
 
 // This function will return exiting client context or newly created client context
-PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin) {
+PUBLIC AFB_error ctxClientGet (AFB_request *request, int idx) {
   static int cid=0;
   AFB_clientCtx *clientCtx=NULL;
   const char *uuid;
@@ -473,13 +474,15 @@ PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin) {
     }
    
     // we have no session let's create one otherwise let's clean any exiting values
-    if (clientCtx == NULL) clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
+    if (clientCtx == NULL) {        
+        clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
+        clientCtx->ctx = cmalloc (1, request->config->pluginCount * (sizeof (void*)));        
+    }
+    
     uuid_generate(newuuid);         // create a new UUID
     uuid_unparse_lower(newuuid, clientCtx->uuid);
     clientCtx->cid=cid++;   // simple application uniqueID 
-    clientCtx->plugin = plugin;    // provide plugin callbacks a hook to plugin
-    clientCtx->plugin;    // provide plugin callbacks a hook to plugin
-        
+    
     // if table is full at 50% let's clean it up
     if(sessions.count > (sessions.max / 2)) ctxStoreGarbage(request->config->cntxTimeout);
     
@@ -490,7 +493,7 @@ PUBLIC AFB_error ctxClientGet (AFB_request *request, AFB_plugin *plugin) {
     }
     
     // if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
-    request->client = clientCtx;
+    request->client = clientCtx->ctx[idx];
 
     return(AFB_SUCCESS);
 }
