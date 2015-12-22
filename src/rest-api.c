@@ -571,9 +571,10 @@ void initPlugins(AFB_session *session) {
     struct dirent *pluginDir;
     DIR *dir;
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
-    int i = 0;
+    int num = 0;
 
-    plugins = (AFB_plugin **) malloc (sizeof(AFB_plugin));
+    /* pre-allocate for 20 plugins, we will downsize if necessary */
+    plugins = (AFB_plugin **) malloc (20*sizeof(AFB_plugin));
 
     if ((dir = opendir(session->config->plugins)) == NULL) {
         fprintf(stderr, "Could not open plugin directory [%s], exiting...\n", session->config->plugins);
@@ -590,7 +591,7 @@ void initPlugins(AFB_session *session) {
         pluginRegisterFct = dlsym (plugin, "pluginRegister");
         free (pluginPath);
         if (!plugin) {
-            if (verbose) fprintf(stderr, "[%s] is not a binary plugin, continuing...\n", pluginDir->d_name);
+            if (verbose) fprintf(stderr, "[%s] is not loadable, continuing...\n", pluginDir->d_name);
             continue;
         } else if (!pluginRegisterFct) {
             if (verbose) fprintf(stderr, "[%s] is not an AFB plugin, continuing...\n", pluginDir->d_name);
@@ -598,12 +599,14 @@ void initPlugins(AFB_session *session) {
         }
 
         if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading it\n", pluginDir->d_name);
-        plugins = (AFB_plugin **) realloc (plugins, (i+1)*sizeof(AFB_plugin));
-        plugins[i] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
-        plugins[i] = (**pluginRegisterFct)();
-        i++;
+        plugins[num] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
+        plugins[num] = (**pluginRegisterFct)();
+        num++;
+        /* only 20 plugins are supported at that time */
+        if (num == 20) break;
     }
-    plugins[i] = NULL;
+    plugins = (AFB_plugin **) realloc (plugins, (num+1)*sizeof(AFB_plugin));
+    plugins[num] = NULL;
 
     closedir (dir);
 
@@ -614,4 +617,5 @@ void initPlugins(AFB_session *session) {
 
     // complete plugins and save them within current sessions    
     session->plugins = RegisterJsonPlugins(plugins);
+    session->pluginCount = num;
 }
