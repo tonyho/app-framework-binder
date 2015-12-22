@@ -367,6 +367,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             // allocate application POST processor handle to zero
             postHandle = calloc(1, sizeof (AFB_PostHandle));
             postHandle->uid = postcount++; // build a UID for DEBUG
+            *con_cls = postHandle;  // update context with posthandle
             
             // Let make sure we have the right encoding and a valid length
             encoding = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_TYPE);
@@ -390,7 +391,6 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 postHandle->type   = AFB_POST_FORM;
                 postHandle->pp     = MHD_create_post_processor (connection, MAX_POST_SIZE, doPostIterate, postHandle);
                 postHandle->private= (void*)request;
-                *con_cls = postHandle;  // update context with posthandle
                 
                 if (NULL == postHandle->pp) {
                     fprintf(stderr,"OOPS: Internal error fail to allocate MHD_create_post_processor\n");
