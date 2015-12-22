@@ -261,6 +261,7 @@ typedef struct {
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  forceexit;         // when autoconfig from script force exit before starting server
   AFB_plugin **plugins;   // pointer to REST/API plugins 
+  int pluginCount;        // loaded plugins count
   magic_t  magic;         // Mime type file magic lib
   sigjmp_buf restartCkpt; // context save for restart set/longjmp
 } AFB_session;

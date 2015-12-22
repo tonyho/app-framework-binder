@@ -37,6 +37,7 @@ INCLUDE(FindPkgConfig)
 PKG_CHECK_MODULES(json-c REQUIRED json-c)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd)
 PKG_CHECK_MODULES(uuid REQUIRED uuid)
+PKG_CHECK_MODULES(dbus REQUIRED dbus-1)
 # Optional plugin dependencies
 PKG_CHECK_MODULES(alsa alsa)
 PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
@@ -51,8 +52,8 @@ ENDIF(librtlsdr_FOUND)
 INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
 
-SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
-SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${alsa_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm -ldl)
+SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${dbus_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
+SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${dbus_LIBRARIES} ${alsa_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm -ldl)
 SET(plugin_install_dir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/afb)
 
 ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
