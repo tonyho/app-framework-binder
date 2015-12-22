@@ -39,7 +39,7 @@ struct dev_ctx {
 };
 
 STATIC void* _play_thread_fn (void *);
-PUBLIC unsigned int _alsa_get_volume (unsigned int);
+PUBLIC int _alsa_get_volume (unsigned int, unsigned int);
 PUBLIC unsigned char _alsa_get_mute (unsigned int);
 
 static struct dev_ctx **dev_ctx = NULL;

@@ -26,10 +26,12 @@
 STATIC audioCtxHandleT* initAudioCtx () {
 
     audioCtxHandleT *ctx;
+    int i;
 
     ctx = malloc (sizeof(audioCtxHandleT));
     ctx->idx = -1;
-    ctx->volume = 25;
+    for (i = 0; i < 8; i++)
+        ctx->volume[i] = 25;
     ctx->channels = 2;
     ctx->mute = 0;
     ctx->is_playing = 0;
@@ -82,28 +84,51 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
     audioCtxHandleT *ctx = (audioCtxHandleT*)request->client->ctx;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
-    int volume;
+    int volume[8], i;
+    char *volume_i;
     char volume_str[256];
+    int len_str = 0;
 
     /* no "?value=" parameter : return current state */
     if (!value) {
-        ctx->volume = _alsa_get_volume (ctx->idx);
-        snprintf (volume_str, sizeof(volume_str), "%d", ctx->volume);
+        for (i = 0; i < 8; i++) {
+            ctx->volume[i] = _alsa_get_volume (ctx->idx, i);
+            snprintf (volume_str+len_str, sizeof(volume_str)-len_str, "%d,", ctx->volume[i]);
+            len_str = strlen(volume_str);
+        }
         jresp = json_object_new_object();
         json_object_object_add (jresp, "volume", json_object_new_string(volume_str));
     }
 
     /* "?value=" parameter, set volume */
     else {
-        volume = atoi (value);
-        if (100 < volume < 0) {
+        volume_i = strdup (value);
+        volume_i = strtok (volume_i, ",");
+        volume[0] = atoi (volume_i);
+
+        if (100 < volume[0] < 0) {
+            free (volume_i);
             request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
             return (jsonNewMessage (AFB_FAIL, "Volume must be between 0 and 100"));
         }
-        ctx->volume = volume;
-        _alsa_set_volume (ctx->idx, ctx->volume);
+        ctx->volume[0] = volume[0];
+        _alsa_set_volume (ctx->idx, 0, ctx->volume[0]);
+        snprintf (volume_str, sizeof(volume_str), "%d,", ctx->volume[0]);
 
-        snprintf (volume_str, sizeof(volume_str), "%d", ctx->volume);
+        for (i = 1; i < 8; i++) {
+            volume_i = strtok (NULL, ",");
+            /* if there is only one value, set all channels to this one */
+            if (!volume_i && i == 1)
+               _alsa_set_volume_all (ctx->idx, ctx->volume[0]);
+            if (!volume_i || 100 < atoi(volume_i) < 0) {
+               ctx->volume[i] = _alsa_get_volume (ctx->idx, i);
+            } else {
+               ctx->volume[i] = atoi(volume_i);
+               _alsa_set_volume (ctx->idx, i, ctx->volume[i]);
+            }
+            len_str = strlen(volume_str);
+            snprintf (volume_str+len_str, sizeof(volume_str)-len_str, "%d,", ctx->volume[i]);
+        }
         jresp = json_object_new_object();
         json_object_object_add (jresp, "volume", json_object_new_string(volume_str));
     }

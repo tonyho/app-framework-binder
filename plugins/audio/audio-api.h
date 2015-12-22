@@ -36,10 +36,10 @@ typedef struct {
 typedef struct {
   audioDevT *radio;         /* pointer to client audio card          */
   int idx;                  /* audio card index within global array  */
-  unsigned int volume;      /* audio volume : 0-100                  */
+  int volume[8];            /* audio volume (8 channels) : 0-100     */
   unsigned int channels;    /* audio channels : 1(mono)/2(stereo)... */
   unsigned char mute;       /* audio muted : 0(false)/1(true)        */
-  unsigned char is_playing; /* audio is playing: 0(false)/1(true) */
+  unsigned char is_playing; /* audio is playing: 0(false)/1(true)    */
 } audioCtxHandleT;
 
 
