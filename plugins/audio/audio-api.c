@@ -70,7 +70,7 @@ STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
     _alsa_init("default", ctx);
     
     jresp = json_object_new_object();
-    json_object_object_add (jresp, "info", json_object_new_string ("Radio initialised"));
+    json_object_object_add (jresp, "info", json_object_new_string ("Audio initialised"));
     return (jresp);
 }
 

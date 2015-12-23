@@ -97,7 +97,7 @@ extern char *ERROR_LABEL[];
 
 
 typedef json_object* (*AFB_apiCB)();
-typedef void (*AFB_freeCtxCB)(void*, char*);
+typedef void (*AFB_freeCtxCB)(void*, void*, char*);
 
 // Error code are requested through function to manage json usage count
 typedef struct {
@@ -237,7 +237,7 @@ typedef struct {
 typedef struct {
   const char *uuid;
   const char *url;
-  char *plugin;
+  char *prefix;              // plugin convivial name
   char *api;
   AFB_PostRequest *post;
   json_object *jresp;
@@ -247,6 +247,7 @@ typedef struct {
   sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
   AFB_config *config;         // plugin may need access to config
   struct MHD_Connection *connection;
+  AFB_plugin *plugin;        // provide callback and easy access to plugin
   AFB_plugin **plugins;
 } AFB_request;
 

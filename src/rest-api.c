@@ -128,7 +128,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                     };
                     
                     if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[0x%x] Uuid=[%s] Token=[%s]\n"
-                           , request->plugin, request->api, plugin->apis[idx].session, clientCtx, clientCtx->uuid, clientCtx->token);                        
+                           , request->prefix, request->api, plugin->apis[idx].session, clientCtx, clientCtx->uuid, clientCtx->token);                        
                     
                     switch(plugin->apis[idx].session) {
 
@@ -233,24 +233,24 @@ STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {
     int idx;
     AFB_error status;
     
-    if (!request->api || !request->plugin) return (AFB_FAIL);
+    if (!request->api || !request->prefix) return (AFB_FAIL);
    
     // Search for a plugin with this urlpath
     for (idx = 0; request->plugins[idx] != NULL; idx++) {
-        if (!strcmp(request->plugins[idx]->prefix, request->plugin)) {
+        if (!strcmp(request->plugins[idx]->prefix, request->prefix)) {
             status =callPluginApi(request, idx, context);
             break;
         }
     }
     // No plugin was found
     if (request->plugins[idx] == NULL) {
-        request->jresp = jsonNewMessage(AFB_FATAL, "No Plugin=[%s] Url=%s", request->plugin, request->url);
+        request->jresp = jsonNewMessage(AFB_FATAL, "No Plugin=[%s] Url=%s", request->prefix, request->url);
         goto ExitOnError;
     }  
     
     // plugin callback did not return a valid Json Object
     if (status == AFB_FAIL) {
-        request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->api, request->plugin, request->url);
+        request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->api, request->prefix, request->url);
         goto ExitOnError;
     }
     
@@ -306,7 +306,7 @@ doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
 
 STATIC void freeRequest (AFB_request *request) {
 
- free (request->plugin);    
+ free (request->prefix);    
  free (request->api);    
  free (request);    
 }
@@ -314,7 +314,8 @@ STATIC void freeRequest (AFB_request *request) {
 STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_session *session, const char* url) {
     
     AFB_request *request;
-    
+    int idx;
+
     // Start with a clean request
     request = calloc (1, sizeof (AFB_request));
     char *urlcpy1, *urlcpy2;
@@ -341,9 +342,15 @@ STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_sessio
     request->connection = connection;
     request->config = session->config;
     request->url    = url;
-    request->plugin = strdup (baseurl);
+    request->prefix = strdup (baseurl);
     request->api    = strdup (baseapi);
     request->plugins= session->plugins;
+    for (idx = 0; idx < session->config->pluginCount; idx++) {
+        if (!strcmp(baseurl, session->plugins[idx]->prefix)) {
+            request->plugin = session->plugins[idx];
+            break;
+        }
+    }
 
 Done:    
     free(urlcpy1);

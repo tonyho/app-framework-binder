@@ -117,12 +117,10 @@ STATIC AFB_error releaseRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
 }
 
 /* called when client session dies [e.g. client quits for more than 15mns] */
-STATIC json_object* freeRadio (AFB_clientCtx *client) {
+STATIC void freeRadio (void *context, void *handle) {
 
-    releaseRadio (client->plugin->handle, client->ctx);
-    free (client->ctx);
-    
-    return jsonNewMessage (AFB_SUCCESS, "Released radio and client context");
+    releaseRadio (handle, context);
+    free (context);
 }
 
 
@@ -130,22 +128,20 @@ STATIC json_object* freeRadio (AFB_clientCtx *client) {
 
 STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
 
-    radioCtxHandleT *ctx;
     json_object *jresp;
 
     /* create a private client context */
-    ctx = initRadioCtx();
-    request->client->ctx = (radioCtxHandleT*)ctx;
+    request->context = initRadioCtx();
 
     jresp = json_object_new_object();
-    json_object_object_add(jresp, "token", json_object_new_string (request->client->token));
+    json_object_object_add(jresp, "info", json_object_new_string ("Radio initialized"));
     return jresp;
 }
 
 STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
-    
-    pluginHandleT *handle = request->client->plugin->handle; 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+
+    pluginHandleT *handle = (pluginHandleT*)request->plugin;
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
 
@@ -186,7 +182,7 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
 
 STATIC json_object* mode (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
 
@@ -216,7 +212,7 @@ STATIC json_object* mode (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
 STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
     double freq;
@@ -243,7 +239,7 @@ STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
 STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
     char *mute_str;
@@ -274,7 +270,7 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
 STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->client->ctx;
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp = json_object_new_object();
     
@@ -304,12 +300,6 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
     return jresp;
 }
 
-STATIC json_object* refresh (AFB_request *request) {     /* AFB_SESSION_RENEW */
-    json_object *jresp = json_object_new_object();
-    json_object_object_add(jresp, "token", json_object_new_string (request->client->token));
-    return jresp;
-}
-
 STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
     return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Radio API");
 }
@@ -322,7 +312,6 @@ STATIC AFB_restapi pluginApis[]= {
   {"freq"   , AFB_SESSION_CHECK,  (AFB_apiCB)freq       , "Radio API - freq"},
   {"mute"   , AFB_SESSION_CHECK,  (AFB_apiCB)mute       , "Radio API - mute"},
   {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Radio API - play"},
-  {"refresh", AFB_SESSION_RENEW,  (AFB_apiCB)refresh    , "Radio API - refresh"},
   {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Radio API - ping"},
   {NULL}
 };
@@ -335,7 +324,7 @@ PUBLIC AFB_plugin* pluginRegister () {
     plugin->apis  = pluginApis;
 
     plugin->handle = initRadioPlugin();
-    plugin->freeCtxCB = freeRadio;
+    plugin->freeCtxCB = (AFB_freeCtxCB)freeRadio;
 
     return (plugin);
 };

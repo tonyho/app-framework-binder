@@ -81,8 +81,8 @@ STATIC  json_object *checkCardDirExit (AFB_session *session, AFB_request *reques
     int  sessionDir, cardDir;
 
     // card name should be more than 3 character long !!!!
-    if (strlen (request->plugin) < 3) {
-       return (jsonNewMessage (AFB_FAIL,"Fail invalid plugin=%s", request->plugin));
+    if (strlen (request->prefix) < 3) {
+       return (jsonNewMessage (AFB_FAIL,"Fail invalid plugin=%s", request->prefix));
     }
 
     // open session directory
@@ -92,11 +92,11 @@ STATIC  json_object *checkCardDirExit (AFB_session *session, AFB_request *reques
     }
 
    // create session sndcard directory if it does not exit
-    cardDir = openat (sessionDir, request->plugin,  O_DIRECTORY);
+    cardDir = openat (sessionDir, request->prefix,  O_DIRECTORY);
     if (cardDir < 0) {
-          cardDir  = mkdirat (sessionDir, request->plugin, O_RDWR | S_IRWXU | S_IRGRP);
+          cardDir  = mkdirat (sessionDir, request->prefix, O_RDWR | S_IRWXU | S_IRGRP);
           if (cardDir < 0) {
-              return (jsonNewMessage (AFB_FAIL,"Fail to create directory [%s/%s] error=%s", session->config->sessiondir, request->plugin, strerror(cardDir)));
+              return (jsonNewMessage (AFB_FAIL,"Fail to create directory [%s/%s] error=%s", session->config->sessiondir, request->prefix, strerror(cardDir)));
           }
     }
     close (sessionDir);
@@ -120,13 +120,13 @@ PUBLIC json_object *sessionList (AFB_session *session, AFB_request *request) {
           return (jsonNewMessage (AFB_FAIL,"Fail to open directory [%s] error=%s", session->config->sessiondir, strerror(sessionDir)));
     }
 
-    count = scandirat (sessionDir, request->plugin, &namelist, fileSelect, alphasort);
+    count = scandirat (sessionDir, request->prefix, &namelist, fileSelect, alphasort);
     close (sessionDir);
 
     if (count < 0) {
-        return (jsonNewMessage (AFB_FAIL,"Fail to scan sessions.hash directory [%s/%s] error=%s", session->config->sessiondir, request->plugin, strerror(sessionDir)));
+        return (jsonNewMessage (AFB_FAIL,"Fail to scan sessions.hash directory [%s/%s] error=%s", session->config->sessiondir, request->prefix, strerror(sessionDir)));
     }
-    if (count == 0) return (jsonNewMessage (AFB_EMPTY,"[%s] no session at [%s]", request->plugin, session->config->sessiondir));
+    if (count == 0) return (jsonNewMessage (AFB_EMPTY,"[%s] no session at [%s]", request->prefix, session->config->sessiondir));
 
     // loop on each session file, retrieve its date and push it into json response object
     sessionsJ = json_object_new_array();
@@ -199,7 +199,7 @@ PUBLIC json_object *sessionFromDisk (AFB_session *session, AFB_request *request,
     if (response != NULL) return response;
 
     // add name and file extension to session name
-    strncpy (filename, request->plugin, sizeof(filename));
+    strncpy (filename, request->prefix, sizeof(filename));
     strncat (filename, "/", sizeof(filename));
     if (defsession) strncat (filename, AFB_CURRENT_SESSION, sizeof(filename)-1);
     else strncat (filename, name, sizeof(filename)-1);
@@ -224,7 +224,7 @@ PUBLIC json_object *sessionFromDisk (AFB_session *session, AFB_request *request,
     }
 
     // create a link to keep track of last uploaded session for this card
-    if (!defsession) makeSessionLink (request->plugin, name);
+    if (!defsession) makeSessionLink (request->prefix, name);
 
     return (jsonSession);
 }
@@ -248,7 +248,7 @@ PUBLIC json_object * sessionToDisk (AFB_session *session, AFB_request *request, 
    if (response != NULL) return response;
 
    // add cardname and file extension to session name
-   strncpy (filename, request->plugin, sizeof(filename));
+   strncpy (filename, request->prefix, sizeof(filename));
    strncat (filename, "/", sizeof(filename));
    if (defsession) strncat (filename, AFB_CURRENT_SESSION, sizeof(filename)-1);
    else strncat (filename, name, sizeof(filename)-1);
@@ -271,13 +271,13 @@ PUBLIC json_object * sessionToDisk (AFB_session *session, AFB_request *request, 
        // extract session info from args
        info = json_tokener_parse (request->post->data);
        if (!info) {
-            response = jsonNewMessage (AFB_FATAL,"sndcard=%s session=%s invalid json args=%s", request->plugin, name, request->post);
+            response = jsonNewMessage (AFB_FATAL,"sndcard=%s session=%s invalid json args=%s", request->prefix, name, request->post);
             goto OnErrorExit;
        }
 
        // info is a valid AFB_info type
        if (!json_object_object_get_ex (info, "jtype", &jtype)) {
-            response = jsonNewMessage (AFB_EMPTY,"sndcard=%s session=%s No 'AFB_pluginT' args=%s", request->plugin, name, request->post);
+            response = jsonNewMessage (AFB_EMPTY,"sndcard=%s session=%s No 'AFB_pluginT' args=%s", request->prefix, name, request->post);
             goto OnErrorExit;
        }
 
@@ -302,7 +302,7 @@ PUBLIC json_object * sessionToDisk (AFB_session *session, AFB_request *request, 
 
 
    // create a link to keep track of last uploaded session for this card
-   if (!defsession) makeSessionLink (request->plugin, name);
+   if (!defsession) makeSessionLink (request->prefix, name);
 
    // we're donne let's return status message
    response = jsonNewMessage (AFB_SUCCESS,"Session= [%s] saved on disk", filename);
@@ -330,7 +330,7 @@ STATIC void ctxUuidFreeCB (AFB_clientCtx *client) {
             if (client->contexts[idx] != NULL) {               
                 freeCtxCB = client->plugins[idx]->freeCtxCB;
                 if (freeCtxCB == NULL) free (client->contexts[idx]); 
-                else if (freeCtxCB != (void*)-1) freeCtxCB(client->contexts[idx], client->uuid); 
+                else if (freeCtxCB != (void*)-1) freeCtxCB(client->contexts[idx], client->plugins[idx]->handle, client->uuid); 
             }
         }
     }
@@ -476,7 +476,7 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
     if (clientCtx == NULL) {        
         clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
         clientCtx->contexts = calloc (1, request->config->pluginCount * (sizeof (void*)));        
-        clientCtx->plugins  = request->plugins;       
+        clientCtx->plugins  = request->plugins;  
     }
     
     uuid_generate(newuuid);         // create a new UUID
