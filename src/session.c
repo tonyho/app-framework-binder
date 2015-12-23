@@ -330,7 +330,7 @@ STATIC void ctxUuidFreeCB (AFB_clientCtx *client) {
             if (client->contexts[idx] != NULL) {               
                 freeCtxCB = client->plugins[idx]->freeCtxCB;
                 if (freeCtxCB == NULL) free (client->contexts[idx]); 
-                else if (freeCtxCB != (void*)-1) freeCtxCB(client->contexts[idx], client->plugins[idx]->handle, client->uuid); 
+                else if (freeCtxCB != (void*)-1) freeCtxCB(client->contexts[idx], plugins[idx]->handle, client->uuid); 
             }
         }
     }
@@ -466,6 +466,7 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
                 clientCtx=NULL;
             } else {
                 request->context=clientCtx->contexts[idx];
+                request->handle  = clientCtx->plugins[idx]->handle;
                 request->uuid= uuid;
                 return (clientCtx);            
             }
@@ -493,6 +494,7 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
     
     // if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
     request->context = clientCtx->contexts[idx];
+    request->handle  = clientCtx->plugins[idx]->handle;
     request->uuid=clientCtx->uuid;
     return(clientCtx);
 }

@@ -195,8 +195,11 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                     }
                 }
                 
-                // Effectively call the API with a subset of the context
+                // Effectively CALL PLUGIN API with a subset of the context
                 jresp = plugin->apis[idx].callback(request, context);
+                
+                // Store context in case it was updated by plugins
+                clientCtx->contexts[plugidx] = request->context;               
                 
                 // handle intermediary Post Iterates out of band
                 if ((jresp == NULL) && (request->errcode == MHD_HTTP_OK)) return (AFB_SUCCESS);
@@ -345,12 +348,7 @@ STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_sessio
     request->prefix = strdup (baseurl);
     request->api    = strdup (baseapi);
     request->plugins= session->plugins;
-    for (idx = 0; idx < session->config->pluginCount; idx++) {
-        if (!strcmp(baseurl, session->plugins[idx]->prefix)) {
-            request->plugin = session->plugins[idx];
-            break;
-        }
-    }
+    // note request->handle is fed with request->context in ctxClientGet
 
 Done:    
     free(urlcpy1);

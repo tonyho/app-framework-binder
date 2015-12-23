@@ -243,12 +243,12 @@ typedef struct {
   AFB_PostRequest *post;
   json_object *jresp;
   void *context;             // Hold Client Context when using session
+  void *handle;              // provide callback and easy access to plugin
   int  restfull;             // request is resfull [uuid token provided]
   int  errcode;              // http error code
   sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
   AFB_config *config;         // plugin may need access to config
   struct MHD_Connection *connection;
-  AFB_plugin *plugin;        // provide callback and easy access to plugin
   AFB_plugin **plugins;
 } AFB_request;
 
