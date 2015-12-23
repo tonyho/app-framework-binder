@@ -63,6 +63,7 @@
 #define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
 #define DEFLT_AUTH_TOKEN    NULL   // expect for debug should == NULL
 #define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout
+#define AFB_MAX_PLUGINS     20     // Max number of plugins for a given binder
 
 typedef int BOOL;
 #ifndef FALSE
@@ -170,7 +171,7 @@ typedef struct {
   int  localhostOnly;
   int   httpdPort;
   char *smack;             // smack label
-  char *plugins;           // list of requested plugins
+  char *ldpaths;           // list of plugins directories
   char *rootdir;           // base dir for httpd file download
   char *rootbase;          // Angular HTML5 base URL
   char *rootapi;           // Base URL for REST APIs

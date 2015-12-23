@@ -577,59 +577,105 @@ STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
     return (plugins);
 }
 
-void initPlugins(AFB_session *session) {
-    static AFB_plugin **plugins;
-    AFB_plugin* (*pluginRegisterFct)(void);
-    void *plugin;
-    char *pluginPath;
-    struct dirent *pluginDir;
+STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *count) {
     DIR *dir;
-    afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
-    int num = 0;
-
-    /* pre-allocate for 20 plugins, we will downsize if necessary */
-    plugins = (AFB_plugin **) malloc (20*sizeof(AFB_plugin));
-
-    if ((dir = opendir(session->config->plugins)) == NULL) {
-        fprintf(stderr, "Could not open plugin directory [%s], exiting...\n", session->config->plugins);
-        exit (-1);
+    void *libso;
+    struct dirent *pluginDir;  
+    AFB_plugin* (*pluginRegisterFct)(void);
+    char pluginPath[255];   
+    
+    // Open Directory to scan over it
+    dir = fdopendir (dirfd);
+    if (dir == NULL) {
+        fprintf(stderr, "ERROR in scanning directory\n");
+        return; 
     }
+    if (verbose) fprintf (stderr, "Scanning dir=[%s] for plugins\n", dirpath);
 
     while ((pluginDir = readdir(dir)) != NULL) {
+        
+        // Loop on any contained directory
+        if ((pluginDir->d_type == DT_DIR) && (pluginDir->d_name[0] != '.')) {
+           int fd = openat (dirfd, pluginDir->d_name, O_DIRECTORY);
+           char newpath[255];
+           strncpy (newpath, dirpath, sizeof(newpath));
+           strncat (newpath, "/", sizeof(newpath));
+           strncat (newpath, pluginDir->d_name, sizeof(newpath));
+           
+           scanDirectory (newpath, fd, plugins, count);
+           close (fd);
+           
+        } else {
+            
+            // This is a file but not a plugin let's move to next directory element
+            if (!strstr (pluginDir->d_name, ".so")) continue;
 
-        if (!strstr (pluginDir->d_name, ".so"))
-            continue;
+            // This is a loadable library let's check if it's a plugin
+            snprintf (pluginPath, sizeof(pluginPath), "%s/%s", dirpath, pluginDir->d_name);
+            libso = dlopen (pluginPath, RTLD_NOW | RTLD_LOCAL);
 
-        asprintf (&pluginPath, "%s/%s", session->config->plugins, pluginDir->d_name);
-        plugin = dlopen (pluginPath, RTLD_NOW | RTLD_LOCAL);
-        pluginRegisterFct = dlsym (plugin, "pluginRegister");
-        free (pluginPath);
-        if (!plugin) {
-            if (verbose) fprintf(stderr, "[%s] is not loadable, continuing...\n", pluginDir->d_name);
-            continue;
-        } else if (!pluginRegisterFct) {
-            if (verbose) fprintf(stderr, "[%s] is not an AFB plugin, continuing...\n", pluginDir->d_name);
+            // Load fail we ignore this .so file            
+            if (!libso) {
+                fprintf(stderr, "[%s] is not loadable, continuing...\n", pluginDir->d_name);
+                continue;
+            }
+            
+            pluginRegisterFct = dlsym (libso, "pluginRegister");
+            free (libso);
+            
+            if (!pluginRegisterFct) {
+                fprintf(stderr, "[%s] is not an AFB plugin, continuing...\n", pluginDir->d_name);
+                continue;
+            }
+
+            // if max plugin is reached let's stop searching
+            if (*count == AFB_MAX_PLUGINS) {
+                fprintf(stderr, "[%s] is not loaded [Max Count=%d reached]\n", *count);
+                continue;
+            }
+
+            if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading pos[%d]\n", pluginDir->d_name, *count);
+            plugins[*count] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
+            plugins[*count] = (**pluginRegisterFct)();
+            *count = *count +1;
+            
+        }
+    }
+    closedir (dir);
+}
+
+void initPlugins(AFB_session *session) {
+    static AFB_plugin **plugins;
+    
+    afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
+    int count = 0;
+    char *dirpath;
+    int dirfd;
+
+    /* pre-allocate for AFB_MAX_PLUGINS plugins, we will downsize later */
+    plugins = (AFB_plugin **) malloc (AFB_MAX_PLUGINS *sizeof(AFB_plugin));
+    
+    // Loop on every directory passed in --plugins=xxx
+    while (dirpath = strsep(&session->config->ldpaths, ":")) {
+            // Ignore any directory we fail to open
+        if ((dirfd = open(dirpath, O_DIRECTORY)) <= 0) {
+            fprintf(stderr, "Invalid directory path=[%s]\n", dirpath);
             continue;
         }
-
-        if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading it\n", pluginDir->d_name);
-        plugins[num] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
-        plugins[num] = (**pluginRegisterFct)();
-        num++;
-        /* only 20 plugins are supported at that time */
-        if (num == 20) break;
+        scanDirectory (dirpath, dirfd, plugins, &count);
+        close (dirfd);
     }
-    plugins = (AFB_plugin **) realloc (plugins, (num+1)*sizeof(AFB_plugin));
-    plugins[num] = NULL;
 
-    closedir (dir);
-
-    if (plugins[0] == NULL) {
+    if (count == 0) {
         fprintf(stderr, "No plugins found, afb-daemon is unlikely to work in this configuration, exiting...\n");
         exit (-1);
     }
+    
+    // downsize structure to effective number of loaded plugins
+    plugins = (AFB_plugin **)realloc (plugins, (count+1)*sizeof(AFB_plugin));
+    plugins[count] = NULL;
 
     // complete plugins and save them within current sessions    
     session->plugins = RegisterJsonPlugins(plugins);
-    session->config->pluginCount = num;
+    session->config->pluginCount = count;
 }

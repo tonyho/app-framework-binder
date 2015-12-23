@@ -114,10 +114,10 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
        session->config->smack= cliconfig->smack;
    }
 
-   if  (cliconfig->plugins == NULL) {
-       session->config->plugins = PLUGIN_INSTALL_DIR;
+   if  (cliconfig->ldpaths == NULL) {
+       session->config->ldpaths = PLUGIN_INSTALL_DIR;
    } else {
-       session->config->plugins= cliconfig->plugins;
+       session->config->ldpaths= cliconfig->ldpaths;
    }
 
    // if no session dir create a default path from rootdir
@@ -190,8 +190,8 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
       session->config->smack =  strdup (json_object_get_string (value));
    }
    
-   if (!cliconfig->plugins && json_object_object_get_ex (AFBConfig, "plugins", &value)) {
-      session->config->plugins =  strdup (json_object_get_string (value));
+   if (!cliconfig->ldpaths && json_object_object_get_ex (AFBConfig, "plugins", &value)) {
+      session->config->ldpaths =  strdup (json_object_get_string (value));
    }
 
    if (!cliconfig->setuid && json_object_object_get_ex (AFBConfig, "setuid", &value)) {
@@ -256,7 +256,7 @@ PUBLIC void configStoreFile (AFB_session * session) {
    json_object_object_add (AFBConfig, "rootapi"       , json_object_new_string (session->config->rootapi));
    json_object_object_add (AFBConfig, "rootbase"      , json_object_new_string (session->config->rootbase));
    json_object_object_add (AFBConfig, "smack"         , json_object_new_string (session->config->smack));
-   json_object_object_add (AFBConfig, "plugins"       , json_object_new_string (session->config->plugins));
+   json_object_object_add (AFBConfig, "plugins"       , json_object_new_string (session->config->ldpaths));
    json_object_object_add (AFBConfig, "sessiondir"    , json_object_new_string (session->config->sessiondir));
    json_object_object_add (AFBConfig, "pidfile"       , json_object_new_string (session->config->pidfile));
    json_object_object_add (AFBConfig, "setuid"        , json_object_new_string (session->config->setuid));

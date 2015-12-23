@@ -73,7 +73,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
 
  #define SET_SMACK          140
  #define SET_AUTH_TOKEN     141
- #define SET_PLUGINS        142
+ #define SET_LDPATH        142
  #define SET_APITIMEOUT     143
  #define SET_CNTXTIMEOUT    144
 
@@ -107,8 +107,8 @@ static  AFB_options cliOptions [] = {
   {SET_CONFIG_SAVE  ,0,"save"            , "Save config on disk [default no]"},
   {SET_CONFIG_EXIT  ,0,"saveonly"        , "Save config on disk and then exit"},
 
-  {SET_SMACK        ,1,"smack"           , "Set Smack Label [default demo]"},
-  {SET_PLUGINS      ,1,"plugins"         , "Load Plugins from dir [default = PLUGIN_INSTALL_DIR"},
+  // {SET_SMACK        ,1,"smack"           , "Set Smack Label [default demo]"},
+  {SET_LDPATH       ,1,"ldpaths"         , "Load Plugins from dir1:dir2:... [default = PLUGIN_INSTALL_DIR"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
   
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
@@ -159,7 +159,7 @@ void signalQuit (int signum) {
          fprintf (stderr,"  --%-15s %s\n", command, cliOptions[ind].help);
       }
     }
-    fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --smack=xxxx --token='azerty' --plugins=build/plugins\n", name);
+    fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/plugins:/usr/lib64/agl/plugins\n", name);
 } // end printHelp
 
 /*----------------------------------------------------------
@@ -355,9 +355,9 @@ int main(int argc, char *argv[])  {
        cliconfig.token   = optarg;
        break;
 
-    case SET_PLUGINS:
+    case SET_LDPATH:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.plugins = optarg;
+       cliconfig.ldpaths = optarg;
        break;
 
     case SET_PID_FILE:
@@ -589,7 +589,7 @@ int main(int argc, char *argv[])  {
 normalExit:
   closeSession (session);   // try to close everything before leaving
   if (verbose) printf ("\n---- Application Framework Binder Normal End ------\n");
-  exit (0);
+  exit(0);
 
 // ------------- Fatal ERROR display error and quit  -------------
 errorSetuid:
