@@ -31,6 +31,7 @@ struct dev_ctx {
   snd_pcm_t *dev;
   snd_pcm_hw_params_t *params;
   snd_mixer_elem_t *mixer_elm;
+  snd_mixer_elem_t *mixer_elm_m;
   long vol_max;
   long vol;
   pthread_t thr;

@@ -60,14 +60,13 @@ STATIC void freeAudio (void *context) {
 
 STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
 
-    audioCtxHandleT *ctx;
     json_object *jresp;
     int idx;
 
     /* create a private client context */
     request->context = initAudioCtx();
     
-    _alsa_init("default", ctx);
+    _alsa_init("default", request->context);
     
     jresp = json_object_new_object();
     json_object_object_add (jresp, "info", json_object_new_string ("Audio initialised"));

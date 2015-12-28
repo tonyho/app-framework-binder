@@ -37,6 +37,7 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     snd_mixer_t *mixer;
     snd_mixer_selem_id_t *mixer_sid;
     snd_mixer_elem_t *mixer_elm;
+    snd_mixer_elem_t *mixer_elm_m;
     unsigned int rate = 22050;
     long vol, vol_min, vol_max;
     int num, i;
@@ -69,6 +70,8 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     snd_mixer_selem_id_set_name (mixer_sid, "Master");
 
     mixer_elm = snd_mixer_find_selem (mixer, mixer_sid);
+    mixer_elm_m = NULL;
+
     if (!mixer_elm) {
         /* no "Master" mixer ; we are probably on a board... search ! */
         for (mixer_elm = snd_mixer_first_elem (mixer); mixer_elm != NULL;
@@ -76,9 +79,15 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
             if (snd_mixer_elem_info (mixer_elm) < 0)
                 continue;
             snd_mixer_selem_get_id (mixer_elm, mixer_sid);
-            if (strstr (snd_mixer_selem_id_get_name (mixer_sid), "Master") ||
-                strstr (snd_mixer_selem_id_get_name (mixer_sid), "Playback"))
+            if (strstr (snd_mixer_selem_id_get_name (mixer_sid), "DVC Out")) {
+
+                /* this is Porter... let us found the specific mute switch */
+                snd_mixer_selem_id_set_index (mixer_sid, 0);
+                snd_mixer_selem_id_set_name (mixer_sid, "DVC Out Mute");
+                mixer_elm_m = snd_mixer_find_selem (mixer, mixer_sid);
+
                 break;
+            }
         }
     }
 
@@ -110,6 +119,7 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     dev_ctx[num]->dev = dev;
     dev_ctx[num]->params = params;
     dev_ctx[num]->mixer_elm = mixer_elm;
+    dev_ctx[num]->mixer_elm_m = mixer_elm_m;
     dev_ctx[num]->vol_max = vol_max;
     dev_ctx[num]->vol = vol;
     dev_ctx[num]->thr_should_run = 0;
@@ -198,14 +208,17 @@ PUBLIC void _alsa_set_volume_all (unsigned int num, int vol) {
 PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
 
     int mute = 0;
+    snd_mixer_elem_t *elm_m;
 
     if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm)
         return;
 
-    if (snd_mixer_selem_has_playback_switch (dev_ctx[num]->mixer_elm)) {
-        snd_mixer_selem_get_playback_switch (dev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_LEFT, &mute); 
-        snd_mixer_selem_get_playback_switch (dev_ctx[num]->mixer_elm, SND_MIXER_SCHN_FRONT_RIGHT, &mute); 
+    dev_ctx[num]->mixer_elm_m ? (elm_m = dev_ctx[num]->mixer_elm_m) :
+                                (elm_m = dev_ctx[num]->mixer_elm);
 
+    if (snd_mixer_selem_has_playback_switch (elm_m)) {
+        snd_mixer_selem_get_playback_switch (elm_m, SND_MIXER_SCHN_FRONT_LEFT, &mute);
+        snd_mixer_selem_get_playback_switch (elm_m, SND_MIXER_SCHN_FRONT_RIGHT, &mute);
     }
 
     return (unsigned char)!mute;
@@ -213,11 +226,16 @@ PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
 
 PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
 
+    snd_mixer_elem_t *elm_m;
+
     if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm || 1 < mute < 0)
         return;
 
-    if (snd_mixer_selem_has_playback_switch (dev_ctx[num]->mixer_elm))
-        snd_mixer_selem_set_playback_switch_all (dev_ctx[num]->mixer_elm, !mute);
+    dev_ctx[num]->mixer_elm_m ? (elm_m = dev_ctx[num]->mixer_elm_m) :
+                                (elm_m = dev_ctx[num]->mixer_elm);
+
+    if (snd_mixer_selem_has_playback_switch (elm_m))
+        snd_mixer_selem_set_playback_switch_all (elm_m, !mute);
 }
 
 PUBLIC void _alsa_set_rate (unsigned int num, unsigned int rate) {
