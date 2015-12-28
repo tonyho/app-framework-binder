@@ -140,7 +140,7 @@ STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
 
 STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
 
-    pluginHandleT *handle = (pluginHandleT*)request->plugin;
+    pluginHandleT *handle = (pluginHandleT*)request->handle;
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;

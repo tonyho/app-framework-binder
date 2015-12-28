@@ -578,10 +578,10 @@ STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
 STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *count) {
     DIR *dir;
     void *libso;
-    struct dirent *pluginDir;  
+    struct dirent pluginDir, *result;
     AFB_plugin* (*pluginRegisterFct)(void);
     char pluginPath[255];   
-    
+
     // Open Directory to scan over it
     dir = fdopendir (dirfd);
     if (dir == NULL) {
@@ -590,39 +590,40 @@ STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *c
     }
     if (verbose) fprintf (stderr, "Scanning dir=[%s] for plugins\n", dirpath);
 
-    while ((pluginDir = readdir(dir)) != NULL) {
-        
+    for (;;) {
+         readdir_r(dir, &pluginDir, &result);
+         if (result == NULL) break;
+
         // Loop on any contained directory
-        if ((pluginDir->d_type == DT_DIR) && (pluginDir->d_name[0] != '.')) {
-           int fd = openat (dirfd, pluginDir->d_name, O_DIRECTORY);
+        if ((pluginDir.d_type == DT_DIR) && (pluginDir.d_name[0] != '.')) {
+           int fd = openat (dirfd, pluginDir.d_name, O_DIRECTORY);
            char newpath[255];
            strncpy (newpath, dirpath, sizeof(newpath));
            strncat (newpath, "/", sizeof(newpath));
-           strncat (newpath, pluginDir->d_name, sizeof(newpath));
+           strncat (newpath, pluginDir.d_name, sizeof(newpath));
            
            scanDirectory (newpath, fd, plugins, count);
            close (fd);
-           
+
         } else {
-            
+
             // This is a file but not a plugin let's move to next directory element
-            if (!strstr (pluginDir->d_name, ".so")) continue;
+            if (!strstr (pluginDir.d_name, ".so")) continue;
 
             // This is a loadable library let's check if it's a plugin
-            snprintf (pluginPath, sizeof(pluginPath), "%s/%s", dirpath, pluginDir->d_name);
+            snprintf (pluginPath, sizeof(pluginPath), "%s/%s", dirpath, pluginDir.d_name);
             libso = dlopen (pluginPath, RTLD_NOW | RTLD_LOCAL);
 
             // Load fail we ignore this .so file            
             if (!libso) {
-                fprintf(stderr, "[%s] is not loadable, continuing...\n", pluginDir->d_name);
+                fprintf(stderr, "[%s] is not loadable, continuing...\n", pluginDir.d_name);
                 continue;
             }
-            
+
             pluginRegisterFct = dlsym (libso, "pluginRegister");
-            free (libso);
-            
+
             if (!pluginRegisterFct) {
-                fprintf(stderr, "[%s] is not an AFB plugin, continuing...\n", pluginDir->d_name);
+                fprintf(stderr, "[%s] is not an AFB plugin, continuing...\n", pluginDir.d_name);
                 continue;
             }
 
@@ -632,11 +633,11 @@ STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *c
                 continue;
             }
 
-            if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading pos[%d]\n", pluginDir->d_name, *count);
+            if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading pos[%d]\n", pluginDir.d_name, *count);
             plugins[*count] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
             plugins[*count] = (**pluginRegisterFct)();
             *count = *count +1;
-            
+
         }
     }
     closedir (dir);
