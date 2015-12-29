@@ -221,7 +221,10 @@ PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
         snd_mixer_selem_get_playback_switch (elm_m, SND_MIXER_SCHN_FRONT_RIGHT, &mute);
     }
 
-    return (unsigned char)!mute;
+    if (dev_ctx[num]->mixer_elm_m)
+        return (unsigned char)mute;
+    else
+        return (unsigned char)!mute;
 }
 
 PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
@@ -231,8 +234,12 @@ PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
     if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm || 1 < mute < 0)
         return;
 
-    dev_ctx[num]->mixer_elm_m ? (elm_m = dev_ctx[num]->mixer_elm_m) :
-                                (elm_m = dev_ctx[num]->mixer_elm);
+    if (dev_ctx[num]->mixer_elm_m) {
+        elm_m = dev_ctx[num]->mixer_elm_m;
+        mute = !mute;
+    } else {
+        elm_m = dev_ctx[num]->mixer_elm;
+    }
 
     if (snd_mixer_selem_has_playback_switch (elm_m))
         snd_mixer_selem_set_playback_switch_all (elm_m, !mute);
