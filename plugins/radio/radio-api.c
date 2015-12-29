@@ -126,7 +126,7 @@ STATIC void freeRadio (void *context, void *handle) {
 
 /* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
+STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     json_object *jresp;
 
@@ -306,7 +306,7 @@ STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
 
 
 STATIC AFB_restapi pluginApis[]= {
-  {"init"   , AFB_SESSION_CREATE, (AFB_apiCB)init       , "Radio API - init"},
+  {"init"   , AFB_SESSION_CHECK,  (AFB_apiCB)init       , "Radio API - init"},
   {"power"  , AFB_SESSION_CHECK,  (AFB_apiCB)power      , "Radio API - power"},
   {"mode"   , AFB_SESSION_CHECK,  (AFB_apiCB)mode       , "Radio API - mode"},
   {"freq"   , AFB_SESSION_CHECK,  (AFB_apiCB)freq       , "Radio API - freq"},

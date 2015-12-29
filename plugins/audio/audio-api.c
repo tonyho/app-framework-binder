@@ -58,7 +58,7 @@ STATIC void freeAudio (void *context) {
 
 /* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC json_object* init (AFB_request *request) {       /* AFB_SESSION_CREATE */
+STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     json_object *jresp;
     int idx;
@@ -225,7 +225,7 @@ STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
 }
 
 STATIC AFB_restapi pluginApis[]= {
-  {"init"    , AFB_SESSION_CREATE, (AFB_apiCB)init      , "Audio API - init"},
+  {"init"    , AFB_SESSION_CHECK,  (AFB_apiCB)init      , "Audio API - init"},
   {"volume"  , AFB_SESSION_CHECK,  (AFB_apiCB)volume    , "Audio API - volume"},
   {"channels", AFB_SESSION_CHECK,  (AFB_apiCB)channels  , "Audio API - channels"},
   {"mute"    , AFB_SESSION_CHECK,  (AFB_apiCB)mute      , "Audio API - mute"},

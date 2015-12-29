@@ -510,7 +510,7 @@ ProcessApiCall:
     // client did not pass token on URI let's use cookies 
     if ((!request->restfull) && (request->context != NULL)) {
        char cookie[64]; 
-       snprintf (cookie, sizeof (cookie), "%s=%s", COOKIE_NAME,  request->uuid); 
+       snprintf (cookie, sizeof (cookie), "%s=%s;path=/api;max-age=%d", COOKIE_NAME, request->uuid, request->config->cntxTimeout); 
        MHD_add_response_header (webResponse, MHD_HTTP_HEADER_SET_COOKIE, cookie);
     }
     
