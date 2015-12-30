@@ -271,8 +271,8 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
     // Initialise Client Session Hash Table
     ctxStoreInit (CTX_NBCLIENTS);
      
-    // TBD open libmagic cache [fail to pass EFENCE check]
-    // initLibMagic (session);
+    //TBD open libmagic cache [fail to pass EFENCE check (allocating 0 bytes)]
+    //initLibMagic (session);
     
     
     if (verbose) {
