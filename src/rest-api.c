@@ -45,7 +45,7 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
     if (postHandle->type == AFB_POST_FORM) {
          if (verbose) fprintf(stderr, "End PostForm Request UID=%d\n", postHandle->uid);
     }
-    free(postHandle->private);
+    if (postHandle->private) free(postHandle->private);
     free(postHandle);
 }
 
@@ -388,8 +388,8 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             
             // We are facing an empty post let's process it as a get
             if (encoding == NULL) {
-                request= createRequest (connection, session, url);
-                goto ProcessApiCall;
+                postHandle->type   = AFB_POST_EMPTY;
+                return MHD_YES;
             }
         
             // Form post is handle through a PostProcessor and call API once per form key
@@ -466,11 +466,11 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 errMessage = request->jresp;
                 goto ExitOnError;
             }
+            postRequest.type = postHandle->type;
             
             // Postform add application context handle to request
             if (postHandle->type == AFB_POST_FORM) {
                postRequest.data = (char*) postHandle;
-               postRequest.type = postHandle->type;
                request->post = &postRequest;
             }
             
@@ -489,7 +489,6 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 // Before processing data, make sure buffer string is properly ended
                 postHandle->private[postHandle->len] = '\0';
                 postRequest.data = postHandle->private;
-                postRequest.type = postHandle->type;
                 request->post = &postRequest;
 
                 // if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);

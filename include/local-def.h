@@ -107,7 +107,7 @@ typedef struct {
   json_object *json;
 } AFB_errorT;
 
-typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM} AFB_PostType;
+typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
 
 // Post Upload File Handle
 typedef struct {
