@@ -227,18 +227,20 @@ PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
         return (unsigned char)!mute;
 }
 
-PUBLIC void _alsa_set_mute (unsigned int num, unsigned char mute) {
+PUBLIC void _alsa_set_mute (unsigned int num, unsigned char tomute) {
 
     snd_mixer_elem_t *elm_m;
+    int mute;
 
-    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm || 1 < mute < 0)
+    if (!dev_ctx || !dev_ctx[num] || !dev_ctx[num]->mixer_elm || 1 < tomute < 0)
         return;
 
     if (dev_ctx[num]->mixer_elm_m) {
         elm_m = dev_ctx[num]->mixer_elm_m;
-        mute = !mute;
+        mute = (int)!tomute;
     } else {
         elm_m = dev_ctx[num]->mixer_elm;
+        mute = (int)tomute;
     }
 
     if (snd_mixer_selem_has_playback_switch (elm_m))
