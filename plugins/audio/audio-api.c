@@ -64,7 +64,8 @@ STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
     int idx;
 
     /* create a private client context */
-    request->context = initAudioCtx();
+    if (!request->context)
+        request->context = initAudioCtx();
     
     _alsa_init("default", request->context);
     

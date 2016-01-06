@@ -131,7 +131,8 @@ STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
     json_object *jresp;
 
     /* create a private client context */
-    request->context = initRadioCtx();
+    if (!request->context)
+        request->context = initRadioCtx();
 
     jresp = json_object_new_object();
     json_object_object_add(jresp, "info", json_object_new_string ("Radio initialized"));
