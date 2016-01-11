@@ -18,6 +18,7 @@ Building Application Framework Binder requires the following libraries:
 
 optionally, for plugins :
  * alsa ("libasound2-dev/alsa-devel");
+ * pulseaudio ("libpulse-dev/libpulse-devel");
  * rtl-sdr >= 0.5.0 (fetch and build from "git://git.osmocom.org/rtl-sdr");
 
 and the following tools:
@@ -26,7 +27,7 @@ and the following tools:
 
 To install all dependencies under OpenSUSE (excepting rtl-sdr), please type:
 ```
-$ zypper in file-devel libmicrohttpd-devel libjson-c-devel libuuid-devel dbus-1-devel pkg-config cmake
+$ zypper in file-devel libmicrohttpd-devel libjson-c-devel libuuid-devel dbus-1-devel alsa-devel libpulse-devel pkg-config cmake
 ```
 
  To build, move to the root directory and type:
