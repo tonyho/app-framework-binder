@@ -17,7 +17,6 @@
  */
 
 #include "radio-api.h"
-#include "radio-rtlsdr.h"
 
 /* ------------- RADIO RTLSDR IMPLEMENTATION ---------------- */
 

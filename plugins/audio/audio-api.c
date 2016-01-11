@@ -17,8 +17,88 @@
  */
 
 #include "audio-api.h"
-#include "audio-alsa.h"
 
+/* ------ BACKEND FUNCTIONS ------- */
+
+void _backend_init (const char *name, audioCtxHandleT *ctx) {
+
+# ifdef HAVE_PULSE
+    if (_pulse_init (name, ctx) < 0)
+# endif
+    _alsa_init (name, ctx);
+}
+
+void _backend_free (audioCtxHandleT *ctx) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) _pulse_free (ctx); else
+# endif
+    _alsa_free (ctx->idx);
+}
+
+void _backend_play (audioCtxHandleT *ctx) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) _pulse_play (ctx); else
+# endif
+    _alsa_play (ctx->idx);
+}
+
+void _backend_stop (audioCtxHandleT *ctx) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) _pulse_stop (ctx); else
+# endif
+    _alsa_stop (ctx->idx);
+}
+
+int _backend_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) return _pulse_get_volume (ctx, channel); else
+# endif
+    return _alsa_get_volume (ctx->idx, channel);
+}
+
+void _backend_set_volume (audioCtxHandleT *ctx, unsigned int channel, int vol) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) _pulse_set_volume (ctx, channel, vol); else
+# endif
+    _alsa_set_volume (ctx->idx, channel, vol);
+}
+
+void _backend_set_volume_all (audioCtxHandleT *ctx, int vol) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) _pulse_set_volume_all (ctx, vol); else
+# endif
+    _alsa_set_volume_all (ctx->idx, vol);
+}
+
+unsigned char _backend_get_mute (audioCtxHandleT *ctx) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) return _pulse_get_mute (ctx); else
+# endif
+    return _alsa_get_mute (ctx->idx);
+}
+
+void _backend_set_mute (audioCtxHandleT *ctx, unsigned char mute) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) _pulse_set_mute (ctx, mute); else
+# endif
+    _alsa_set_mute (ctx->idx, mute);
+}
+
+void _backend_set_channels (audioCtxHandleT *ctx, unsigned int channels) {
+
+# ifdef HAVE_PULSE
+    if (ctx->audio_dev) return; else
+# endif
+    _alsa_set_channels (ctx->idx, channels);
+}
 
 /* ------ LOCAL HELPER FUNCTIONS --------- */
 
@@ -29,6 +109,7 @@ STATIC audioCtxHandleT* initAudioCtx () {
     int i;
 
     ctx = malloc (sizeof(audioCtxHandleT));
+    ctx->audio_dev = NULL;
     ctx->idx = -1;
     for (i = 0; i < 8; i++)
         ctx->volume[i] = 25;
@@ -42,7 +123,7 @@ STATIC audioCtxHandleT* initAudioCtx () {
 STATIC AFB_error releaseAudio (audioCtxHandleT *ctx) {
 
     /* power it off */
-    _alsa_free (ctx->idx);
+    _backend_free (ctx);
 
     /* clean client context */
     ctx->idx = -1;
@@ -66,9 +147,9 @@ STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
     /* create a private client context */
     if (!request->context)
         request->context = initAudioCtx();
-    
-    _alsa_init("default", request->context);
-    
+
+    _backend_init("default", request->context);
+
     jresp = json_object_new_object();
     json_object_object_add (jresp, "info", json_object_new_string ("Audio initialised"));
     return (jresp);
@@ -87,7 +168,7 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
     /* no "?value=" parameter : return current state */
     if (!value) {
         for (i = 0; i < 8; i++) {
-            ctx->volume[i] = _alsa_get_volume (ctx->idx, i);
+            ctx->volume[i] = _backend_get_volume (ctx, i);
             snprintf (volume_str+len_str, sizeof(volume_str)-len_str, "%d,", ctx->volume[i]);
             len_str = strlen(volume_str);
         }
@@ -107,19 +188,19 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
             return (jsonNewMessage (AFB_FAIL, "Volume must be between 0 and 100"));
         }
         ctx->volume[0] = volume[0];
-        _alsa_set_volume (ctx->idx, 0, ctx->volume[0]);
+        _backend_set_volume (ctx, 0, ctx->volume[0]);
         snprintf (volume_str, sizeof(volume_str), "%d,", ctx->volume[0]);
 
         for (i = 1; i < 8; i++) {
             volume_i = strtok (NULL, ",");
             /* if there is only one value, set all channels to this one */
             if (!volume_i && i == 1)
-               _alsa_set_volume_all (ctx->idx, ctx->volume[0]);
+               _backend_set_volume_all (ctx, ctx->volume[0]);
             if (!volume_i || 100 < atoi(volume_i) < 0) {
-               ctx->volume[i] = _alsa_get_volume (ctx->idx, i);
+               ctx->volume[i] = _backend_get_volume (ctx, i);
             } else {
                ctx->volume[i] = atoi(volume_i);
-               _alsa_set_volume (ctx->idx, i, ctx->volume[i]);
+               _backend_set_volume (ctx, i, ctx->volume[i]);
             }
             len_str = strlen(volume_str);
             snprintf (volume_str+len_str, sizeof(volume_str)-len_str, "%d,", ctx->volume[i]);
@@ -147,7 +228,7 @@ STATIC json_object* channels (AFB_request *request) {    /* AFB_SESSION_CHECK */
     /* "?value=" parameter, set channels */
     else {
         ctx->channels = atoi (value);
-        _alsa_set_channels (ctx->idx, ctx->channels);
+        _backend_set_channels (ctx, ctx->channels);
 
         snprintf (channels_str, sizeof(channels_str), "%d", ctx->channels);
         json_object_object_add (jresp, "channels", json_object_new_string (channels_str));
@@ -164,7 +245,7 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     /* no "?value=" parameter : return current state */
     if (!value) {
-        ctx->mute = _alsa_get_mute (ctx->idx);
+        ctx->mute = _backend_get_mute (ctx);
         ctx->mute ?
             json_object_object_add (jresp, "mute", json_object_new_string ("on"))
           : json_object_object_add (jresp, "mute", json_object_new_string ("off"));
@@ -173,7 +254,7 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
     /* "?value=" parameter is "1" or "true" */
     else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
         ctx->mute = 1;
-        _alsa_set_mute (ctx->idx, ctx->mute);
+        _backend_set_mute (ctx, ctx->mute);
 
         json_object_object_add (jresp, "mute", json_object_new_string ("on"));
     }
@@ -181,7 +262,7 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
     /* "?value=" parameter is "0" or "false" */
     else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
         ctx->mute = 0;
-        _alsa_set_mute (ctx->idx, ctx->mute);
+        _backend_set_mute (ctx, ctx->mute);
 
         json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
@@ -205,7 +286,7 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
     /* "?value=" parameter is "1" or "true" */
     else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
         ctx->is_playing = 1;
-        _alsa_play (ctx->idx);
+        _backend_play (ctx);
 
         json_object_object_add (jresp, "play", json_object_new_string ("on"));
     }
@@ -213,7 +294,7 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
     /* "?value=" parameter is "0" or "false" */
     else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
         ctx->is_playing = 0;
-        _alsa_stop (ctx->idx);
+        _backend_stop (ctx);
 
         json_object_object_add (jresp, "play", json_object_new_string ("off"));
     }

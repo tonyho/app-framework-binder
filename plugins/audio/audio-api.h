@@ -20,26 +20,23 @@
 #define AUDIO_API_H
 
 #include "audio-alsa.h"
+#ifdef HAVE_PULSE
+#include "audio-pulse.h"
+#endif
 
 /* global plugin handle, should store everything we may need */
 typedef struct {
   int devCount;
 } pluginHandleT;
-  
-/* structure holding one audio card with current usage status */
-typedef struct {
-   char *name;
-   void *handle;           /* handle to implementation (ALSA, PulseAudio...) */
- } audioDevT;
 
 /* private client context [will be destroyed when client leaves] */
 typedef struct {
-  audioDevT *radio;         /* pointer to client audio card          */
-  int idx;                  /* audio card index within global array  */
-  int volume[8];            /* audio volume (8 channels) : 0-100     */
-  unsigned int channels;    /* audio channels : 1(mono)/2(stereo)... */
-  unsigned char mute;       /* audio muted : 0(false)/1(true)        */
-  unsigned char is_playing; /* audio is playing: 0(false)/1(true)    */
+  void *audio_dev;          /* handle to implementation (ALSA, PulseAudio...) */
+  int idx;                  /* audio card index within global array           */
+  int volume[8];            /* audio volume (8 channels) : 0-100              */
+  unsigned int channels;    /* audio channels : 1(mono)/2(stereo)...          */
+  unsigned char mute;       /* audio muted : 0(false)/1(true)                 */
+  unsigned char is_playing; /* audio is playing: 0(false)/1(true)             */
 } audioCtxHandleT;
 
 

@@ -6,7 +6,7 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
-SET(PROJECT_VERSION "0.1")
+SET(PROJECT_VERSION "0.3")
 
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
@@ -40,11 +40,17 @@ PKG_CHECK_MODULES(uuid REQUIRED uuid)
 PKG_CHECK_MODULES(dbus REQUIRED dbus-1)
 # Optional plugin dependencies
 PKG_CHECK_MODULES(alsa alsa)
+PKG_CHECK_MODULES(pulseaudio libpulse libpulse-simple)
 PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
 
 IF(alsa_FOUND)
   MESSAGE(STATUS "ALSA found ; will compile Audio plugin... (PLUGIN)")
+  IF(pulseaudio_FOUND)
+    MESSAGE(STATUS "PulseAudio found ; Audio plugin will have PulseAudio support")
+    ADD_DEFINITIONS(-DHAVE_PULSE=1)
+  ENDIF(pulseaudio_FOUND)
 ENDIF(alsa_FOUND)
+
 IF(librtlsdr_FOUND)
   MESSAGE(STATUS "librtlsdr found ; will compile Radio plugin... (PLUGIN)")
 ENDIF(librtlsdr_FOUND)
@@ -52,8 +58,8 @@ ENDIF(librtlsdr_FOUND)
 INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
 
-SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${dbus_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
-SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${dbus_LIBRARIES} ${alsa_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm -ldl)
+SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${dbus_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${pulseaudio_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS})
+SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${dbus_LIBRARIES} ${alsa_LIBRARIES} ${pulseaudio_LIBRARIES} ${librtlsdr_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} -lmagic -lm -ldl)
 SET(plugin_install_dir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/afb)
 
 ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
@@ -66,4 +72,4 @@ INCLUDE_DIRECTORIES(${include_dirs})
 TARGET_LINK_LIBRARIES(afb-daemon ${link_libraries})
 
 INSTALL(TARGETS afb-daemon
-        RUNTIME DESTINATION bin)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})

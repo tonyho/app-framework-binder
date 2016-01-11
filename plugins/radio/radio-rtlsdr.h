@@ -69,7 +69,7 @@ struct output_ctx {
 };
 
 struct dev_ctx {
-    int used;  // radio is free ???
+    int used;  /* TODO: radio is free ??? */
     rtlsdr_dev_t* dev;
     Mode mode;
     float freq;
