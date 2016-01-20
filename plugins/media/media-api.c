@@ -57,11 +57,17 @@ STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
 STATIC json_object* list (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
+    json_object *jresp;
     char *result;
 
     result = _rygel_list (request->context);
 
-    return jsonNewMessage(AFB_SUCCESS, result);
+    if (!result)
+      return jsonNewMessage(AFB_FAIL, "No content found in media server");
+
+    jresp = json_object_new_object();
+    json_object_object_add(jresp, "list", json_object_new_string (result));
+    return jresp;
 }
 
 STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */

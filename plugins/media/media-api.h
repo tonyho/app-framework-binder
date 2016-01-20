@@ -28,4 +28,6 @@ typedef struct {
   void *media_server;          /* handle to implementation (Rygel...) */
 } mediaCtxHandleT;
 
+PUBLIC char* _rygel_list (mediaCtxHandleT *);
+
 #endif /* MEDIA_API_H */

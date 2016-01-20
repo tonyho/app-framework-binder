@@ -42,7 +42,8 @@ struct dev_ctx {
 STATIC void _rygel_device_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
 STATIC void _rygel_content_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
 
-static struct dev_ctx **dev_ctx = NULL;
+static gint handler_cb;
 static unsigned int client_count = 0;
+static struct dev_ctx **dev_ctx = NULL;
 
 #endif /* MEDIA_RYGEL_H */

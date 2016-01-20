@@ -33,8 +33,8 @@ PUBLIC unsigned char _rygel_init (mediaCtxHandleT *ctx) {
 
     control_point = gupnp_control_point_new (context, URN_MEDIA_SERVER);
 
-    g_signal_connect (control_point, "device-proxy-available",
-                      G_CALLBACK (_rygel_device_cb), ctx);
+    handler_cb = g_signal_connect (control_point, "device-proxy-available",
+                                   G_CALLBACK (_rygel_device_cb), ctx);
 
     /* start searching for servers */
     gssdp_resource_browser_set_active (GSSDP_RESOURCE_BROWSER (control_point), TRUE);
@@ -50,6 +50,7 @@ PUBLIC unsigned char _rygel_init (mediaCtxHandleT *ctx) {
 
         if (ctx->media_server)
             break;
+        gettimeofday (&tv_now, NULL);
     }
     /* fail if we found no server */
     if (!ctx->media_server)
@@ -74,14 +75,21 @@ PUBLIC void _rygel_free (mediaCtxHandleT *ctx) {
     dev_ctx_c->context = NULL;
     dev_ctx_c->device_info = NULL;
     dev_ctx_c->content_dir = NULL;
+    if (dev_ctx_c->content_res)
+      free (dev_ctx_c->content_res);
+    dev_ctx_c->content_res = NULL;
 }
 
 PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     GUPnPServiceProxy *content_dir_proxy;
+    struct timeval tv_start, tv_now;
 
+    if (dev_ctx_c->content_res)
+      free (dev_ctx_c->content_res);
     dev_ctx_c->content_res = NULL;
+
     content_dir_proxy = GUPNP_SERVICE_PROXY (dev_ctx_c->content_dir);
 
     gupnp_service_proxy_begin_action (content_dir_proxy, "Browse", _rygel_content_cb, dev_ctx_c,
@@ -93,8 +101,16 @@ PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
                                       "SortCriteria", G_TYPE_STRING, "",
                                        NULL);
 
-    while (!dev_ctx_c->content_res)
-      g_main_context_iteration (dev_ctx_c->loop, FALSE);
+    gettimeofday (&tv_start, NULL);
+    gettimeofday (&tv_now, NULL);
+    while (tv_now.tv_sec - tv_start.tv_sec <= 5) {
+
+        g_main_context_iteration (dev_ctx_c->loop, FALSE);
+
+        if (dev_ctx_c->content_res)
+            break;
+        gettimeofday (&tv_now, NULL);
+    }
 
     return dev_ctx_c->content_res;
 }
@@ -118,6 +134,9 @@ STATIC void _rygel_device_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
     if (!content_dir)
         return;
 
+    /* we have found Rygel ; stop looking for it... */
+    g_signal_handler_disconnect (point, handler_cb);
+
     /* allocate the global array if it has not been not done */
     if (!dev_ctx)
         dev_ctx = (dev_ctx_T**) malloc (sizeof(dev_ctx_T));
@@ -125,7 +144,7 @@ STATIC void _rygel_device_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
         dev_ctx = (dev_ctx_T**) realloc (dev_ctx, (client_count+1)*sizeof(dev_ctx_T));
 
     /* create an element for the client in the global array */
-    dev_ctx[client_count] = malloc (sizeof(dev_ctx_T));
+    dev_ctx[client_count] = (dev_ctx_T*) malloc (sizeof(dev_ctx_T));
     dev_ctx[client_count]->device_info = device_info;
     dev_ctx[client_count]->content_dir = content_dir;
 
@@ -159,7 +178,7 @@ STATIC void _rygel_content_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxy
         found += 4;
         strncpy (subid, found, 32); subid[32] = '\0';
 
-	gupnp_service_proxy_begin_action (content_dir_proxy, "Browse", _rygel_content_cb, NULL,
+	gupnp_service_proxy_begin_action (content_dir_proxy, "Browse", _rygel_content_cb, dev_ctx_c,
 					  "ObjectID", G_TYPE_STRING, subid,
 					  "BrowseFlag", G_TYPE_STRING, "BrowseDirectChildren",
 					  "Filter", G_TYPE_STRING, "@childCount",
