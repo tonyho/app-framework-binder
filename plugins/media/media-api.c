@@ -27,6 +27,7 @@ STATIC mediaCtxHandleT* initMediaCtx () {
 
     ctx = malloc (sizeof(mediaCtxHandleT));
     ctx->media_server = NULL;
+    ctx->index = 0;
 
     return ctx;
 }
@@ -57,10 +58,11 @@ STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
 STATIC json_object* list (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
     json_object *jresp;
     char *result;
 
-    result = _rygel_list (request->context);
+    result = _rygel_list (ctx);
 
     if (!result)
       return jsonNewMessage(AFB_FAIL, "No content found in media server");
@@ -70,15 +72,83 @@ STATIC json_object* list (AFB_request *request) {        /* AFB_SESSION_CHECK */
     return jresp;
 }
 
+STATIC json_object* choose (AFB_request *request) {      /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp;
+    unsigned int index;
+    char index_str[5];
+
+    /* no "?value=" parameter : return current index */
+    if (!value) {
+        snprintf (index_str, sizeof(index_str), "%d", ctx->index);
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "index", json_object_new_string (index_str));
+    }
+
+    /* "?value=" parameter is negative */
+    else if (atoi(value) < 0)
+        return jsonNewMessage(AFB_FAIL, "Chosen index cannot be negative");
+
+    /* "?value=" parameter is positive */
+    else if (atoi(value) >= 0) {
+        index = (unsigned int) atoi(value);
+
+        if (!_rygel_choose (ctx, index))
+          return jsonNewMessage(AFB_FAIL, "Chosen index superior to current media count");
+
+        ctx->index = index;
+        jresp = json_object_new_object();
+        json_object_object_add (jresp, "index", json_object_new_string (value));
+    }
+
+    return jresp;
+}
+
+STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+
+    if (!_rygel_do (ctx, PLAY))
+      return jsonNewMessage(AFB_FAIL, "Could not play chosen media");
+
+    return jsonNewMessage(AFB_SUCCESS, "PLaying media");
+}
+
+STATIC json_object* stop (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+
+    if (!_rygel_do (ctx, STOP))
+      return jsonNewMessage(AFB_FAIL, "Could not stop chosen media");
+
+    return jsonNewMessage(AFB_SUCCESS, "Stopped media");
+}
+
+STATIC json_object* paused (AFB_request *request) {      /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+
+    if (!_rygel_do (ctx, PAUSE))
+      return jsonNewMessage(AFB_FAIL, "Could not pause chosen media");
+
+    return jsonNewMessage(AFB_SUCCESS, "Paused media");
+}
+
 STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
     return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Media API");
 }
 
 
 STATIC AFB_restapi pluginApis[]= {
-  {"init"   , AFB_SESSION_CHECK,  (AFB_apiCB)init       , "Media API - init"},
-  {"list"   , AFB_SESSION_CHECK,  (AFB_apiCB)list       , "Media API - list"},
-  {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Media API - ping"},
+  {"init"   , AFB_SESSION_CHECK,  (AFB_apiCB)init       , "Media API - init"   },
+  {"list"   , AFB_SESSION_CHECK,  (AFB_apiCB)list       , "Media API - list"   },
+  {"choose" , AFB_SESSION_CHECK,  (AFB_apiCB)choose     , "Media API - choose" },
+  {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Media API - play"   },
+  {"stop"   , AFB_SESSION_CHECK,  (AFB_apiCB)stop       , "Media API - stop"   },
+  {"paused" , AFB_SESSION_CHECK,  (AFB_apiCB)paused     , "Media API - paused"  },
+  {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Media API - ping"   },
   {NULL}
 };
 

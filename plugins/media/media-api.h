@@ -26,6 +26,7 @@
 /* private client context [will be destroyed when client leaves] */
 typedef struct {
   void *media_server;          /* handle to implementation (Rygel...) */
+  unsigned int index;          /* currently selected media file       */
 } mediaCtxHandleT;
 
 PUBLIC char* _rygel_list (mediaCtxHandleT *);
