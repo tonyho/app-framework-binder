@@ -20,6 +20,7 @@ optionally, for plugins :
  * alsa ("libasound2-dev/alsa-devel");
  * pulseaudio ("libpulse-dev/libpulse-devel");
  * rtl-sdr >= 0.5.0 (fetch and build from "git://git.osmocom.org/rtl-sdr");
+ * GUPnP ("libglib2.0-dev libgupnp-av-1.0-dev/glib2-devel libgupnp-av-devel");
 
 and the following tools:
  * pkg-config;
@@ -27,7 +28,7 @@ and the following tools:
 
 To install all dependencies under OpenSUSE (excepting rtl-sdr), please type:
 ```
-$ zypper in file-devel libmicrohttpd-devel libjson-c-devel libuuid-devel dbus-1-devel alsa-devel libpulse-devel pkg-config cmake
+$ zypper in file-devel libmicrohttpd-devel libjson-c-devel libuuid-devel dbus-1-devel alsa-devel libpulse-devel glib2-devel libgupnp-av-devel pkg-config cmake
 ```
 
  To build, move to the root directory and type:

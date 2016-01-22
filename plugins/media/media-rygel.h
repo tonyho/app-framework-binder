@@ -23,6 +23,7 @@
 
 #include <sys/time.h>
 #include <libgupnp/gupnp-control-point.h>
+#include <libgupnp-av/gupnp-av.h>
 
 #include "local-def.h"
 
@@ -44,12 +45,16 @@ struct dev_ctx {
     int content_num;
     State state;
     State target_state;
+    char *transfer_path;
+    unsigned char transfer_started;
 };
 
 STATIC char* _rygel_list_raw (dev_ctx_T *, unsigned int *);
+STATIC char* _rygel_find_upload_id (dev_ctx_T *, char *);
 STATIC char* _rygel_find_id_for_index (dev_ctx_T *, char *, unsigned int);
 STATIC char* _rygel_find_metadata_for_id (dev_ctx_T *, char *);
 STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T *, char *);
+STATIC unsigned char _rygel_start_uploading (dev_ctx_T *, char *, char *);
 STATIC unsigned char _rygel_start_doing (dev_ctx_T *, char *, char *, State);
 STATIC unsigned char _rygel_find_av_transport (dev_ctx_T *);
 STATIC void _rygel_device_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
@@ -57,6 +62,8 @@ STATIC void _rygel_av_transport_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpo
 STATIC void _rygel_content_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
 STATIC void _rygel_metadata_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
 STATIC void _rygel_select_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+STATIC void _rygel_upload_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+STATIC void _rygel_transfer_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
 STATIC void _rygel_do_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
 
 static unsigned int client_count = 0;

@@ -136,6 +136,27 @@ STATIC json_object* paused (AFB_request *request) {      /* AFB_SESSION_CHECK */
     return jsonNewMessage(AFB_SUCCESS, "Paused media");
 }
 
+STATIC json_object* upload (AFB_request *request) {      /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+    const char *value = getQueryValue (request, "value");
+    json_object *jresp;
+    char path[256];
+
+    /* no "?value=" parameter : return error */
+    if (!value)
+      return jsonNewMessage(AFB_FAIL, "You must provide a file name");
+
+    snprintf (path, sizeof(path), "/tmp/%s", value);
+    if (access (path, R_OK) == -1)
+      return jsonNewMessage(AFB_FAIL, "File not found");
+
+    if (!_rygel_upload (ctx, path))
+      return jsonNewMessage(AFB_FAIL, "Error when uploading file... could not complete");
+
+    return jsonNewMessage(AFB_SUCCESS, "File successfully uploaded");
+}
+
 STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
     return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Media API");
 }
@@ -147,7 +168,8 @@ STATIC AFB_restapi pluginApis[]= {
   {"choose" , AFB_SESSION_CHECK,  (AFB_apiCB)choose     , "Media API - choose" },
   {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Media API - play"   },
   {"stop"   , AFB_SESSION_CHECK,  (AFB_apiCB)stop       , "Media API - stop"   },
-  {"paused" , AFB_SESSION_CHECK,  (AFB_apiCB)paused     , "Media API - paused"  },
+  {"pause"  , AFB_SESSION_CHECK,  (AFB_apiCB)paused     , "Media API - pause"  },
+  {"upload" , AFB_SESSION_CHECK,  (AFB_apiCB)upload     , "Media API - upload" },
   {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Media API - ping"   },
   {NULL}
 };

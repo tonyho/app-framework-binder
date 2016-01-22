@@ -65,6 +65,7 @@ PUBLIC unsigned char _rygel_init (mediaCtxHandleT *ctx) {
     dev_ctx[client_count]->av_transport = NULL;
     dev_ctx[client_count]->state = STOP;
     dev_ctx[client_count]->target_state = STOP;
+    dev_ctx[client_count]->transfer_started = 0;
 
     client_count++;
 
@@ -96,27 +97,28 @@ PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
       return NULL;
 
     raw = _rygel_list_raw (dev_ctx_c, NULL);
+    if (!raw)
+      return NULL;
 
-    if (raw) {
-        start = strstr (raw, "<dc:title>");
-        if (!start) return NULL;
+    start = strstr (raw, "<dc:title>");
+    if (!start)
+      return NULL;
 
-        result = strdup("");
+    result = strdup("");
+    while (start) {
+        start = strstr (start, "<dc:title>");
+        if (!start) break;
+        end = strstr (start, "</dc:title>");
+        start += 10;
+        length = end - start;
 
-        while (start) {
-            start = strstr (start, "<dc:title>");
-            if (!start) break;
-            end = strstr (start, "</dc:title>");
-            start += 10; length = end - start;
+        title = (char*) malloc (length+1);
+        strncpy (title, start, length);
+        title[length] = '\0';
 
-            title = (char*) malloc (length+1);
-            strncpy (title, start, length);
-            title[length] = '\0';
+        asprintf (&result, "%s%02d:%s::", result, i, title);
 
-            asprintf (&result, "%s%02d:%s::", result, i, title);
-
-            free (title); i++;
-        }
+        free (title); i++;
     }
 
     return result;
@@ -138,6 +140,24 @@ PUBLIC unsigned char _rygel_choose (mediaCtxHandleT *ctx, unsigned int index) {
       dev_ctx_c->state = STOP;
 
     return 1;
+}
+
+PUBLIC unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
+
+    dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
+    char *raw, *upload_id;
+
+    if (!dev_ctx_c)
+      return 0;
+
+    raw = _rygel_list_raw (dev_ctx_c, NULL);
+    if (!raw)
+      return 0;
+
+    /* for now, we always use the same upload container id */
+    upload_id = _rygel_find_upload_id (dev_ctx_c, raw);
+
+    return _rygel_start_uploading (dev_ctx_c, path, upload_id);
 }
 
 PUBLIC unsigned char _rygel_do (mediaCtxHandleT *ctx, State state) {
@@ -170,7 +190,6 @@ STATIC char* _rygel_list_raw (dev_ctx_T* dev_ctx_c, unsigned int *count) {
 
     dev_ctx_c->content_res = NULL;
     dev_ctx_c->content_num = 0;
-
     content_dir_proxy = GUPNP_SERVICE_PROXY (dev_ctx_c->content_dir);
 
     gupnp_service_proxy_begin_action (content_dir_proxy, "Browse", _rygel_content_cb, dev_ctx_c,
@@ -197,6 +216,21 @@ STATIC char* _rygel_list_raw (dev_ctx_T* dev_ctx_c, unsigned int *count) {
     return dev_ctx_c->content_res;
 }
 
+STATIC char* _rygel_find_upload_id (dev_ctx_T* dev_ctx_c, char *raw) {
+
+    char *found;
+    char id[33];
+
+    found = strstr (raw, "parentID=\"");
+    found += 10;
+
+    /* IDs are 32-bit strings */
+    strncpy (id, found, 32);
+    id[32] = '\0';
+
+    return strdup (id);
+}
+
 STATIC char* _rygel_find_id_for_index (dev_ctx_T* dev_ctx_c, char *raw, unsigned int index) {
 
     char *found = raw;
@@ -208,13 +242,13 @@ STATIC char* _rygel_find_id_for_index (dev_ctx_T* dev_ctx_c, char *raw, unsigned
         found += 9;
 
         if (i == index) {
-	    /* IDs are 32-bit numbers */
+	    /* IDs are 32-bit strings */
             strncpy (id, found, 32);
             id[32] = '\0';
         }
     }
 
-    return strdup(id);
+    return strdup (id);
 }
 
 STATIC char* _rygel_find_metadata_for_id (dev_ctx_T* dev_ctx_c, char *id) {
@@ -277,6 +311,61 @@ STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T* dev_ctx_c, char *metadata)
     return uri;
 }
 
+STATIC unsigned char _rygel_start_uploading (dev_ctx_T* dev_ctx_c, char *path, char *upload_id) {
+
+    GUPnPServiceProxy *content_dir_proxy;
+    GUPnPDIDLLiteWriter *didl_writer;
+    GUPnPDIDLLiteObject *didl_object;
+    char *didl, *content_type, *mime_type, *upnp_class;
+    struct timeval tv_start, tv_now;
+
+    didl_writer = gupnp_didl_lite_writer_new (NULL);
+    didl_object = GUPNP_DIDL_LITE_OBJECT (gupnp_didl_lite_writer_add_item (didl_writer));
+
+    /* create the metadata for the file */
+    gupnp_didl_lite_object_set_parent_id (didl_object, upload_id);
+    gupnp_didl_lite_object_set_id (didl_object, "");
+    gupnp_didl_lite_object_set_restricted (didl_object, FALSE);
+    gupnp_didl_lite_object_set_title (didl_object, g_path_get_basename (path));
+    /* deduce the UPnP class from the MIME type ("audio/ogg" e.g.) */
+    content_type = g_content_type_guess (path, NULL, 0, NULL);
+    mime_type = g_content_type_get_mime_type (content_type);
+    if (strstr (mime_type, "audio/"))
+      upnp_class = strdup ("object.item.audioItem.musicTrack");
+    else if (strstr (mime_type, "video/"))
+      upnp_class = strdup ("object.item.videoItem");
+    else if (strstr (mime_type, "image/"))
+      upnp_class = strdup ("object.item.imageItem");
+    else
+      upnp_class = strdup ("object.item");
+    gupnp_didl_lite_object_set_upnp_class (didl_object, upnp_class);
+    didl = gupnp_didl_lite_writer_get_string (didl_writer);
+
+    dev_ctx_c->transfer_path = path;
+    dev_ctx_c->transfer_started = 0;
+    content_dir_proxy = GUPNP_SERVICE_PROXY (dev_ctx_c->content_dir);
+
+    gupnp_service_proxy_begin_action (content_dir_proxy, "CreateObject", _rygel_upload_cb, dev_ctx_c,
+                                      "ContainerID", G_TYPE_STRING, upload_id,
+                                      "Elements", G_TYPE_STRING, didl,
+                                       NULL);
+
+    gettimeofday (&tv_start, NULL);
+    gettimeofday (&tv_now, NULL);
+    while (tv_now.tv_sec - tv_start.tv_sec <= 5) {
+
+      g_main_context_iteration (dev_ctx_c->loop, FALSE);
+
+      if (dev_ctx_c->transfer_started)
+        break;
+      gettimeofday (&tv_now, NULL);
+    }
+    if (!dev_ctx_c->transfer_started)
+      return 0;
+
+    return 1;
+}
+
 STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *metadata, State state) {
 
     GUPnPServiceProxy *av_transport_proxy;
@@ -287,14 +376,13 @@ STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *
          return 0;
     }
     dev_ctx_c->target_state = state;
-
     av_transport_proxy = GUPNP_SERVICE_PROXY (dev_ctx_c->av_transport);
 
     gupnp_service_proxy_begin_action (av_transport_proxy, "SetAVTransportURI", _rygel_select_cb, dev_ctx_c,
                                       "InstanceID", G_TYPE_UINT, 0,
                                       "CurrentURI", G_TYPE_STRING, uri,
                                       "CurrentURIMetaData", G_TYPE_STRING, metadata,
-                                      NULL);
+                                       NULL);
 
     gettimeofday (&tv_start, NULL);
     gettimeofday (&tv_now, NULL);
@@ -449,7 +537,7 @@ STATIC void _rygel_metadata_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProx
 }
 
 STATIC void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxyAction *action,
-                            gpointer data)
+                              gpointer data)
 {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
@@ -494,14 +582,84 @@ STATIC void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxy
     }
 }
 
+STATIC void _rygel_upload_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
+                              gpointer data)
+{
+    dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
+    GUPnPServiceProxy *content_dir_proxy;
+    GError *error;
+    char *result, *start, *end, *dst_uri, *src_uri;
+    int length;
+    struct timeval tv_start, tv_now;
+
+    content_dir_proxy = GUPNP_SERVICE_PROXY (content_dir);
+
+    if (!gupnp_service_proxy_end_action (content_dir, action, &error,
+                                         "Result", G_TYPE_STRING, &result,
+                                          NULL))
+      return;
+
+    start = strstr (result, "<res importUri=\"");
+    if (!start)
+      return;
+
+    start += 16;
+    end = strstr (start, "\"");
+    length = end - start;
+
+    dst_uri = (char*) malloc(length+1);
+    strncpy (dst_uri, start, length);
+    dst_uri[length] = '\0';
+
+    asprintf (&src_uri, "http://%s:%u%s", gupnp_context_get_host_ip (dev_ctx_c->context),
+                                          gupnp_context_get_port (dev_ctx_c->context),
+                                          dev_ctx_c->transfer_path);
+
+    /* host the file */
+    gupnp_context_host_path (dev_ctx_c->context, dev_ctx_c->transfer_path,
+                                                 dev_ctx_c->transfer_path);
+
+    gupnp_service_proxy_begin_action (content_dir_proxy, "ImportResource", _rygel_transfer_cb, dev_ctx_c,
+                                      "SourceURI", G_TYPE_STRING, src_uri,
+                                      "DestinationURI", G_TYPE_STRING, dst_uri,
+                                       NULL);
+
+    gettimeofday (&tv_start, NULL);
+    gettimeofday (&tv_now, NULL);
+    while (tv_now.tv_sec - tv_start.tv_sec <= 5) {
+
+        g_main_context_iteration (dev_ctx_c->loop, FALSE);
+
+        if (dev_ctx_c->transfer_started)
+            break;
+        gettimeofday (&tv_now, NULL);
+    }
+}
+
+STATIC void _rygel_transfer_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
+                                gpointer data)
+{
+    dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
+    GError *error;
+    guint transfer_id;
+
+    if (!gupnp_service_proxy_end_action (content_dir, action, &error,
+                                         "TransferID", G_TYPE_UINT, &transfer_id,
+                                          NULL))
+      return;
+
+    dev_ctx_c->transfer_started = 1;
+}
+
 STATIC void _rygel_do_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxyAction *action,
                           gpointer data)
 {
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
     GError *error;
 
-    gupnp_service_proxy_end_action (av_transport, action, &error,
-                                    NULL);
+    if (!gupnp_service_proxy_end_action (av_transport, action, &error,
+                                         NULL))
+      return;
 
     dev_ctx_c->state = dev_ctx_c->target_state;
 }

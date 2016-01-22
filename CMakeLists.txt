@@ -42,7 +42,7 @@ PKG_CHECK_MODULES(dbus REQUIRED dbus-1)
 PKG_CHECK_MODULES(alsa alsa)
 PKG_CHECK_MODULES(pulseaudio libpulse libpulse-simple)
 PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
-PKG_CHECK_MODULES(gupnp gupnp-1.0 gssdp-1.0 gobject-2.0)
+PKG_CHECK_MODULES(gupnp gupnp-1.0 gupnp-av-1.0 gssdp-1.0 gobject-2.0 gio-2.0)
 
 IF(alsa_FOUND)
   MESSAGE(STATUS "ALSA found ; will compile Audio plugin... (PLUGIN)")
