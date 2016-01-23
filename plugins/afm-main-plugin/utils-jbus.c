@@ -391,7 +391,6 @@ struct jbus *create_jbus(int session, const char *path)
 	}
 	jbus->refcount = 1;
 	jbus->path = strdup(path);
-	jbus->name = NULL;
 	if (jbus->path == NULL) {
 		errno = ENOMEM;
 		goto error2;
@@ -441,7 +440,8 @@ void jbus_unref(struct jbus *jbus)
 {
 	struct jservice *srv;
 	if (!--jbus->refcount) {
-		dbus_connection_unref(jbus->connection);
+		if (jbus->connection != NULL)
+			dbus_connection_unref(jbus->connection);
 		while((srv = jbus->services) != NULL) {
 			jbus->services = srv->next;
 			free(srv->method);
