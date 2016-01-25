@@ -91,7 +91,8 @@ PUBLIC void _rygel_free (mediaCtxHandleT *ctx) {
 PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
-    char *raw, *start, *end, *title, *result = NULL;
+    json_object *json_o, *json_a;
+    char *raw, *start, *end, *id, *title;
     int length, i = 0;
 
     if (!dev_ctx_c)
@@ -105,24 +106,37 @@ PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
     if (!start)
       return NULL;
 
-    result = strdup("");
+    json_o = json_object_new_object ();
+    json_a = json_object_new_array ();
     while (start) {
+        json_object *json_i, *json_id, *json_title;
+
         start = strstr (start, "<dc:title>");
         if (!start) break;
         end = strstr (start, "</dc:title>");
         start += 10;
         length = end - start;
 
+        asprintf (&id, "%02d", i);
+
         title = (char*) malloc (length+1);
         strncpy (title, start, length);
         title[length] = '\0';
 
-        asprintf (&result, "%s%02d:%s::", result, i, title);
+        json_i = json_object_new_object ();
+        json_id = json_object_new_string (id);
+        json_title = json_object_new_string (title);
+        json_object_object_add (json_i, "id", json_id);
+        json_object_object_add (json_i, "title", json_title);
+        json_object_array_add (json_a, json_i);
 
-        free (title); i++;
+        free (id); free (title); 
+        i++;
     }
 
-    return result;
+    json_object_object_add (json_o, "list", json_a);
+
+    return (char*) json_object_to_json_string (json_o);
 }
 
 PUBLIC unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
