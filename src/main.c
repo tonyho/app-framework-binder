@@ -442,7 +442,7 @@ int main(int argc, char *argv[])  {
   // open syslog if ever needed
   openlog("AGB-log", 0, LOG_DAEMON);
 
-  // -------------- Try to kill any previsou process if asked ---------------------
+  // -------------- Try to kill any previous process if asked ---------------------
   if (session->killPrevious) {
     pid = readPidFile (session->config);  // enforce commandline option
     switch (pid) {

@@ -298,20 +298,11 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
 
 // infinite loop
 PUBLIC AFB_error httpdLoop(AFB_session *session) {
-    static int  count = 0;
-
+    int count = 0;
     if (verbose) fprintf(stderr, "AFB:notice entering httpd waiting loop\n");
-    if (session->foreground) {
-
-        while (TRUE) {
-            fprintf(stderr, "AFB:notice Use Ctrl-C to quit\n");
-            (void) getc(stdin);
-        }
-    } else {
-        while (TRUE) {
-            sleep(3600);
-            if (verbose) fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
-        }
+    while (TRUE) {
+        sleep(3600);
+        if (verbose) fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
     }
 
     // should never return from here
