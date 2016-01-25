@@ -71,7 +71,6 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
  #define SET_CONFIG_SAVE    135
  #define SET_CONFIG_EXIT    138
 
- #define SET_SMACK          140
  #define SET_AUTH_TOKEN     141
  #define SET_LDPATH        142
  #define SET_APITIMEOUT     143
@@ -107,7 +106,6 @@ static  AFB_options cliOptions [] = {
   {SET_CONFIG_SAVE  ,0,"save"            , "Save config on disk [default no]"},
   {SET_CONFIG_EXIT  ,0,"saveonly"        , "Save config on disk and then exit"},
 
-  // {SET_SMACK        ,1,"smack"           , "Set Smack Label [default demo]"},
   {SET_LDPATH       ,1,"ldpaths"         , "Load Plugins from dir1:dir2:... [default = PLUGIN_INSTALL_DIR"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
   
@@ -344,12 +342,6 @@ int main(int argc, char *argv[])  {
        }     
        break;
        
-    case SET_SMACK:
-       if (optarg == 0) goto needValueForOption;
-       fprintf (stderr, "Not Implemented yet\n");
-       cliconfig.smack   = optarg;
-       break;
-
     case SET_AUTH_TOKEN:
        if (optarg == 0) goto needValueForOption;
        cliconfig.token   = optarg;
