@@ -574,7 +574,7 @@ int main(int argc, char *argv[])  {
       if (status == -1) goto errorPidFile;
 
       // we are in father process, we don't need this one
-      exit (0);
+      _exit (0);
 
   } // end background-foreground
 
