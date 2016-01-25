@@ -423,7 +423,7 @@ int main(int argc, char *argv[])  {
        printHelp(programName);
        goto normalExit;
 
-  }
+    }
   }
  
   // if exist merge config file with CLI arguments
