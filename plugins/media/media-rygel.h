@@ -32,7 +32,7 @@
 #define URN_CONTENT_DIR    "urn:schemas-upnp-org:service:ContentDirectory"
 #define URN_AV_TRANSPORT   "urn:schemas-upnp-org:service:AVTransport"
 
-typedef enum { PLAY, PAUSE, STOP } State;
+typedef enum { PLAY, PAUSE, STOP, SEEK } State;
 typedef struct dev_ctx dev_ctx_T;
 
 struct dev_ctx {
@@ -45,6 +45,7 @@ struct dev_ctx {
     int content_num;
     State state;
     State target_state;
+    char *action_args;
     char *transfer_path;
     unsigned char transfer_started;
 };
@@ -55,7 +56,7 @@ STATIC char* _rygel_find_id_for_index (dev_ctx_T *, char *, unsigned int);
 STATIC char* _rygel_find_metadata_for_id (dev_ctx_T *, char *);
 STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T *, char *);
 STATIC unsigned char _rygel_start_uploading (dev_ctx_T *, char *, char *);
-STATIC unsigned char _rygel_start_doing (dev_ctx_T *, char *, char *, State);
+STATIC unsigned char _rygel_start_doing (dev_ctx_T *, char *, char *, State, char *);
 STATIC unsigned char _rygel_find_av_transport (dev_ctx_T *);
 STATIC void _rygel_device_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
 STATIC void _rygel_av_transport_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);

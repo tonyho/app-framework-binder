@@ -65,6 +65,7 @@ PUBLIC unsigned char _rygel_init (mediaCtxHandleT *ctx) {
     dev_ctx[client_count]->av_transport = NULL;
     dev_ctx[client_count]->state = STOP;
     dev_ctx[client_count]->target_state = STOP;
+    dev_ctx[client_count]->action_args = NULL;
     dev_ctx[client_count]->transfer_started = 0;
 
     client_count++;
@@ -124,7 +125,7 @@ PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
     return result;
 }
 
-PUBLIC unsigned char _rygel_choose (mediaCtxHandleT *ctx, unsigned int index) {
+PUBLIC unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     unsigned int count;
@@ -160,7 +161,7 @@ PUBLIC unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
     return _rygel_start_uploading (dev_ctx_c, path, upload_id);
 }
 
-PUBLIC unsigned char _rygel_do (mediaCtxHandleT *ctx, State state) {
+PUBLIC unsigned char _rygel_do (mediaCtxHandleT *ctx, State state, char *args) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     unsigned int index = ctx->index;
@@ -178,7 +179,7 @@ PUBLIC unsigned char _rygel_do (mediaCtxHandleT *ctx, State state) {
     metadata = _rygel_find_metadata_for_id (dev_ctx_c, id);
          uri = _rygel_find_uri_for_metadata (dev_ctx_c, metadata);
 
-    return _rygel_start_doing (dev_ctx_c, uri, metadata, state);
+    return _rygel_start_doing (dev_ctx_c, uri, metadata, state, args);
 }
 
 /* --- LOCAL HELPER FUNCTIONS --- */
@@ -311,6 +312,22 @@ STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T* dev_ctx_c, char *metadata)
     return uri;
 }
 
+STATIC char * _rygel_time_for_string (char *string) {
+
+    int total_seconds;
+    unsigned int hours, minutes, seconds;
+    char *time;
+
+    total_seconds = atoi (string);
+    hours = total_seconds / 3600;
+    minutes = (total_seconds / 60) - (hours * 60);
+    seconds = total_seconds - (hours * 3600) - (minutes * 60);
+
+    asprintf (&time, "%u:%02u:%02u", hours, minutes, seconds);
+
+    return time;
+}
+
 STATIC unsigned char _rygel_start_uploading (dev_ctx_T* dev_ctx_c, char *path, char *upload_id) {
 
     GUPnPServiceProxy *content_dir_proxy;
@@ -366,7 +383,7 @@ STATIC unsigned char _rygel_start_uploading (dev_ctx_T* dev_ctx_c, char *path, c
     return 1;
 }
 
-STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *metadata, State state) {
+STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *metadata, State state, char *args) {
 
     GUPnPServiceProxy *av_transport_proxy;
     struct timeval tv_start, tv_now;
@@ -376,6 +393,7 @@ STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *
          return 0;
     }
     dev_ctx_c->target_state = state;
+    dev_ctx_c->action_args = args;
     av_transport_proxy = GUPNP_SERVICE_PROXY (dev_ctx_c->av_transport);
 
     gupnp_service_proxy_begin_action (av_transport_proxy, "SetAVTransportURI", _rygel_select_cb, dev_ctx_c,
@@ -543,6 +561,7 @@ STATIC void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxy
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
     GUPnPServiceProxy *av_transport_proxy;
     GError *error;
+    char *time;
     struct timeval tv_start, tv_now;
 
     av_transport_proxy = GUPNP_SERVICE_PROXY (av_transport);
@@ -566,6 +585,13 @@ STATIC void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxy
                                            "InstanceID", G_TYPE_UINT, 0,
                                             NULL);
           break;
+       case SEEK:
+          time = _rygel_time_for_string (dev_ctx_c->action_args);
+          gupnp_service_proxy_begin_action (av_transport_proxy, "Seek", _rygel_do_cb, dev_ctx_c,
+                                           "InstanceID", G_TYPE_UINT, 0,
+                                           "Unit", G_TYPE_STRING, "ABS_TIME",
+                                           "Target", G_TYPE_STRING, time,
+                                            NULL);
        default:
 	 break;
     }

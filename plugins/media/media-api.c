@@ -42,14 +42,18 @@ STATIC void freeMedia (void *context, void *handle) {
 
 STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
+    mediaCtxHandleT *ctx;
     json_object *jresp;
 
     /* create a private client context */
     if (!request->context)
         request->context = initMediaCtx();
 
+    ctx = (mediaCtxHandleT*)request->context;
+
     /* initialize server connection */
-    _rygel_init (request->context);
+    if (!ctx->media_server)
+      _rygel_init (request->context);
 
     jresp = json_object_new_object();
     json_object_object_add(jresp, "info", json_object_new_string ("Media initialized"));
@@ -72,7 +76,7 @@ STATIC json_object* list (AFB_request *request) {        /* AFB_SESSION_CHECK */
     return jresp;
 }
 
-STATIC json_object* choose (AFB_request *request) {      /* AFB_SESSION_CHECK */
+STATIC json_object* selecting (AFB_request *request) {   /* AFB_SESSION_CHECK */
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
@@ -95,7 +99,7 @@ STATIC json_object* choose (AFB_request *request) {      /* AFB_SESSION_CHECK */
     else if (atoi(value) >= 0) {
         index = (unsigned int) atoi(value);
 
-        if (!_rygel_choose (ctx, index))
+        if (!_rygel_select (ctx, index))
           return jsonNewMessage(AFB_FAIL, "Chosen index superior to current media count");
 
         ctx->index = index;
@@ -110,7 +114,7 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
 
-    if (!_rygel_do (ctx, PLAY))
+    if (!_rygel_do (ctx, PLAY, NULL))
       return jsonNewMessage(AFB_FAIL, "Could not play chosen media");
 
     return jsonNewMessage(AFB_SUCCESS, "PLaying media");
@@ -120,20 +124,35 @@ STATIC json_object* stop (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
 
-    if (!_rygel_do (ctx, STOP))
+    if (!_rygel_do (ctx, STOP, NULL))
       return jsonNewMessage(AFB_FAIL, "Could not stop chosen media");
 
     return jsonNewMessage(AFB_SUCCESS, "Stopped media");
 }
 
-STATIC json_object* paused (AFB_request *request) {      /* AFB_SESSION_CHECK */
+STATIC json_object* pausing (AFB_request *request) {     /* AFB_SESSION_CHECK */
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
 
-    if (!_rygel_do (ctx, PAUSE))
+    if (!_rygel_do (ctx, PAUSE, NULL))
       return jsonNewMessage(AFB_FAIL, "Could not pause chosen media");
 
     return jsonNewMessage(AFB_SUCCESS, "Paused media");
+}
+
+STATIC json_object* seek (AFB_request *request) {        /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+    const char *value = getQueryValue (request, "value");
+
+    /* no "?value=" parameter : return error */
+    if (!value)
+      return jsonNewMessage(AFB_FAIL, "You must provide a time");
+
+    if (!_rygel_do (ctx, SEEK, value))
+      return jsonNewMessage(AFB_FAIL, "Could not seek chosen media");
+
+    return jsonNewMessage(AFB_SUCCESS, "Seeked media");
 }
 
 STATIC json_object* upload (AFB_request *request) {      /* AFB_SESSION_CHECK */
@@ -165,10 +184,11 @@ STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
 STATIC AFB_restapi pluginApis[]= {
   {"init"   , AFB_SESSION_CHECK,  (AFB_apiCB)init       , "Media API - init"   },
   {"list"   , AFB_SESSION_CHECK,  (AFB_apiCB)list       , "Media API - list"   },
-  {"choose" , AFB_SESSION_CHECK,  (AFB_apiCB)choose     , "Media API - choose" },
+  {"select" , AFB_SESSION_CHECK,  (AFB_apiCB)selecting  , "Media API - select" },
   {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Media API - play"   },
   {"stop"   , AFB_SESSION_CHECK,  (AFB_apiCB)stop       , "Media API - stop"   },
-  {"pause"  , AFB_SESSION_CHECK,  (AFB_apiCB)paused     , "Media API - pause"  },
+  {"pause"  , AFB_SESSION_CHECK,  (AFB_apiCB)pausing    , "Media API - pause"  },
+  {"seek"   , AFB_SESSION_CHECK,  (AFB_apiCB)seek       , "Media API - seek"   },
   {"upload" , AFB_SESSION_CHECK,  (AFB_apiCB)upload     , "Media API - upload" },
   {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Media API - ping"   },
   {NULL}
