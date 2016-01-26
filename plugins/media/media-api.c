@@ -156,34 +156,31 @@ STATIC json_object* upload (AFB_request *request, AFB_PostItem *item) { /* AFB_S
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
     AFB_PostCtx *postFileCtx;
-#if 0
-    const char *value = getQueryValue (request, "value");
     json_object *jresp;
-    char path[256];
+    char *path;
 
-    /* no "?value=" parameter : return error */
-    if (!value)
-      return jsonNewMessage(AFB_FAIL, "You must provide a file name");
-#endif
-    if (item == NULL) {
-        postFileCtx = getPostContext (request);
-        if (postFileCtx) {
-            postFileCtx->errcode = MHD_HTTP_OK;
-            postFileCtx->jresp = jsonNewMessage (AFB_SUCCESS, "upload=%s done", getPostPath (request));
-        }
+    /* item is !NULL until transfer is complete */
+    if (item != NULL)
+      return getPostFile (request, item, "media");
+
+    /* target intermediary file path */
+    path = getPostPath (request);
+
+    if (!path)
+        fprintf (stderr, "Error encoutered during intermediary file transfer\n");
+
+    else if (!_rygel_upload (ctx, path)) {
+        request->errcode = MHD_HTTP_EXPECTATION_FAILED;
+        request->jresp = jsonNewMessage (AFB_FAIL, "Error when uploading file to media server... could not complete");
     }
 
-    return getPostFile (request, item, "media");
-#if 0
-    snprintf (path, sizeof(path), "/tmp/%s", value);
-    if (access (path, R_OK) == -1)
-      return jsonNewMessage(AFB_FAIL, "File not found");
+    else {
+        request->errcode = MHD_HTTP_OK;
+        request->jresp = jsonNewMessage (AFB_SUCCESS, "upload=%s done", path);
+    }
 
-    if (!_rygel_upload (ctx, path))
-      return jsonNewMessage(AFB_FAIL, "Error when uploading file... could not complete");
-
-    return jsonNewMessage(AFB_SUCCESS, "File successfully uploaded");
-#endif
+    /* finalizes file transfer */
+    return getPostFile (request, item, NULL);
 }
 
 STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
