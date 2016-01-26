@@ -88,7 +88,7 @@ PUBLIC void _rygel_free (mediaCtxHandleT *ctx) {
     dev_ctx_c->content_res = NULL;
 }
 
-PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
+PUBLIC json_object* _rygel_list (mediaCtxHandleT *ctx) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     json_object *json_o, *json_a;
@@ -136,7 +136,7 @@ PUBLIC char* _rygel_list (mediaCtxHandleT *ctx) {
 
     json_object_object_add (json_o, "list", json_a);
 
-    return (char*) json_object_to_json_string (json_o);
+    return json_o;
 }
 
 PUBLIC unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
