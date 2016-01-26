@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <poll.h>
+#include <assert.h>
 
 #include <json.h>
 #include <dbus/dbus.h>
@@ -77,6 +79,9 @@ struct jbus {
 	struct jrespw *waiters;
 	char *path;
 	char *name;
+	int watchnr;
+	int watchfd;
+	int watchflags;
 };
 
 /*********************** STATIC COMMON METHODS *****************/
@@ -156,7 +161,11 @@ static int add_signal(
 
 	/* record the signal */
 	if (jbus->signals == NULL) {
+#if 0
+		if (0 >= asprintf(&rule, "type='signal',interface='%s',path='%s'", jbus->name, jbus->path))
+#else
 		if (0 >= asprintf(&rule, "type='signal',sender='%s',interface='%s',path='%s'", jbus->name, jbus->name, jbus->path))
+#endif
 			return -1;
 		dbus_bus_add_match(jbus->connection, rule, NULL);
 		free(rule);
@@ -376,6 +385,61 @@ static DBusHandlerResult incoming(DBusConnection *connection, DBusMessage *messa
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
+static void watchset(DBusWatch *watch, struct jbus *jbus)
+{
+	unsigned int flags;
+	int wf, e;
+
+	flags = dbus_watch_get_flags(watch);
+	e = dbus_watch_get_enabled(watch);
+	wf = jbus->watchflags;
+	if (e) {
+		if (flags & DBUS_WATCH_READABLE)
+			wf |= POLLIN;
+		if (flags & DBUS_WATCH_WRITABLE)
+			wf |= POLLOUT;
+	}
+	else {
+		if (flags & DBUS_WATCH_READABLE)
+			wf &= ~POLLIN;
+		if (flags & DBUS_WATCH_WRITABLE)
+			wf &= ~POLLOUT;
+	}
+	jbus->watchflags = wf;
+}
+
+static void watchdel(DBusWatch *watch, void *data)
+{
+	struct jbus *jbus = data;
+
+	assert(jbus->watchnr > 0);
+	assert(jbus->watchfd == dbus_watch_get_unix_fd(watch));
+	jbus->watchnr--;
+}
+
+static void watchtoggle(DBusWatch *watch, void *data)
+{
+	struct jbus *jbus = data;
+
+	assert(jbus->watchnr > 0);
+	assert(jbus->watchfd == dbus_watch_get_unix_fd(watch));
+	watchset(watch, jbus);
+}
+
+static dbus_bool_t watchadd(DBusWatch *watch, void *data)
+{
+	struct jbus *jbus = data;
+	if (jbus->watchnr == 0) {
+		jbus->watchfd = dbus_watch_get_unix_fd(watch);
+		jbus->watchflags = 0;
+	}
+	else if (jbus->watchfd != dbus_watch_get_unix_fd(watch))
+		return FALSE;
+	jbus->watchnr++;
+	watchset(watch, jbus);
+	return TRUE;
+}
+
 /************************** MAIN FUNCTIONS *****************************************/
 
 struct jbus *create_jbus(int session, const char *path)
@@ -416,12 +480,10 @@ struct jbus *create_jbus(int session, const char *path)
 
 	/* connect */
 	jbus->connection = dbus_bus_get(session ? DBUS_BUS_SESSION : DBUS_BUS_SYSTEM, NULL);
-	if (jbus->connection == NULL) {
+	if (jbus->connection == NULL
+	|| !dbus_connection_add_filter(jbus->connection, incoming, jbus, NULL)
+        || !dbus_connection_set_watch_functions(jbus->connection, watchadd, watchdel, watchtoggle, jbus, NULL))
 		goto error2;
-	}
-	if (!dbus_connection_add_filter(jbus->connection, incoming, jbus, NULL)) {
-		goto error2;
-	}
 
 	return jbus;
 
@@ -512,7 +574,8 @@ int jbus_send_signal_s(struct jbus *jbus, const char *name, const char *content)
 	if (message == NULL)
 		goto error;
 
-	if (!dbus_message_append_args(message, DBUS_TYPE_STRING, &content, DBUS_TYPE_INVALID)) {
+	if (!dbus_message_set_sender(message, jbus->name)
+	||  !dbus_message_append_args(message, DBUS_TYPE_STRING, &content, DBUS_TYPE_INVALID)) {
 		dbus_message_unref(message);
 		goto error;
 	}
@@ -562,12 +625,81 @@ int jbus_start_serving(struct jbus *jbus)
 	}
 }
 
+int jbus_fill_pollfds(struct jbus **jbuses, int njbuses, struct pollfd *fds)
+{
+	int i, r;
+
+	for (r = i = 0 ; i < njbuses ; i++) {
+		if (jbuses[i]->watchnr) {
+			fds[r].fd = jbuses[i]->watchfd;
+			fds[r].events = jbuses[i]->watchflags;
+			r++;
+		}
+	}
+	return r;
+}
+
+int jbus_dispatch_pollfds(struct jbus **jbuses, int njbuses, struct pollfd *fds, int maxcount)
+{
+	int i, r, n;
+	DBusDispatchStatus sts;
+
+	for (r = n = i = 0 ; i < njbuses && n < maxcount ; i++) {
+		if (jbuses[i]->watchnr && fds[r].fd == jbuses[i]->watchfd) {
+			if (fds[r].revents) {
+				dbus_connection_read_write(jbuses[i]->connection, 0);
+				sts = dbus_connection_get_dispatch_status(jbuses[i]->connection);
+				while(sts == DBUS_DISPATCH_DATA_REMAINS &&  n < maxcount) {
+					sts = dbus_connection_dispatch(jbuses[i]->connection);
+					n++;
+				}
+			}
+			r++;
+		}
+	}
+	return n;
+}
+
+int jbus_dispatch_multiple(struct jbus **jbuses, int njbuses, int maxcount)
+{
+	int i, r;
+	DBusDispatchStatus sts;
+
+	for (i = r = 0 ; i < njbuses && r < maxcount ; i++) {
+		dbus_connection_read_write(jbuses[i]->connection, 0);
+		while(sts == DBUS_DISPATCH_DATA_REMAINS &&  r < maxcount) {
+			sts = dbus_connection_dispatch(jbuses[i]->connection);
+			r++;
+		}
+	}
+	return r;
+}
+
+int jbus_read_write_dispatch_multiple(struct jbus **jbuses, int njbuses, int toms, int maxcount)
+{
+	int n, r, s;
+	struct pollfd *fds;
+
+	if (njbuses < 0 || njbuses > 100) {
+		errno = EINVAL;
+		return -1;
+	}
+	fds = alloca(njbuses * sizeof * fds);
+	assert(fds != NULL);
+
+	r = jbus_dispatch_multiple(jbuses, njbuses, maxcount);
+	n = jbus_fill_pollfds(jbuses, njbuses, fds);
+	s = poll(fds, n, toms);
+	if (s < 0)
+		return r ? r : s;
+	n = jbus_dispatch_pollfds(jbuses, njbuses, fds, maxcount - r);
+	return n >= 0 ? r + n : r ? r : n;
+}
+
 int jbus_read_write_dispatch(struct jbus *jbus, int toms)
 {
-	if (dbus_connection_read_write_dispatch(jbus->connection, toms));
-		return 0;
-	errno = EPIPE;
-	return -1;
+	int r = jbus_read_write_dispatch_multiple(&jbus, 1, toms, 1000);
+	return r < 0 ? r : 0;
 }
 
 int jbus_call_ss(struct jbus *jbus, const char *method, const char *query, void (*onresp)(int, const char*, void*), void *data)
@@ -682,8 +814,7 @@ int main()
 	s2 = jbus_add_service_j(jbus, "incr", incr);
 	s3 = jbus_start_serving(jbus);
 	printf("started %d %d %d\n", s1, s2, s3);
-	while (!jbus_read_write_dispatch (jbus, -1))
-		;
+	while (!jbus_read_write_dispatch (jbus, -1));
 }
 #endif
 #ifdef CLIENT
@@ -710,8 +841,7 @@ int main()
 		jbus_read_write_dispatch (jbus, 1);
 	}
 	printf("[[[%s]]]\n", jbus_call_ss_sync(jbus, "ping", "\"formidable!\""));
-	while (!jbus_read_write_dispatch (jbus, -1))
-		;
+	while (!jbus_read_write_dispatch (jbus, -1));
 }
 #endif
 
