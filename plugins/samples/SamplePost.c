@@ -53,7 +53,7 @@ STATIC json_object* UploadAppli (AFB_request *request, AFB_PostItem *item) {
             // Do something intelligent here to install application
             
             postFileCtx->errcode = MHD_HTTP_OK;   // or error is something went wrong;   
-            postFileCtx->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Appli done");
+            postFileCtx->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Appli=%s done", getPostPath (request));
         }
     }
     

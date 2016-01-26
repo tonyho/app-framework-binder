@@ -93,6 +93,18 @@ PUBLIC AFB_PostCtx* getPostContext (AFB_request *request) {
     return ((AFB_PostCtx*) postHandle->ctx);
 }
 
+PUBLIC char* getPostPath (AFB_request *request) {
+    AFB_PostHandle *postHandle = getPostHandle(request);
+    AFB_PostCtx *postFileCtx;
+    
+    if (postHandle == NULL) return NULL;
+    
+    postFileCtx = (AFB_PostCtx*) postHandle->ctx;
+    if (postFileCtx == NULL) return NULL;
+  
+    return (postFileCtx->path);
+}
+
 PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) {
 
     AFB_PostHandle *postHandle = getPostHandle(request);
