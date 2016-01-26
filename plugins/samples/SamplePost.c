@@ -47,14 +47,10 @@ STATIC json_object* UploadAppli (AFB_request *request, AFB_PostItem *item) {
 
     // This is called after PostForm and then after DonePostForm
     if (item == NULL) {
-        AFB_PostCtx *postFileCtx = getPostContext(request);      
-        if (postFileCtx != NULL) {
-            
-            // Do something intelligent here to install application
-            
-            postFileCtx->errcode = MHD_HTTP_OK;   // or error is something went wrong;   
-            postFileCtx->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Appli=%s done", getPostPath (request));
-        }
+        // Do something intelligent here to install application
+        request->errcode = MHD_HTTP_OK;   // or error is something went wrong;   
+        request->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Appli=%s done", getPostPath (request));
+        // Note: should not return here in order getPostedFile to clear Post resources.
     }
     
     // upload multi iteration logic is handle by getPostedFile

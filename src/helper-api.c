@@ -124,11 +124,9 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         }
         
         // We have a context but last Xform iteration fail or application set a message
-        if (postFileCtx->jresp != NULL) {
-            jresp = postFileCtx->jresp;  // retrieve previous error from postCtx
-            if (postFileCtx->errcode != 0) request->errcode=postFileCtx->errcode;
-        }
-        else jresp = jsonNewMessage(AFB_FAIL,"getPostFile Post Request done");
+        if (request->jresp != NULL) {
+            jresp = request->jresp;  // retrieve previous error from postCtx
+        } else jresp = jsonNewMessage(AFB_FAIL,"getPostFile Post Request done");
         
         // Error or not let's free all resources
         close(postFileCtx->fd);
@@ -164,7 +162,6 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         
         // Create an application specific context
         postFileCtx = calloc (1, sizeof(AFB_PostCtx)); // May place anything here until post->completeCB handle resources liberation
-        postFileCtx->path = strdup (filepath);
         
         // attach application to postHandle
         postHandle->ctx = (void*) postFileCtx;   // May place anything here until post->completeCB handle resources liberation  
@@ -175,8 +172,8 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
            strncat (filepath, "/", sizeof(filepath));
            strncat (filepath, destination, sizeof(filepath)); 
         } else strncpy (filepath, destination, sizeof(filepath));
-        
 
+        
         // make sure destination directory exist
         destDir = opendir (filepath);
         if (destDir == NULL) {
@@ -189,6 +186,9 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         strncat (filepath, "/", sizeof(filepath));
         strncat (filepath, item->filename, sizeof(filepath));  
 
+        postFileCtx->path = strdup (filepath);       
+        if (verbose) fprintf(stderr, "getPostFile path=%s\n", filepath);
+        
         if((postFileCtx->fd = open(filepath, O_RDWR |O_CREAT, S_IRWXU|S_IRGRP)) <= 0) {
             postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to Create destination File=[%s] error=%s\n", filepath, strerror(errno));
             goto ExitOnError;
