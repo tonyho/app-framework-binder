@@ -126,7 +126,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         // We have a context but last Xform iteration fail or application set a message
         if (request->jresp != NULL) {
             jresp = request->jresp;  // retrieve previous error from postCtx
-        } else jresp = jsonNewMessage(AFB_FAIL,"getPostFile Post Request done");
+        } else jresp = jsonNewMessage(AFB_SUCCESS,"getPostFile Post Request done");
         
         // Error or not let's free all resources
         close(postFileCtx->fd);
@@ -188,7 +188,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
 
         postFileCtx->path = strdup (filepath);       
         if (verbose) fprintf(stderr, "getPostFile path=%s\n", filepath);
-        
+       
         if((postFileCtx->fd = open(filepath, O_RDWR |O_CREAT, S_IRWXU|S_IRGRP)) <= 0) {
             postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to Create destination File=[%s] error=%s\n", filepath, strerror(errno));
             goto ExitOnError;

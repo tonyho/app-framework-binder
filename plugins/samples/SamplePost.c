@@ -72,17 +72,12 @@ STATIC json_object* UploadImage (AFB_request *request, AFB_PostItem *item) {
     char *destination = "images";
 
     // This is called after PostForm and then after DonePostForm
-    if (item == NULL) {
-        AFB_PostCtx *postFileCtx = getPostContext(request);
-        
-        // if postFileCtx == NULL then an error happen [getPostedFile automatically reports errors]
-        if (postFileCtx != NULL) {
-            // Do something with your newly upload filepath=postFileCtx->path
-            request->errcode = MHD_HTTP_OK;     
-            request->jresp   = jsonNewMessage(AFB_FAIL,"UploadFile Post Image done");    
-            
-            // Note: should not return here in order getPostedFile to clear Post resources.
-        }
+    if (item == NULL && getPostPath (request) != NULL) {
+        // Do something with your newly upload filepath=postFileCtx->path
+        request->errcode = MHD_HTTP_OK;     
+        request->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Image done");    
+
+        // Note: should not return here in order getPostedFile to clear Post resources.
     }
     
     // upload multi iteration logic is handle by getPostedFile

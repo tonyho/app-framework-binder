@@ -103,31 +103,28 @@
       <folder path="0/plugins/afm-main-plugin">
         <cTool>
           <incDir>
-            <pElem>plugins/afm-main-plugin</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
+            <pElem>build/plugins/afm-main-plugin</pElem>
           </incDir>
           <preprocessorList>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>afm_main_api_EXPORTS=1</Elem>
+            <Elem>afm_main_api_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </folder>
       <folder path="0/plugins/audio">
         <cTool>
           <incDir>
-            <pElem>plugins/audio</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/plugins/audio</pElem>
           </incDir>
           <preprocessorList>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>audio_api_EXPORTS=1</Elem>
+            <Elem>audio_api_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </folder>
@@ -144,6 +141,12 @@
       </folder>
       <folder path="0/plugins/samples">
         <cTool>
+          <incDir>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
+            <pElem>build/plugins/samples</pElem>
+          </incDir>
           <preprocessorList>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
@@ -152,16 +155,14 @@
       <folder path="0/plugins/session">
         <cTool>
           <incDir>
-            <pElem>plugins/session</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/plugins/session</pElem>
           </incDir>
           <preprocessorList>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>token_api_EXPORTS=1</Elem>
+            <Elem>token_api_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </folder>
@@ -169,32 +170,22 @@
             ex="false"
             tool="0"
             flavor2="2">
-        <cTool flags="2">
-          <incDir>
-            <pElem>build/plugins/afm-main-plugin</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="plugins/afm-main-plugin/utils-jbus.c"
             ex="false"
             tool="0"
             flavor2="2">
-        <cTool flags="2">
-          <incDir>
-            <pElem>/usr/lib64/dbus-1.0/include/dbus</pElem>
-            <pElem>/usr/include/dbus-1.0/dbus</pElem>
-            <pElem>/usr/include/dbus-1.0</pElem>
-            <pElem>/usr/lib64/dbus-1.0/include</pElem>
-            <pElem>build/plugins/afm-main-plugin</pElem>
-          </incDir>
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="plugins/audio/audio-alsa.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="plugins/audio/audio-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="plugins/radio/radio-api.c" ex="false" tool="0" flavor2="2">
@@ -206,50 +197,28 @@
         </cTool>
       </item>
       <item path="plugins/samples/ClientCtx.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
-          <incDir>
-            <pElem>plugins/samples</pElem>
-            <pElem>build/plugins/samples</pElem>
-          </incDir>
+        <cTool flags="0">
           <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>clientCtx_api_EXPORTS=1</Elem>
+            <Elem>clientCtx_api_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
       <item path="plugins/samples/HelloWorld.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
-          <incDir>
-            <pElem>plugins/samples</pElem>
-            <pElem>build/plugins/samples</pElem>
-          </incDir>
+        <cTool flags="0">
           <preprocessorList>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
-            <Elem>helloWorld_api_EXPORTS=1</Elem>
+            <Elem>helloWorld_api_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
       <item path="plugins/samples/SamplePost.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
-          <incDir>
-            <pElem>/usr/include/dbus-1.0</pElem>
-            <pElem>/usr/lib64/dbus-1.0/include</pElem>
-            <pElem>/usr/include/alsa</pElem>
-            <pElem>build/plugins/samples</pElem>
-          </incDir>
           <preprocessorList>
             <Elem>samplePost_api_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
       <item path="plugins/session/token-api.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/afbs-api.c" ex="false" tool="0" flavor2="2">
@@ -281,20 +250,18 @@
         </cTool>
       </item>
       <item path="src/config.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
+            <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -329,31 +296,34 @@
         </cTool>
       </item>
       <item path="src/http-svc.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
-            <pElem>/usr/include/json-c</pElem>
             <pElem>include</pElem>
-            <pElem>/usr/include/uuid</pElem>
-            <pElem>build/src</pElem>
-          </incDir>
-        </cTool>
-      </item>
-      <item path="src/main.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
-          <incDir>
-            <pElem>src</pElem>
             <pElem>/usr/include/json-c</pElem>
-            <pElem>include</pElem>
             <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/src</pElem>
           </incDir>
           <preprocessorList>
             <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
-            <Elem>__PIC__=2</Elem>
-            <Elem>__REGISTER_PREFIX__=</Elem>
-            <Elem>__USER_LABEL_PREFIX__=</Elem>
-            <Elem>__pic__=2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/main.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>/usr/include/json-c</pElem>
+            <pElem>/usr/include/uuid</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
+            <pElem>build/src</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
           </preprocessorList>
         </cTool>
       </item>
@@ -392,14 +362,19 @@
         </cTool>
       </item>
       <item path="src/session.c" ex="false" tool="0" flavor2="2">
-        <cTool flags="2">
+        <cTool flags="0">
           <incDir>
-            <pElem>src</pElem>
+            <pElem>include</pElem>
             <pElem>/usr/include/json-c</pElem>
             <pElem>/usr/include/uuid</pElem>
-            <pElem>include</pElem>
+            <pElem>/usr/include/dbus-1.0</pElem>
+            <pElem>/usr/lib64/dbus-1.0/include</pElem>
+            <pElem>/usr/include/alsa</pElem>
             <pElem>build/src</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>PLUGIN_INSTALL_DIR="/usr/local/lib64/afb"</Elem>
+          </preprocessorList>
         </cTool>
       </item>
     </conf>

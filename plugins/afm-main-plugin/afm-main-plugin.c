@@ -127,20 +127,23 @@ static struct json_object *call_file__appid(AFB_request *request, AFB_PostItem *
 		struct json_object *obj;
 		char *query;
 		const char *filename = getPostPath(request);
-		request->jresp = NULL;
-		if (0 >= asprintf(&query, "\"%s\"", filename))
-			request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
-		else {
-			obj = jbus_call_sj_sync(jbus, request->api, query);
-			free(query);
-			if (obj)
-				request->jresp = embed(request, _id_, obj);
-			else
-				request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
-		}
-		unlink(filename);
+                
+                if (filename != NULL) {
+                    request->jresp = NULL;
+                    if (0 >= asprintf(&query, "\"%s\"", filename))
+                            request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+                    else {
+                            obj = jbus_call_sj_sync(jbus, request->api, query);
+                            free(query);
+                            if (obj)
+                                    request->jresp = embed(request, _id_, obj);
+                            else
+                                    request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
+                    }
+                    unlink(filename);
+                }
 	}
-	return getPostFile (request, item, "/tmp");
+	return getPostFile (request, item, "/tmp/upload");
 }
 
 static AFB_restapi plug_apis[] =
