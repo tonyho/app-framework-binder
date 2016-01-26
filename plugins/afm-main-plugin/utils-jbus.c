@@ -268,7 +268,9 @@ static DBusHandlerResult incoming_resp(DBusConnection *connection, DBusMessage *
 	*prv = jrw->next;
 
 	/* retrieve the string value */
-	if (!dbus_message_get_args(message, NULL, DBUS_TYPE_STRING, &str, DBUS_TYPE_INVALID)) {
+	if (dbus_message_get_args(message, NULL, DBUS_TYPE_STRING, &str, DBUS_TYPE_INVALID))
+		status = 0;
+	else {
 		status = -1;
 		str = NULL;
 		reply = NULL;
