@@ -24,6 +24,12 @@ extern struct jbus *create_jbus(int session, const char *path);
 extern void jbus_addref(struct jbus *jbus);
 extern void jbus_unref(struct jbus *jbus);
 
+struct pollfd;
+extern int jbus_fill_pollfds(struct jbus **jbuses, int njbuses, struct pollfd *fds);
+extern int jbus_dispatch_pollfds(struct jbus **jbuses, int njbuses, struct pollfd *fds, int maxcount);
+extern int jbus_read_write_dispatch_multiple(struct jbus **jbuses, int njbuses, int toms, int maxcount);
+extern int jbus_dispatch_multiple(struct jbus **jbuses, int njbuses, int maxcount);
+
 extern int jbus_read_write_dispatch(struct jbus *jbus, int toms);
 
 /* verbs for the clients */
@@ -51,4 +57,5 @@ extern int jbus_add_service_j(struct jbus *jbus, const char *method, void (*onca
 extern int jbus_start_serving(struct jbus *jbus);
 extern int jbus_send_signal_s(struct jbus *jbus, const char *name, const char *content);
 extern int jbus_send_signal_j(struct jbus *jbus, const char *name, struct json_object *content);
+
 

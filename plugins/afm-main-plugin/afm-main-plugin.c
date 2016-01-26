@@ -21,17 +21,60 @@
 
 #include "utils-jbus.h"
 
-static const char _id_[] = "id";
+static const char _id_[]        = "id";
+static const char _runid_[]     = "runid";
+static char _runnables_[] = "runnables";
+static char _detail_[]    = "detail";
+static char _start_[]     = "start";
+static char _terminate_[] = "terminate";
+static char _stop_[]      = "stop";
+static char _continue_[]  = "continue";
+static char _runners_[]   = "runners";
+static char _state_[]     = "state";
+static char _install_[]   = "install";
+static char _uninstall_[] = "uninstall";
+
 static struct jbus *jbus;
 
-static struct json_object *call_void(AFB_request *request)
+static struct json_object *embed(AFB_request *request, const char *tag, struct json_object *obj)
+{
+	struct json_object *result;
+
+	if (obj == NULL)
+		result = NULL;
+	else if (!tag) {
+		request->errcode = MHD_HTTP_OK;
+		result = obj;
+	}
+	else {
+		result = json_object_new_object();
+		if (result == NULL) {
+			/* can't embed */
+			result = obj;
+			request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+		}
+		else {
+			/* TODO why is json-c not returning a status? */
+			json_object_object_add(result, tag, obj);
+			request->errcode = MHD_HTTP_OK;
+		}
+	}
+	return result;
+}
+
+static struct json_object *call(AFB_request *request, AFB_PostItem *item, const char *tag, struct json_object *(*fun)(AFB_request*,AFB_PostItem*))
+{
+	return embed(request, tag, fun(request, item));
+}
+
+static struct json_object *call_void(AFB_request *request, AFB_PostItem *item)
 {
 	struct json_object *obj = jbus_call_sj_sync(jbus, request->api, "true");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
 }
 
-static struct json_object *call_appid(AFB_request *request)
+static struct json_object *call_appid(AFB_request *request, AFB_PostItem *item)
 {
 	struct json_object *obj;
 	char *sid;
@@ -50,10 +93,10 @@ static struct json_object *call_appid(AFB_request *request)
 	return obj;
 }
 
-static struct json_object *call_runid(AFB_request *request)
+static struct json_object *call_runid(AFB_request *request, AFB_PostItem *item)
 {
 	struct json_object *obj;
-	const char *id = getQueryValue(request, _id_);
+	const char *id = getQueryValue(request, _runid_);
 	if (id == NULL) {
 		request->errcode = MHD_HTTP_BAD_REQUEST;
 		return NULL;
@@ -63,16 +106,55 @@ static struct json_object *call_runid(AFB_request *request)
 	return obj;
 }
 
+static struct json_object *call_void__runnables(AFB_request *request, AFB_PostItem *item)
+{
+	return embed(request, _runnables_, call_void(request, item));
+}
+
+static struct json_object *call_appid__runid(AFB_request *request, AFB_PostItem *item)
+{
+	return embed(request, _runid_, call_appid(request, item));
+}
+
+static struct json_object *call_void__runners(AFB_request *request, AFB_PostItem *item)
+{
+	return embed(request, _runners_, call_void(request, item));
+}
+
+static struct json_object *call_file__appid(AFB_request *request, AFB_PostItem *item)
+{
+	if (item == NULL) {
+		struct json_object *obj;
+		char *query;
+		const char *filename = getPostPath(request);
+		request->jresp = NULL;
+		if (0 >= asprintf(&query, "\"%s\"", filename))
+			request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+		else {
+			obj = jbus_call_sj_sync(jbus, request->api, query);
+			free(query);
+			if (obj)
+				request->jresp = embed(request, _id_, obj);
+			else
+				request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
+		}
+		unlink(filename);
+	}
+	return getPostFile (request, item, "/tmp");
+}
+
 static AFB_restapi plug_apis[] =
 {
-	{"runnables", AFB_SESSION_CHECK, (AFB_apiCB)call_void,  "Get list of runnable applications"},
-	{"detail"   , AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Get the details for one application"},
-	{"start"    , AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Start an application"},
-	{"terminate", AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Terminate a running application"},
-	{"stop"     , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Stop (pause) a running application"},
-	{"continue" , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Continue (resume) a stopped application"},
-	{"runners"  , AFB_SESSION_CHECK, (AFB_apiCB)call_void,  "Get the list of running applications"},
-	{"state"    , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Get the state of a running application"},
+	{_runnables_, AFB_SESSION_CHECK, (AFB_apiCB)call_void__runnables,  "Get list of runnable applications"},
+	{_detail_   , AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Get the details for one application"},
+	{_start_    , AFB_SESSION_CHECK, (AFB_apiCB)call_appid__runid, "Start an application"},
+	{_terminate_, AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Terminate a running application"},
+	{_stop_     , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Stop (pause) a running application"},
+	{_continue_ , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Continue (resume) a stopped application"},
+	{_runners_  , AFB_SESSION_CHECK, (AFB_apiCB)call_void__runners,  "Get the list of running applications"},
+	{_state_    , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Get the state of a running application"},
+	{_install_  , AFB_SESSION_CHECK, (AFB_apiCB)call_file__appid,  "Install an application using a widget file"},
+	{_uninstall_, AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Uninstall an application"},
 	{NULL}
 };
 
