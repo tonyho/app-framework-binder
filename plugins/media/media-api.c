@@ -64,15 +64,12 @@ STATIC json_object* list (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
     json_object *jresp;
-    char *result;
 
-    result = _rygel_list (ctx);
+    jresp = _rygel_list (ctx);
 
-    if (!result)
+    if (!jresp)
       return jsonNewMessage(AFB_FAIL, "No content found in media server");
 
-    jresp = json_object_new_object();
-    json_object_object_add(jresp, "list", json_object_new_string (result));
     return jresp;
 }
 
@@ -155,9 +152,11 @@ STATIC json_object* seek (AFB_request *request) {        /* AFB_SESSION_CHECK */
     return jsonNewMessage(AFB_SUCCESS, "Seeked media");
 }
 
-STATIC json_object* upload (AFB_request *request) {      /* AFB_SESSION_CHECK */
+STATIC json_object* upload (AFB_request *request, AFB_PostItem *item) { /* AFB_SESSION_CHECK */
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)request->context;
+    AFB_PostCtx *postFileCtx;
+#if 0
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
     char path[256];
@@ -165,7 +164,17 @@ STATIC json_object* upload (AFB_request *request) {      /* AFB_SESSION_CHECK */
     /* no "?value=" parameter : return error */
     if (!value)
       return jsonNewMessage(AFB_FAIL, "You must provide a file name");
+#endif
+    if (item == NULL) {
+        postFileCtx = getPostContext (request);
+        if (postFileCtx) {
+            postFileCtx->errcode = MHD_HTTP_OK;
+            postFileCtx->jresp = jsonNewMessage (AFB_SUCCESS, "upload=%s done", getPostPath (request));
+        }
+    }
 
+    return getPostFile (request, item, "media");
+#if 0
     snprintf (path, sizeof(path), "/tmp/%s", value);
     if (access (path, R_OK) == -1)
       return jsonNewMessage(AFB_FAIL, "File not found");
@@ -174,6 +183,7 @@ STATIC json_object* upload (AFB_request *request) {      /* AFB_SESSION_CHECK */
       return jsonNewMessage(AFB_FAIL, "Error when uploading file... could not complete");
 
     return jsonNewMessage(AFB_SUCCESS, "File successfully uploaded");
+#endif
 }
 
 STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */

@@ -177,7 +177,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         // make sure destination directory exist
         destDir = opendir (filepath);
         if (destDir == NULL) {
-          if ( 0 <= mkdir(filepath,O_RDWR | S_IRWXU | S_IRGRP)) {
+          if (mkdir(filepath,O_RDWR | S_IRWXU | S_IRGRP) < 0) {
             postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to Create destination directory=[%s] error=%s\n", filepath, strerror(errno));
             goto ExitOnError;
           }

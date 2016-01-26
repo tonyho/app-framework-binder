@@ -29,6 +29,6 @@ typedef struct {
   unsigned int index;          /* currently selected media file       */
 } mediaCtxHandleT;
 
-PUBLIC char* _rygel_list (mediaCtxHandleT *);
+PUBLIC json_object* _rygel_list (mediaCtxHandleT *);
 
 #endif /* MEDIA_API_H */
