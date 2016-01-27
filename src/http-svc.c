@@ -249,7 +249,7 @@ STATIC int newRequest(void *cls,
     }
 
      // Nothing respond to this request Files, API, Angular Base
-    const char *errorstr = "<html><body>Alsa-Json-Gateway Unknown or Not readable file</body></html>";
+    const char *errorstr = "<html><body>AFB-Daemon File Not Find file</body></html>";
     response = MHD_create_response_from_buffer(strlen(errorstr), (void*)errorstr, MHD_RESPMEM_PERSISTENT);
     ret = MHD_queue_response(connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
     return (MHD_YES);
