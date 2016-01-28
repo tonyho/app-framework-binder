@@ -637,8 +637,10 @@ STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *c
 
             if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading pos[%d]\n", pluginDir.d_name, *count);
             plugins[*count] = pluginRegisterFct();
-            *count = *count +1;
-
+            if (!plugins[*count]) {
+                if (verbose) fprintf(stderr, "ERROR: plugin [%s] register function failed. continuing...\n", pluginDir.d_name);
+            } else
+                *count = *count +1;
         }
     }
     closedir (dir);
