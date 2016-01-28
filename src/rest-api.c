@@ -636,8 +636,7 @@ STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *c
             }
 
             if (verbose) fprintf(stderr, "[%s] is a valid AFB plugin, loading pos[%d]\n", pluginDir.d_name, *count);
-            plugins[*count] = (AFB_plugin *) malloc (sizeof(AFB_plugin));
-            plugins[*count] = (**pluginRegisterFct)();
+            plugins[*count] = pluginRegisterFct();
             *count = *count +1;
 
         }
@@ -646,7 +645,7 @@ STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *c
 }
 
 void initPlugins(AFB_session *session) {
-    static AFB_plugin **plugins;
+    AFB_plugin **plugins;
     
     afbJsonType = json_object_new_string (AFB_MSG_JTYPE);
     int count = 0;
@@ -654,7 +653,7 @@ void initPlugins(AFB_session *session) {
     int dirfd;
 
     /* pre-allocate for AFB_MAX_PLUGINS plugins, we will downsize later */
-    plugins = (AFB_plugin **) malloc (AFB_MAX_PLUGINS *sizeof(AFB_plugin));
+    plugins = (AFB_plugin **) malloc (AFB_MAX_PLUGINS *sizeof(AFB_plugin*));
     
     // Loop on every directory passed in --plugins=xxx
     while (dirpath = strsep(&session->config->ldpaths, ":")) {
@@ -673,7 +672,7 @@ void initPlugins(AFB_session *session) {
     }
     
     // downsize structure to effective number of loaded plugins
-    plugins = (AFB_plugin **)realloc (plugins, (count+1)*sizeof(AFB_plugin));
+    plugins = (AFB_plugin **)realloc (plugins, (count+1)*sizeof(AFB_plugin*));
     plugins[count] = NULL;
 
     // complete plugins and save them within current sessions    
