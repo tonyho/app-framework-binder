@@ -170,7 +170,6 @@ typedef struct {
   char *console;           // console device name (can be a file or a tty)
   int  localhostOnly;
   int   httpdPort;
-  char *smack;             // smack label
   char *ldpaths;           // list of plugins directories
   char *rootdir;           // base dir for httpd file download
   char *rootbase;          // Angular HTML5 base URL
