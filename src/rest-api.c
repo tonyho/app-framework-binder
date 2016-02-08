@@ -45,7 +45,7 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
     if (postHandle->type == AFB_POST_FORM) {
          if (verbose) fprintf(stderr, "End PostForm Request UID=%d\n", postHandle->uid);
     }
-    if (postHandle->private) free(postHandle->private);
+    if (postHandle->privatebuf) free(postHandle->privatebuf);
     free(postHandle);
 }
 
@@ -280,7 +280,7 @@ STATIC int doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
     
   // retrieve API request from Post iterator handle  
   AFB_PostHandle *postHandle  = (AFB_PostHandle*)cls;
-  AFB_request *request = (AFB_request*)postHandle->private;
+  AFB_request *request = (AFB_request*)postHandle->privatebuf;
   AFB_PostRequest postRequest;
   
   fprintf (stderr, "postHandle key=%s filename=%s len=%d mime=%s\n", key, filename, size, mimetype);
@@ -404,7 +404,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 request = createRequest (connection, session, url);
                 if (request->jresp != NULL) goto ProcessApiCall;
                 postHandle->type   = AFB_POST_FORM;
-                postHandle->private= (void*)request;
+                postHandle->privatebuf = (void*)request;
                 postHandle->pp     = MHD_create_post_processor (connection, MAX_POST_SIZE, &doPostIterate, postHandle);
                 
                 if (NULL == postHandle->pp) {
@@ -429,7 +429,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
 
                 // Size is OK, let's allocate a buffer to hold post data
                 postHandle->type = AFB_POST_JSON;
-                postHandle->private = malloc(contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
+                postHandle->privatebuf = malloc(contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
 
                 // if (verbose) fprintf(stderr, "Create PostJson[uid=%d] Size=%d\n", postHandle->uid, contentlen);
                 return MHD_YES;
@@ -454,7 +454,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
             // Process JsonPost request when buffer is completed let's call API    
             if (postHandle->type == AFB_POST_JSON) {
                 // if (verbose) fprintf(stderr, "Updating PostJson[uid=%d]\n", postHandle->uid);
-                memcpy(&postHandle->private[postHandle->len], upload_data, *upload_data_size);
+                memcpy(&postHandle->privatebuf[postHandle->len], upload_data, *upload_data_size);
                 postHandle->len = postHandle->len + *upload_data_size;
             }
             
@@ -490,8 +490,8 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
                 }
 
                 // Before processing data, make sure buffer string is properly ended
-                postHandle->private[postHandle->len] = '\0';
-                postRequest.data = postHandle->private;
+                postHandle->privatebuf[postHandle->len] = '\0';
+                postRequest.data = postHandle->privatebuf;
                 request->post = &postRequest;
 
                 // if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);
@@ -562,15 +562,15 @@ STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
               
             // Prebuild each API jtype to boost API json response
             for (jdx = 0; plugins[idx]->apis[jdx].name != NULL; jdx++) {
-                AFB_privateApi *private = malloc (sizeof (AFB_privateApi));
-                if (plugins[idx]->apis[jdx].private != NULL) {
+                AFB_privateApi *privateapi = malloc (sizeof (AFB_privateApi));
+                if (plugins[idx]->apis[jdx].privateapi != NULL) {
                     fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL=0x%x\n"
-                            ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name, plugins[idx]->apis[jdx].private);
+                            ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name, plugins[idx]->apis[jdx].privateapi);
                 }
-                private->len = strlen (plugins[idx]->apis[jdx].name);
-                private->jtype=json_object_new_string(plugins[idx]->apis[jdx].name);
-                json_object_get(private->jtype); // increase reference count to make it permanent
-                plugins[idx]->apis[jdx].private = private;
+                privateapi->len = strlen (plugins[idx]->apis[jdx].name);
+                privateapi->jtype=json_object_new_string(plugins[idx]->apis[jdx].name);
+                json_object_get(privateapi->jtype); // increase reference count to make it permanent
+                plugins[idx]->apis[jdx].privateapi = privateapi;
             }
         }
     }

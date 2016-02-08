@@ -130,7 +130,7 @@ typedef struct {
   int    uid;               // post uid for debug
   AFB_PostType type;        // JSON or FORM
   AFB_apiCB  completeCB;    // callback when post is completed
-  char   *private;          // use internally to keep track or partial buffer
+  char   *privatebuf;       // use internally to keep track or partial buffer
   struct MHD_PostProcessor *pp; // iterator handle
 } AFB_PostHandle;
 
@@ -206,7 +206,7 @@ typedef struct {
   AFB_sessionE session;
   AFB_apiCB callback;
   char *info;
-  AFB_privateApi *private;
+  AFB_privateApi *privateapi;
 } AFB_restapi;
 
 // Plugin definition
