@@ -1,5 +1,5 @@
 /*
-   alsajson-gw -- provide a REST/HTTP interface to ALSA-Mixer
+   local-def.h -- provide a REST/HTTP interface
 
    Copyright (C) 2015, Fulup Ar Foll
 
@@ -88,7 +88,7 @@ typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLU
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
 extern char *ERROR_LABEL[];
-#define ERROR_LABEL_DEF {"false", "true","fatal", "fail", "warning", "empty", "success"}
+#define ERROR_LABEL_DEF {"false", "true", "fatal", "fail", "warning", "empty", "success"}
 
 #define BANNER "<html><head><title>Application Framework Binder</title></head><body>Application Framework </body></html>"
 #define JSON_CONTENT  "application/json"
