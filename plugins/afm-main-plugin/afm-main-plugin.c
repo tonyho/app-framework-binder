@@ -21,18 +21,18 @@
 
 #include "utils-jbus.h"
 
-static const char _id_[]        = "id";
-static const char _runid_[]     = "runid";
-static char _runnables_[] = "runnables";
-static char _detail_[]    = "detail";
-static char _start_[]     = "start";
-static char _terminate_[] = "terminate";
-static char _stop_[]      = "stop";
-static char _continue_[]  = "continue";
-static char _runners_[]   = "runners";
-static char _state_[]     = "state";
-static char _install_[]   = "install";
-static char _uninstall_[] = "uninstall";
+static const char _id_[]    = "id";
+static const char _runid_[] = "runid";
+static char _runnables_[]   = "runnables";
+static char _detail_[]      = "detail";
+static char _start_[]       = "start";
+static char _terminate_[]   = "terminate";
+static char _stop_[]        = "stop";
+static char _continue_[]    = "continue";
+static char _runners_[]     = "runners";
+static char _state_[]       = "state";
+static char _install_[]     = "install";
+static char _uninstall_[]   = "uninstall";
 
 static struct jbus *jbus;
 
@@ -70,6 +70,8 @@ static struct json_object *call(AFB_request *request, AFB_PostItem *item, const 
 static struct json_object *call_void(AFB_request *request, AFB_PostItem *item)
 {
 	struct json_object *obj = jbus_call_sj_sync(jbus, request->api, "true");
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_void: true -> %s\n", obj ? json_object_to_json_string(obj) : "NULL");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
 }
@@ -88,6 +90,8 @@ static struct json_object *call_appid(AFB_request *request, AFB_PostItem *item)
 		return NULL;
 	}
 	obj = jbus_call_sj_sync(jbus, request->api, sid);
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_appid: %s -> %s\n", sid, obj ? json_object_to_json_string(obj) : "NULL");
 	free(sid);
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
@@ -102,6 +106,8 @@ static struct json_object *call_runid(AFB_request *request, AFB_PostItem *item)
 		return NULL;
 	}
 	obj = jbus_call_sj_sync(jbus, request->api, id);
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_runid: %s -> %s\n", id, obj ? json_object_to_json_string(obj) : "NULL");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
 }
@@ -124,24 +130,25 @@ static struct json_object *call_void__runners(AFB_request *request, AFB_PostItem
 static struct json_object *call_file__appid(AFB_request *request, AFB_PostItem *item)
 {
 	if (item == NULL) {
-		struct json_object *obj;
-		char *query;
 		const char *filename = getPostPath(request);
-                
-                if (filename != NULL) {
-                    request->jresp = NULL;
-                    if (0 >= asprintf(&query, "\"%s\"", filename))
-                            request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
-                    else {
-                            obj = jbus_call_sj_sync(jbus, request->api, query);
-                            free(query);
-                            if (obj)
-                                    request->jresp = embed(request, _id_, obj);
-                            else
-                                    request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
-                    }
-                    unlink(filename);
-                }
+		if (filename != NULL) {
+			struct json_object *obj;
+			char *query;
+			request->jresp = NULL;
+			if (0 >= asprintf(&query, "\"%s\"", filename))
+				request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+			else {
+				obj = jbus_call_sj_sync(jbus, request->api, query);
+				if (verbose)
+					fprintf(stderr, "(afm-main-plugin) call_file_appid: %s -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
+				free(query);
+				if (obj)
+					request->jresp = embed(request, _id_, obj);
+				else
+					request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
+			}
+			unlink(filename);
+		}
 	}
 	return getPostFile (request, item, "/tmp/upload");
 }
