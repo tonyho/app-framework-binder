@@ -50,34 +50,36 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
 
 
 // Define command line option
- #define SET_VERBOSE        101
- #define SET_BACKGROUND     105
- #define SET_FORGROUND      106
- #define KILL_PREV_EXIT     107
- #define KILL_PREV_REST     108
- #define SET_FAKE_MOD       109
+#define SET_VERBOSE        101
+#define SET_BACKGROUND     105
+#define SET_FORGROUND      106
+#define KILL_PREV_EXIT     107
+#define KILL_PREV_REST     108
+#define SET_FAKE_MOD       109
 
- #define SET_TCP_PORT       120
- #define SET_ROOT_DIR       121
- #define SET_ROOT_BASE      122
- #define SET_ROOT_API       123
- #define SET_ROOT_ALIAS     124
+#define SET_TCP_PORT       120
+#define SET_ROOT_DIR       121
+#define SET_ROOT_BASE      122
+#define SET_ROOT_API       123
+#define SET_ROOT_ALIAS     124
 
- #define SET_CACHE_TO       130
- #define SET_USERID         131
- #define SET_PID_FILE       132
- #define SET_SESSION_DIR    133
- #define SET_CONFIG_FILE    134
- #define SET_CONFIG_SAVE    135
- #define SET_CONFIG_EXIT    138
+#define SET_CACHE_TO       130
+#define SET_USERID         131
+#define SET_PID_FILE       132
+#define SET_SESSION_DIR    133
+#define SET_CONFIG_FILE    134
+#define SET_CONFIG_SAVE    135
+#define SET_CONFIG_EXIT    138
 
- #define SET_AUTH_TOKEN     141
- #define SET_LDPATH        142
- #define SET_APITIMEOUT     143
- #define SET_CNTXTIMEOUT    144
+#define SET_AUTH_TOKEN     141
+#define SET_LDPATH         142
+#define SET_APITIMEOUT     143
+#define SET_CNTXTIMEOUT    144
 
- #define DISPLAY_VERSION    150
- #define DISPLAY_HELP       151
+#define DISPLAY_VERSION    150
+#define DISPLAY_HELP       151
+
+#define SET_MODE           160
 
 
 // Supported option
@@ -111,6 +113,8 @@ static  AFB_options cliOptions [] = {
   
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
   {DISPLAY_HELP     ,0,"help"            , "Display this help"},
+
+  {SET_MODE         ,1,"mode"            , "set the mode: either local, remote or global"},
   {0, 0, 0}
  };
 
@@ -413,6 +417,15 @@ int main(int argc, char *argv[])  {
        session->killPrevious  = 2;
        break;
 
+    case SET_MODE:
+       if (optarg == 0) goto needValueForOption;
+       /* TODO setting directly session->config isn't the expected path but... see configLoadFile, configStoreFile (JOBOL) */
+       if (!strcmp(optarg, "local")) session->config->mode = AFB_MODE_LOCAL;
+       else if (!strcmp(optarg, "remote")) session->config->mode = AFB_MODE_REMOTE;
+       else if (!strcmp(optarg, "global")) session->config->mode = AFB_MODE_GLOBAL;
+       else goto badMode;
+       break;
+
     case DISPLAY_VERSION:
        if (optarg != 0) goto noValueForOption;
        printVersion();
@@ -440,7 +453,7 @@ int main(int argc, char *argv[])  {
   if  ((session->background == 0) && (session->foreground == 0)) session->foreground=1;
 
   // open syslog if ever needed
-  openlog("AGB-log", 0, LOG_DAEMON);
+  openlog("AFB-log", 0, LOG_DAEMON);
 
   // -------------- Try to kill any previous process if asked ---------------------
   if (session->killPrevious) {
@@ -613,6 +626,11 @@ noValueForOption:
 notAnInteger:
   fprintf (stderr,"\nERR:AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
+  exit (-1);
+
+badMode:
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
+          ,gnuOptions[optionIndex].name);
   exit (-1);
 
 exitOnSignal:

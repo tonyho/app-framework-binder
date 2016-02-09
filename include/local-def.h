@@ -108,6 +108,7 @@ typedef struct {
 } AFB_errorT;
 
 typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
+typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
 
 // Post Upload File Handle
 typedef struct {
@@ -184,6 +185,7 @@ typedef struct {
   int  cntxTimeout;        // Client Session Context timeout
   int  pluginCount;        // loaded plugins count
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
+  AFB_Mode mode;           // mode of listening
 } AFB_config;
 
 typedef struct {
