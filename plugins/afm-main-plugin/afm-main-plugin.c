@@ -171,6 +171,9 @@ static AFB_plugin plug_desc = {
 AFB_plugin *pluginRegister()
 {
 	jbus = create_jbus(1, "/org/AGL/afm/user");
-	return jbus ? &plug_desc : NULL;
+        if (jbus)
+		return &plug_desc;
+	fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
+	return NULL;
 }
 
