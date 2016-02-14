@@ -61,7 +61,8 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    
    // TBD integrate alias-dir array with config-file
    session->config->aliasdir = cliconfig->aliasdir;
-   
+   session->config->mode = cliconfig->mode;
+
    // default HTTP port
    if (cliconfig->httpdPort == 0) session->config->httpdPort=1234;
    else session->config->httpdPort=cliconfig->httpdPort;

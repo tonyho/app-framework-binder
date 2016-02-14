@@ -184,8 +184,8 @@ typedef struct {
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
   int  pluginCount;        // loaded plugins count
-  AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
   AFB_Mode mode;           // mode of listening
+  AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 } AFB_config;
 
 typedef struct {

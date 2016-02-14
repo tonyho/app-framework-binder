@@ -419,10 +419,9 @@ int main(int argc, char *argv[])  {
 
     case SET_MODE:
        if (optarg == 0) goto needValueForOption;
-       /* TODO setting directly session->config isn't the expected path but... see configLoadFile, configStoreFile (JOBOL) */
-       if (!strcmp(optarg, "local")) session->config->mode = AFB_MODE_LOCAL;
-       else if (!strcmp(optarg, "remote")) session->config->mode = AFB_MODE_REMOTE;
-       else if (!strcmp(optarg, "global")) session->config->mode = AFB_MODE_GLOBAL;
+       if (!strcmp(optarg, "local")) cliconfig.mode = AFB_MODE_LOCAL;
+       else if (!strcmp(optarg, "remote")) cliconfig.mode = AFB_MODE_REMOTE;
+       else if (!strcmp(optarg, "global")) cliconfig.mode = AFB_MODE_GLOBAL;
        else goto badMode;
        break;
 

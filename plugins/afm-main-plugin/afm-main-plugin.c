@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <stdio.h>
 
 #include "local-def.h"
 
@@ -33,6 +35,10 @@ static char _runners_[]     = "runners";
 static char _state_[]       = "state";
 static char _install_[]     = "install";
 static char _uninstall_[]   = "uninstall";
+static const char _mode_[]  = "mode";
+static const char _local_[] = "local";
+static const char _remote_[]= "remote";
+static const char _uri_[]   = "uri";
 
 static struct jbus *jbus;
 
@@ -117,9 +123,43 @@ static struct json_object *call_void__runnables(AFB_request *request, AFB_PostIt
 	return embed(request, _runnables_, call_void(request, item));
 }
 
-static struct json_object *call_appid__runid(AFB_request *request, AFB_PostItem *item)
+static struct json_object *call_start(AFB_request *request, AFB_PostItem *item)
 {
-	return embed(request, _runid_, call_appid(request, item));
+	struct json_object *resp;
+	const char *id, *mode;
+	char *query;
+	int rc;
+
+	/* get the id */
+	id = getQueryValue(request, _id_);
+	if (id == NULL) {
+		request->errcode = MHD_HTTP_BAD_REQUEST;
+		return NULL;
+	}
+	/* get the mode */
+	mode = getQueryValue(request, _mode_);
+	if (mode == NULL) {
+		mode = request->config->mode == AFB_MODE_REMOTE ? _remote_ : _local_;
+	}
+
+	/* create the query */
+	rc = asprintf(&query, "{\"id\":\"%s\",\"mode\":\"%s\"}", id, mode);
+	if (rc < 0) {
+		request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+		return NULL;
+	}
+
+	/* calls the service */
+	resp = jbus_call_sj_sync(jbus, _start_, query);
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_start: %s -> %s\n", query, resp ? json_object_to_json_string(resp) : "NULL");
+	free(query);
+
+	/* embed if needed */
+	if (json_object_get_type(resp) == json_type_string)
+		resp = embed(request, _runid_, resp);
+	request->errcode = resp ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
+	return resp;
 }
 
 static struct json_object *call_void__runners(AFB_request *request, AFB_PostItem *item)
@@ -157,7 +197,7 @@ static AFB_restapi plug_apis[] =
 {
 	{_runnables_, AFB_SESSION_CHECK, (AFB_apiCB)call_void__runnables,  "Get list of runnable applications"},
 	{_detail_   , AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Get the details for one application"},
-	{_start_    , AFB_SESSION_CHECK, (AFB_apiCB)call_appid__runid, "Start an application"},
+	{_start_    , AFB_SESSION_CHECK, (AFB_apiCB)call_start, "Start an application"},
 	{_terminate_, AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Terminate a running application"},
 	{_stop_     , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Stop (pause) a running application"},
 	{_continue_ , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Continue (resume) a stopped application"},
