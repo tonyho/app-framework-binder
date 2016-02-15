@@ -38,6 +38,7 @@ static char _uninstall_[]   = "uninstall";
 static const char _mode_[]  = "mode";
 static const char _local_[] = "local";
 static const char _remote_[]= "remote";
+static const char _auto_[]  = "auto";
 static const char _uri_[]   = "uri";
 
 static struct jbus *jbus;
@@ -138,7 +139,7 @@ static struct json_object *call_start(AFB_request *request, AFB_PostItem *item)
 	}
 	/* get the mode */
 	mode = getQueryValue(request, _mode_);
-	if (mode == NULL) {
+	if (mode == NULL || !strcmp(mode, _auto_)) {
 		mode = request->config->mode == AFB_MODE_REMOTE ? _remote_ : _local_;
 	}
 
