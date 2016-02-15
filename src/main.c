@@ -80,6 +80,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
 #define DISPLAY_HELP       151
 
 #define SET_MODE           160
+#define SET_READYFD        161
 
 
 // Supported option
@@ -115,6 +116,7 @@ static  AFB_options cliOptions [] = {
   {DISPLAY_HELP     ,0,"help"            , "Display this help"},
 
   {SET_MODE         ,1,"mode"            , "set the mode: either local, remote or global"},
+  {SET_READYFD      ,1,"readyfd"         , "set the #fd to signal when ready"},
   {0, 0, 0}
  };
 
@@ -241,6 +243,12 @@ static void listenLoop (AFB_session *session) {
 
         err = httpdStart (session);
         if (err != AFB_SUCCESS) return;
+
+	if (session->readyfd != 0) {
+		static const char readystr[] = "READY=1";
+		write(session->readyfd, readystr, sizeof(readystr) - 1);
+		close(session->readyfd);
+	}
 
         // infinite loop
         httpdLoop(session);
@@ -423,6 +431,11 @@ int main(int argc, char *argv[])  {
        else if (!strcmp(optarg, "remote")) cliconfig.mode = AFB_MODE_REMOTE;
        else if (!strcmp(optarg, "global")) cliconfig.mode = AFB_MODE_GLOBAL;
        else goto badMode;
+       break;
+
+    case SET_READYFD:
+       if (optarg == 0) goto needValueForOption;
+       if (!sscanf (optarg, "%u", &session->readyfd)) goto notAnInteger;
        break;
 
     case DISPLAY_VERSION:

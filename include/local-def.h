@@ -265,6 +265,7 @@ typedef struct {
   void *httpd;            // anonymous structure for httpd handler
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  forceexit;         // when autoconfig from script force exit before starting server
+  int  readyfd;           // a #fd to signal when ready to serve
   AFB_plugin **plugins;   // pointer to REST/API plugins 
   magic_t  magic;         // Mime type file magic lib
   sigjmp_buf restartCkpt; // context save for restart set/longjmp
