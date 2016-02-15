@@ -283,7 +283,8 @@ STATIC int doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   AFB_request *request = (AFB_request*)postHandle->privatebuf;
   AFB_PostRequest postRequest;
   
-  fprintf (stderr, "postHandle key=%s filename=%s len=%d mime=%s\n", key, filename, size, mimetype);
+  if (verbose)
+    fprintf (stderr, "postHandle key=%s filename=%s len=%d mime=%s\n", key, filename, size, mimetype);
    
   // Create and Item value for Plugin API
   item.kind     = kind;
