@@ -157,7 +157,7 @@ static struct json_object *call_start(AFB_request *request, AFB_PostItem *item)
 	free(query);
 
 	/* embed if needed */
-	if (json_object_get_type(resp) == json_type_string)
+	if (json_object_get_type(resp) == json_type_int)
 		resp = embed(request, _runid_, resp);
 	request->errcode = resp ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return resp;
