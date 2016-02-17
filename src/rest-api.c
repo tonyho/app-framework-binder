@@ -107,7 +107,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                             json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                             json_object_object_add(jcall, "info", json_object_new_string ("Setting Timeout Handler Failed"));
                             json_object_object_add(jreqt, "request", jcall);
-                            return AFB_DONE;
+                            goto ExitOnDone;
                        }
                     }
                     // Trigger a timer to protect from unacceptable long time execution
@@ -124,7 +124,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                         json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                         json_object_object_add(jcall, "info", json_object_new_string ("Client Session Context Full !!!"));
                         json_object_object_add(jreqt, "request", jcall);
-                        return (AFB_DONE);                              
+                        goto ExitOnDone;
                     };
                     
                     if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[0x%x] Uuid=[%s] Token=[%s]\n"
@@ -133,12 +133,12 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                     switch(plugin->apis[idx].session) {
 
                         case AFB_SESSION_CREATE:
-                            if (clientCtx->token[0] != '\0') {
+                            if (clientCtx->token[0] != '\0' && request->config->token[0] != '\0') {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("exist"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CREATE Session already exist"));
                                 json_object_object_add(jreqt, "request", jcall);
-                                return (AFB_DONE);                              
+                                goto ExitOnDone;
                             }
                         
                             if (AFB_SUCCESS != ctxTokenCreate (clientCtx, request)) {
@@ -146,7 +146,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                                 json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CREATE Invalid Initial Token"));
                                 json_object_object_add(jreqt, "request", jcall);
-                                return (AFB_DONE);
+                                goto ExitOnDone;
                             } else {
                                 json_object_object_add(jcall, "uuid", json_object_new_string (clientCtx->uuid));                                
                                 json_object_object_add(jcall, "token", json_object_new_string (clientCtx->token));                                
@@ -161,7 +161,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                                 json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_REFRESH Broken Exchange Token Chain"));
                                 json_object_object_add(jreqt, "request", jcall);
-                                return (AFB_DONE);
+                                goto ExitOnDone;
                             } else {
                                 json_object_object_add(jcall, "uuid", json_object_new_string (clientCtx->uuid));                                
                                 json_object_object_add(jcall, "token", json_object_new_string (clientCtx->token));                                
@@ -175,7 +175,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                                 json_object_object_add(jcall, "status", json_object_new_string ("empty"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CLOSE Not a Valid Access Token"));
                                 json_object_object_add(jreqt, "request", jcall);
-                                return (AFB_DONE);
+                                goto ExitOnDone;
                             } else {
                                 json_object_object_add(jcall, "uuid", json_object_new_string (clientCtx->uuid));                                
                             }
@@ -189,7 +189,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                                 json_object_object_add(jcall, "status", json_object_new_string ("fail"));
                                 json_object_object_add(jcall, "info", json_object_new_string ("AFB_SESSION_CHECK Invalid Active Token"));
                                 json_object_object_add(jreqt, "request", jcall);
-                                return (AFB_DONE);
+                                goto ExitOnDone;
                             }
                             break;
                     }
@@ -197,9 +197,6 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                 
                 // Effectively CALL PLUGIN API with a subset of the context
                 jresp = plugin->apis[idx].callback(request, context);
-                
-                // prefix response with request object;
-                request->jresp = jreqt;
                 
                 // Store context in case it was updated by plugins
                 if (request->context != NULL) clientCtx->contexts[plugidx] = request->context;               
@@ -213,13 +210,13 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                 // API should return NULL of a valid Json Object
                 if (jresp == NULL) {
                     json_object_object_add(jcall, "status", json_object_new_string ("null"));
-                    json_object_object_add(request->jresp, "request", jcall);
+                    json_object_object_add(jreqt, "request", jcall);
                     request->errcode = MHD_HTTP_NO_RESPONSE;
                     
                 } else {
                     json_object_object_add(jcall, "status", json_object_new_string ("processed"));
-                    json_object_object_add(request->jresp, "request", jcall);
-                    json_object_object_add(request->jresp, "response", jresp);
+                    json_object_object_add(jreqt, "request", jcall);
+                    json_object_object_add(jreqt, "response", jresp);
                 }
                 // cancel timeout and plugin signal handle before next call
                 if (request->config->apiTimeout > 0) {
@@ -229,10 +226,14 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                     }
                 }              
             }       
-            return (AFB_DONE);
+            goto ExitOnDone; 
         }
     }   
     return (AFB_FAIL);
+    
+ExitOnDone:
+    request->jresp = jreqt;
+    return (AFB_DONE);                        
 }
 
 STATIC AFB_error findAndCallApi (AFB_request *request, void *context) {

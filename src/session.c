@@ -525,6 +525,7 @@ PUBLIC AFB_error ctxTokenReset (AFB_clientCtx *clientCtx, AFB_request *request) 
     int ret;
 
     if (clientCtx == NULL) return AFB_EMPTY;
+    //if (verbose) fprintf (stderr, "ctxClientReset New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
     
     // Search for an existing client with the same UUID
     clientCtx = ctxStoreSearch (clientCtx->uuid);
