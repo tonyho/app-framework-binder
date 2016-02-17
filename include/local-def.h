@@ -1,5 +1,5 @@
 /*
-   alsajson-gw -- provide a REST/HTTP interface to ALSA-Mixer
+   local-def.h -- provide a REST/HTTP interface
 
    Copyright (C) 2015, Fulup Ar Foll
 
@@ -88,7 +88,7 @@ typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLU
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
 extern char *ERROR_LABEL[];
-#define ERROR_LABEL_DEF {"false", "true","fatal", "fail", "warning", "empty", "success"}
+#define ERROR_LABEL_DEF {"false", "true", "fatal", "fail", "warning", "empty", "success"}
 
 #define BANNER "<html><head><title>Application Framework Binder</title></head><body>Application Framework </body></html>"
 #define JSON_CONTENT  "application/json"
@@ -108,6 +108,7 @@ typedef struct {
 } AFB_errorT;
 
 typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
+typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
 
 // Post Upload File Handle
 typedef struct {
@@ -130,7 +131,7 @@ typedef struct {
   int    uid;               // post uid for debug
   AFB_PostType type;        // JSON or FORM
   AFB_apiCB  completeCB;    // callback when post is completed
-  char   *private;          // use internally to keep track or partial buffer
+  char   *privatebuf;       // use internally to keep track or partial buffer
   struct MHD_PostProcessor *pp; // iterator handle
 } AFB_PostHandle;
 
@@ -170,7 +171,6 @@ typedef struct {
   char *console;           // console device name (can be a file or a tty)
   int  localhostOnly;
   int   httpdPort;
-  char *smack;             // smack label
   char *ldpaths;           // list of plugins directories
   char *rootdir;           // base dir for httpd file download
   char *rootbase;          // Angular HTML5 base URL
@@ -184,6 +184,7 @@ typedef struct {
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
   int  pluginCount;        // loaded plugins count
+  AFB_Mode mode;           // mode of listening
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 } AFB_config;
 
@@ -207,7 +208,7 @@ typedef struct {
   AFB_sessionE session;
   AFB_apiCB callback;
   char *info;
-  AFB_privateApi *private;
+  AFB_privateApi *privateapi;
 } AFB_restapi;
 
 // Plugin definition
@@ -264,6 +265,7 @@ typedef struct {
   void *httpd;            // anonymous structure for httpd handler
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  forceexit;         // when autoconfig from script force exit before starting server
+  int  readyfd;           // a #fd to signal when ready to serve
   AFB_plugin **plugins;   // pointer to REST/API plugins 
   magic_t  magic;         // Mime type file magic lib
   sigjmp_buf restartCkpt; // context save for restart set/longjmp

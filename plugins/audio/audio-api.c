@@ -22,10 +22,18 @@
 
 void _backend_init (const char *name, audioCtxHandleT *ctx) {
 
+    char *backend_env = getenv ("AFB_AUDIO_OUTPUT");
+    unsigned char res = -1;
+
 # ifdef HAVE_PULSE
-    if (_pulse_init (name, ctx) < 0)
-# endif
-    _alsa_init (name, ctx);
+    if (!backend_env || (strcasecmp (backend_env, "Alsa") != 0))
+        res = _pulse_init (name, ctx);
+    if (res < 0)
+#endif
+    res = _alsa_init (name, ctx);
+
+    if (res < 0 && verbose)
+        fprintf (stderr, "Could not initialize Audio backend\n");
 }
 
 void _backend_free (audioCtxHandleT *ctx) {

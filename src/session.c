@@ -583,6 +583,10 @@ PUBLIC AFB_error ctxTokenRefresh (AFB_clientCtx *clientCtx, AFB_request *request
     // Old token was valid let's regenerate a new one    
     uuid_generate(newuuid);         // create a new UUID
     uuid_unparse_lower(newuuid, clientCtx->token);
+    
+    // keep track of time for session timeout and further clean up
+    clientCtx->timeStamp=time(NULL);
+    
     return (AFB_SUCCESS);    
     
 }

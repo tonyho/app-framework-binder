@@ -16,23 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <stdio.h>
 
 #include "local-def.h"
 
 #include "utils-jbus.h"
 
-static const char _id_[]        = "id";
-static const char _runid_[]     = "runid";
-static char _runnables_[] = "runnables";
-static char _detail_[]    = "detail";
-static char _start_[]     = "start";
-static char _terminate_[] = "terminate";
-static char _stop_[]      = "stop";
-static char _continue_[]  = "continue";
-static char _runners_[]   = "runners";
-static char _state_[]     = "state";
-static char _install_[]   = "install";
-static char _uninstall_[] = "uninstall";
+static const char _id_[]    = "id";
+static const char _runid_[] = "runid";
+static char _runnables_[]   = "runnables";
+static char _detail_[]      = "detail";
+static char _start_[]       = "start";
+static char _terminate_[]   = "terminate";
+static char _stop_[]        = "stop";
+static char _continue_[]    = "continue";
+static char _runners_[]     = "runners";
+static char _state_[]       = "state";
+static char _install_[]     = "install";
+static char _uninstall_[]   = "uninstall";
+static const char _mode_[]  = "mode";
+static const char _local_[] = "local";
+static const char _remote_[]= "remote";
+static const char _auto_[]  = "auto";
+static const char _uri_[]   = "uri";
 
 static struct jbus *jbus;
 
@@ -70,6 +77,8 @@ static struct json_object *call(AFB_request *request, AFB_PostItem *item, const 
 static struct json_object *call_void(AFB_request *request, AFB_PostItem *item)
 {
 	struct json_object *obj = jbus_call_sj_sync(jbus, request->api, "true");
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_void: true -> %s\n", obj ? json_object_to_json_string(obj) : "NULL");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
 }
@@ -88,6 +97,8 @@ static struct json_object *call_appid(AFB_request *request, AFB_PostItem *item)
 		return NULL;
 	}
 	obj = jbus_call_sj_sync(jbus, request->api, sid);
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_appid: %s -> %s\n", sid, obj ? json_object_to_json_string(obj) : "NULL");
 	free(sid);
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
@@ -102,6 +113,8 @@ static struct json_object *call_runid(AFB_request *request, AFB_PostItem *item)
 		return NULL;
 	}
 	obj = jbus_call_sj_sync(jbus, request->api, id);
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_runid: %s -> %s\n", id, obj ? json_object_to_json_string(obj) : "NULL");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
 	return obj;
 }
@@ -111,9 +124,43 @@ static struct json_object *call_void__runnables(AFB_request *request, AFB_PostIt
 	return embed(request, _runnables_, call_void(request, item));
 }
 
-static struct json_object *call_appid__runid(AFB_request *request, AFB_PostItem *item)
+static struct json_object *call_start(AFB_request *request, AFB_PostItem *item)
 {
-	return embed(request, _runid_, call_appid(request, item));
+	struct json_object *resp;
+	const char *id, *mode;
+	char *query;
+	int rc;
+
+	/* get the id */
+	id = getQueryValue(request, _id_);
+	if (id == NULL) {
+		request->errcode = MHD_HTTP_BAD_REQUEST;
+		return NULL;
+	}
+	/* get the mode */
+	mode = getQueryValue(request, _mode_);
+	if (mode == NULL || !strcmp(mode, _auto_)) {
+		mode = request->config->mode == AFB_MODE_REMOTE ? _remote_ : _local_;
+	}
+
+	/* create the query */
+	rc = asprintf(&query, "{\"id\":\"%s\",\"mode\":\"%s\"}", id, mode);
+	if (rc < 0) {
+		request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+		return NULL;
+	}
+
+	/* calls the service */
+	resp = jbus_call_sj_sync(jbus, _start_, query);
+	if (verbose)
+		fprintf(stderr, "(afm-main-plugin) call_start: %s -> %s\n", query, resp ? json_object_to_json_string(resp) : "NULL");
+	free(query);
+
+	/* embed if needed */
+	if (json_object_get_type(resp) == json_type_int)
+		resp = embed(request, _runid_, resp);
+	request->errcode = resp ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
+	return resp;
 }
 
 static struct json_object *call_void__runners(AFB_request *request, AFB_PostItem *item)
@@ -124,24 +171,25 @@ static struct json_object *call_void__runners(AFB_request *request, AFB_PostItem
 static struct json_object *call_file__appid(AFB_request *request, AFB_PostItem *item)
 {
 	if (item == NULL) {
-		struct json_object *obj;
-		char *query;
 		const char *filename = getPostPath(request);
-                
-                if (filename != NULL) {
-                    request->jresp = NULL;
-                    if (0 >= asprintf(&query, "\"%s\"", filename))
-                            request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
-                    else {
-                            obj = jbus_call_sj_sync(jbus, request->api, query);
-                            free(query);
-                            if (obj)
-                                    request->jresp = embed(request, _id_, obj);
-                            else
-                                    request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
-                    }
-                    unlink(filename);
-                }
+		if (filename != NULL) {
+			struct json_object *obj;
+			char *query;
+			request->jresp = NULL;
+			if (0 >= asprintf(&query, "\"%s\"", filename))
+				request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+			else {
+				obj = jbus_call_sj_sync(jbus, request->api, query);
+				if (verbose)
+					fprintf(stderr, "(afm-main-plugin) call_file_appid: %s -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
+				free(query);
+				if (obj)
+					request->jresp = embed(request, _id_, obj);
+				else
+					request->errcode = MHD_HTTP_FAILED_DEPENDENCY;
+			}
+			unlink(filename);
+		}
 	}
 	return getPostFile (request, item, "/tmp/upload");
 }
@@ -150,7 +198,7 @@ static AFB_restapi plug_apis[] =
 {
 	{_runnables_, AFB_SESSION_CHECK, (AFB_apiCB)call_void__runnables,  "Get list of runnable applications"},
 	{_detail_   , AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Get the details for one application"},
-	{_start_    , AFB_SESSION_CHECK, (AFB_apiCB)call_appid__runid, "Start an application"},
+	{_start_    , AFB_SESSION_CHECK, (AFB_apiCB)call_start, "Start an application"},
 	{_terminate_, AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Terminate a running application"},
 	{_stop_     , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Stop (pause) a running application"},
 	{_continue_ , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Continue (resume) a stopped application"},
@@ -171,6 +219,9 @@ static AFB_plugin plug_desc = {
 AFB_plugin *pluginRegister()
 {
 	jbus = create_jbus(1, "/org/AGL/afm/user");
-	return jbus ? &plug_desc : NULL;
+        if (jbus)
+		return &plug_desc;
+	fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
+	return NULL;
 }
 

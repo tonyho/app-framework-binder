@@ -8,3 +8,6 @@ dist/*
 CMakeFiles/
 CMakeCache.txt
 nbproject/private/*
+Makefile
+cmake_install.cmake
+*.so

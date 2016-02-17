@@ -669,6 +669,7 @@ int jbus_dispatch_multiple(struct jbus **jbuses, int njbuses, int maxcount)
 
 	for (i = r = 0 ; i < njbuses && r < maxcount ; i++) {
 		dbus_connection_read_write(jbuses[i]->connection, 0);
+		sts = dbus_connection_get_dispatch_status(jbuses[i]->connection);
 		while(sts == DBUS_DISPATCH_DATA_REMAINS &&  r < maxcount) {
 			sts = dbus_connection_dispatch(jbuses[i]->connection);
 			r++;
@@ -690,10 +691,17 @@ int jbus_read_write_dispatch_multiple(struct jbus **jbuses, int njbuses, int tom
 	assert(fds != NULL);
 
 	r = jbus_dispatch_multiple(jbuses, njbuses, maxcount);
+	if (r)
+		return r;
 	n = jbus_fill_pollfds(jbuses, njbuses, fds);
-	s = poll(fds, n, toms);
-	if (s < 0)
-		return r ? r : s;
+	for(;;) {
+		s = poll(fds, n, toms);
+		if (s >= 0)
+			break;
+		if (errno != EINTR)
+			return r ? r : s;
+		toms = 0;
+	}
 	n = jbus_dispatch_pollfds(jbuses, njbuses, fds, maxcount - r);
 	return n >= 0 ? r + n : r ? r : n;
 }
