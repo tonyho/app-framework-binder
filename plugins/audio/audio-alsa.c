@@ -130,6 +130,8 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     ctx->mute = _alsa_get_mute (num);
     ctx->idx = num;
 
+    if (verbose) fprintf (stderr, "Successfully initialized ALSA backend.\n");
+
     return 0;
 }
 

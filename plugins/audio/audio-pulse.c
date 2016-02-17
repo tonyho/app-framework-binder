@@ -94,6 +94,8 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
     client_count++;
 
+    if (verbose) fprintf (stderr, "Successfully initialized PulseAudio backend.\n");
+
     return 0;
 }
 
