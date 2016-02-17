@@ -132,7 +132,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                     
                     switch(plugin->apis[idx].session) {
 
-                        case AFB_SESSION_CREATE:
+                        case AFB_SESSION_CREATE: 
                             if (clientCtx->token[0] != '\0' && request->config->token[0] != '\0') {
                                 request->errcode=MHD_HTTP_UNAUTHORIZED;
                                 json_object_object_add(jcall, "status", json_object_new_string ("exist"));
