@@ -345,10 +345,14 @@ int main(int argc, char *argv[])  {
        if (optarg == 0) goto needValueForOption;
        if (aliascount < MAX_ALIAS) {
             aliasdir[aliascount].url  = strsep(&optarg,":");
-            aliasdir[aliascount].path = strsep(&optarg,":");
-            aliasdir[aliascount].len  = strlen(aliasdir[aliascount].url);
-            if (verbose) fprintf(stderr, "Alias url=%s path=%s\n", aliasdir[aliascount].url, aliasdir[aliascount].path);
-            aliascount++;
+            if (optarg == NULL) {
+              fprintf(stderr, "missing ':' in alias %s, ignored\n", aliasdir[aliascount].url);
+            } else {
+              aliasdir[aliascount].path = optarg;
+              aliasdir[aliascount].len  = strlen(aliasdir[aliascount].url);
+              if (verbose) fprintf(stderr, "Alias url=%s path=%s\n", aliasdir[aliascount].url, aliasdir[aliascount].path);
+              aliascount++;
+            }
        } else {
            fprintf(stderr, "Too many aliases [max:%s] %s ignored\n", optarg, MAX_ALIAS-1);
        }     
