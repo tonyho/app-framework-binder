@@ -190,7 +190,7 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
         volume_i = strtok (volume_i, ",");
         volume[0] = atoi (volume_i);
 
-        if (100 < volume[0] < 0) {
+        if ((100 < volume[0])||(volume[0] < 0)) {
             free (volume_i);
             request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
             return (jsonNewMessage (AFB_FAIL, "Volume must be between 0 and 100"));
