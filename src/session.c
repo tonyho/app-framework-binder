@@ -449,8 +449,10 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
     // if UUID in query we're restfull with no cookies otherwise check for cookie
     if (uuid != NULL) request->restfull = TRUE;
     else {
+        char cookie[64];
         request->restfull = FALSE;
-        uuid = MHD_lookup_connection_value (request->connection, MHD_COOKIE_KIND, COOKIE_NAME);  
+        snprintf(cookie, sizeof cookie, "%s-%d", COOKIE_NAME, request->config->httpdPort);
+        uuid = MHD_lookup_connection_value (request->connection, MHD_COOKIE_KIND, cookie);  
     };
     
     // Warning when no cookie defined MHD_lookup_connection_value may return something !!!

@@ -54,7 +54,7 @@
 #define MAGIC_DB "/usr/share/misc/magic.mgc"
 #define OPA_INDEX "index.html"
 #define MAX_ALIAS 10           // max number of aliases
-#define COOKIE_NAME   "AJB_session"
+#define COOKIE_NAME   "afb-session"
 
 
 #define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
