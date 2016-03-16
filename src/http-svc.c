@@ -32,6 +32,7 @@
 
 #include <microhttpd.h>
 
+#include <poll.h>
 #include <sys/stat.h>
 #include "../include/local-def.h"
 
@@ -262,7 +263,7 @@ STATIC int newClient(void *cls, const struct sockaddr * addr, socklen_t addrlen)
 
 
 PUBLIC AFB_error httpdStart(AFB_session *session) {
-    
+
     // compute fixed URL length at startup time
     apiUrlLen = strlen (session->config->rootapi);
     baseUrlLen= strlen (session->config->rootbase);
@@ -281,12 +282,16 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
     }
 
     session->httpd = (void*) MHD_start_daemon(
-            MHD_USE_SELECT_INTERNALLY | MHD_USE_DEBUG, // use request and not threads
+                MHD_USE_EPOLL_LINUX_ONLY
+                | MHD_USE_TCP_FASTOPEN
+                | MHD_USE_DEBUG
+              ,
             session->config->httpdPort, // port
             &newClient, NULL, // Tcp Accept call back + extra attribute
             &newRequest, session, // Http Request Call back + extra attribute
             MHD_OPTION_NOTIFY_COMPLETED, &endRequest, NULL,
-            MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) 15, MHD_OPTION_END); // 15s + options-end
+            MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) 15, // 15 seconds
+            MHD_OPTION_END); // options-end
     // TBD: MHD_OPTION_SOCK_ADDR
 
     if (session->httpd == NULL) {
@@ -299,12 +304,26 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
 // infinite loop
 PUBLIC AFB_error httpdLoop(AFB_session *session) {
     int count = 0;
+    const union MHD_DaemonInfo *info;
+    struct pollfd pfd;
+
+    info = MHD_get_daemon_info(session->httpd,
+                               MHD_DAEMON_INFO_EPOLL_FD_LINUX_ONLY);
+    if (info == NULL) {
+        printf("Error: httpLoop no pollfd");
+        goto error;
+    }
+    pfd.fd = info->listen_fd;
+    pfd.events = POLLIN;
+
     if (verbose) fprintf(stderr, "AFB:notice entering httpd waiting loop\n");
     while (TRUE) {
-        sleep(3600);
         if (verbose) fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
+        poll(&pfd, 1, 15000); // 15 seconds (as above timeout when starting)
+        MHD_run(session->httpd);
     }
 
+error:
     // should never return from here
     return AFB_FATAL;
 }
