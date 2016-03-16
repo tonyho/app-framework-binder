@@ -79,7 +79,7 @@ STATIC json_object* clientContextReset (AFB_request *request) {
 }
 // Close and Free context
 STATIC json_object* clientGetPing (AFB_request *request) {
-    static count=0;
+    static int count=0;
     json_object *jresp;
 
     jresp = json_object_new_object();

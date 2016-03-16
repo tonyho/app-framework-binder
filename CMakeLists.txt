@@ -13,6 +13,24 @@ INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
 INCLUDE(GNUInstallDirs)
 
+###########################################################################
+
+add_compile_options(-Wall -Wextra -Wconversion)
+add_compile_options(-Wno-unused-parameter) # frankly not using a parameter does it care?
+add_compile_options(-Werror=maybe-uninitialized)
+#add_compile_options(-Werror=implicit-function-declaration)
+add_compile_options(-ffunction-sections -fdata-sections)
+add_compile_options(-Wl,--gc-sections)
+add_compile_options(-fPIC)
+
+set(CMAKE_C_FLAGS_PROFILING    "-g -O0 -pg -Wp,-U_FORTIFY_SOURCE")
+set(CMAKE_C_FLAGS_DEBUG        "-g -O0 -ggdb -Wp,-U_FORTIFY_SOURCE")
+set(CMAKE_C_FLAGS_RELEASE      "-g -O2")
+set(CMAKE_C_FLAGS_CCOV         "-g -O2 --coverage")
+
+###########################################################################
+
+
 CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
 CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
 IF(HAVE_MAGIC_H)

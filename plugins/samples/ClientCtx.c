@@ -110,7 +110,7 @@ STATIC json_object* myClose (AFB_request *request) {
 }
 
 STATIC void freeCtxCB (MyClientContextT *ctx, MyPluginHandleT *handle, char *uuid) {
-    fprintf (stderr, "FreeCtxCB uuid=[%s] Plugin=[%s]  count=[%d]", uuid, handle->anythingYouWant, ctx->count);
+    fprintf (stderr, "FreeCtxCB uuid=[%s] Plugin=[%s]  count=[%d]", uuid, (char*)handle->anythingYouWant, ctx->count);
     free (ctx);
     
     // Note: handle should be free it is a static resource attached to plugin and not to session

@@ -117,7 +117,7 @@ static  AFB_options cliOptions [] = {
 
   {SET_MODE         ,1,"mode"            , "set the mode: either local, remote or global"},
   {SET_READYFD      ,1,"readyfd"         , "set the #fd to signal when ready"},
-  {0, 0, 0}
+  {0, 0, NULL, NULL}
  };
 
 static AFB_aliasdir aliasdir[MAX_ALIAS];
@@ -290,7 +290,7 @@ int main(int argc, char *argv[])  {
 
   // build GNU getopt info from cliOptions
   nbcmd = sizeof (cliOptions) / sizeof (AFB_options);
-  gnuOptions = malloc (sizeof (ggcOption) * nbcmd);
+  gnuOptions = malloc (sizeof (ggcOption) * (unsigned)nbcmd);
   for (ind=0; ind < nbcmd;ind++) {
     gnuOptions [ind].name    = cliOptions[ind].name;
     gnuOptions [ind].has_arg = cliOptions[ind].has_arg;
@@ -354,7 +354,7 @@ int main(int argc, char *argv[])  {
               aliascount++;
             }
        } else {
-           fprintf(stderr, "Too many aliases [max:%s] %s ignored\n", optarg, MAX_ALIAS-1);
+           fprintf(stderr, "Too many aliases [max:%d] %s ignored\n", MAX_ALIAS, optarg);
        }     
        break;
        
@@ -401,7 +401,7 @@ int main(int argc, char *argv[])  {
 
     case SET_USERID:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%s", &cliconfig.setuid)) goto notAnInteger;
+       cliconfig.setuid = optarg;
        break;
 
     case SET_FAKE_MOD:
@@ -662,14 +662,10 @@ errSessiondir:
   fprintf (stderr,"\nERR:AFB-daemon cannot read/write session dir\n\n");
   exit (-1);
 
-errSoundCard:
-  fprintf (stderr,"\nERR:AFB-daemon fail to probe sound cards\n\n");
-  exit (-1);
-
 exitInitLoop:
   // try to unlink pid file if any
   if (session->background && session->config->pidfile != NULL)  unlink (session->config->pidfile);
   exit (-1);
 
-}; /* END AFB-daemon() */
+} /* END AFB-daemon() */
 

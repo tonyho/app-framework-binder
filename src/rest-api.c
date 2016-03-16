@@ -111,7 +111,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                        }
                     }
                     // Trigger a timer to protect from unacceptable long time execution
-                    alarm (request->config->apiTimeout);
+                    alarm ((unsigned)request->config->apiTimeout);
                 }
 
                 // Out of SessionNone every call get a client context session
@@ -127,7 +127,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
                         goto ExitOnDone;
                     };
                     
-                    if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[0x%x] Uuid=[%s] Token=[%s]\n"
+                    if (verbose) fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[%p] Uuid=[%s] Token=[%s]\n"
                            , request->prefix, request->api, plugin->apis[idx].session, clientCtx, clientCtx->uuid, clientCtx->token);                        
                     
                     switch(plugin->apis[idx].session) {
@@ -285,7 +285,7 @@ STATIC int doPostIterate (void *cls, enum MHD_ValueKind kind, const char *key,
   AFB_PostRequest postRequest;
   
   if (verbose)
-    fprintf (stderr, "postHandle key=%s filename=%s len=%d mime=%s\n", key, filename, size, mimetype);
+    fprintf (stderr, "postHandle key=%s filename=%s len=%zu mime=%s\n", key, filename, size, mimetype);
    
   // Create and Item value for Plugin API
   item.kind     = kind;
@@ -322,7 +322,6 @@ STATIC void freeRequest (AFB_request *request) {
 STATIC AFB_request *createRequest (struct MHD_Connection *connection, AFB_session *session, const char* url) {
     
     AFB_request *request;
-    int idx;
 
     // Start with a clean request
     request = calloc (1, sizeof (AFB_request));
@@ -374,7 +373,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     AFB_PostRequest postRequest;
     int ret;
     
-    // fprintf (stderr, "doRestAPI method=%s posthandle=0x%x\n", method, con_cls);
+    // fprintf (stderr, "doRestAPI method=%s posthandle=%p\n", method, con_cls);
     
     // if post data may come in multiple calls
     if (0 == strcmp(method, MHD_HTTP_METHOD_POST)) {
@@ -401,7 +400,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
         
             // Form post is handle through a PostProcessor and call API once per form key
             if (strcasestr(encoding, FORM_CONTENT) != NULL) {
-                if (verbose) fprintf(stderr, "Create doPostIterate[uid=%d posthandle=0x%x]\n", postHandle->uid, postHandle);
+                if (verbose) fprintf(stderr, "Create doPostIterate[uid=%d posthandle=%p]\n", postHandle->uid, postHandle);
 
                 request = createRequest (connection, session, url);
                 if (request->jresp != NULL) goto ProcessApiCall;
@@ -431,7 +430,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
 
                 // Size is OK, let's allocate a buffer to hold post data
                 postHandle->type = AFB_POST_JSON;
-                postHandle->privatebuf = malloc(contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
+                postHandle->privatebuf = malloc((unsigned)contentlen + 1); // allocate memory for full POST data + 1 for '\0' enf of string
 
                 // if (verbose) fprintf(stderr, "Create PostJson[uid=%d] Size=%d\n", postHandle->uid, contentlen);
                 return MHD_YES;
@@ -566,10 +565,10 @@ STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
             for (jdx = 0; plugins[idx]->apis[jdx].name != NULL; jdx++) {
                 AFB_privateApi *privateapi = malloc (sizeof (AFB_privateApi));
                 if (plugins[idx]->apis[jdx].privateapi != NULL) {
-                    fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL=0x%x\n"
+                    fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL=%p\n"
                             ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name, plugins[idx]->apis[jdx].privateapi);
                 }
-                privateapi->len = strlen (plugins[idx]->apis[jdx].name);
+                privateapi->len = (int)strlen (plugins[idx]->apis[jdx].name);
                 privateapi->jtype=json_object_new_string(plugins[idx]->apis[jdx].name);
                 json_object_get(privateapi->jtype); // increase reference count to make it permanent
                 plugins[idx]->apis[jdx].privateapi = privateapi;
@@ -633,7 +632,7 @@ STATIC void scanDirectory(char *dirpath, int dirfd, AFB_plugin **plugins, int *c
 
             // if max plugin is reached let's stop searching
             if (*count == AFB_MAX_PLUGINS) {
-                fprintf(stderr, "[%s] is not loaded [Max Count=%d reached]\n", *count);
+                fprintf(stderr, "[%s] is not loaded [Max Count=%d reached]\n", pluginDir.d_name, *count);
                 continue;
             }
 
@@ -660,7 +659,7 @@ void initPlugins(AFB_session *session) {
     plugins = (AFB_plugin **) malloc (AFB_MAX_PLUGINS *sizeof(AFB_plugin*));
     
     // Loop on every directory passed in --plugins=xxx
-    while (dirpath = strsep(&session->config->ldpaths, ":")) {
+    while ((dirpath = strsep(&session->config->ldpaths, ":"))) {
             // Ignore any directory we fail to open
         if ((dirfd = open(dirpath, O_DIRECTORY)) <= 0) {
             fprintf(stderr, "Invalid directory path=[%s]\n", dirpath);
@@ -676,7 +675,7 @@ void initPlugins(AFB_session *session) {
     }
     
     // downsize structure to effective number of loaded plugins
-    plugins = (AFB_plugin **)realloc (plugins, (count+1)*sizeof(AFB_plugin*));
+    plugins = (AFB_plugin **)realloc (plugins, (unsigned)(count+1)*sizeof(AFB_plugin*));
     plugins[count] = NULL;
 
     // complete plugins and save them within current sessions    

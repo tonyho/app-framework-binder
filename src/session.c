@@ -338,10 +338,9 @@ STATIC void ctxUuidFreeCB (AFB_clientCtx *client) {
 
 // Create a new store in RAM, not that is too small it will be automatically extended
 PUBLIC void ctxStoreInit (int nbSession) {
-   int res;
    
    // let's create as store as hashtable does not have any
-   sessions.store = calloc (nbSession+1, sizeof(AFB_clientCtx));
+   sessions.store = calloc (1 + (unsigned)nbSession, sizeof(AFB_clientCtx));
    sessions.max=nbSession;
 }
 
@@ -421,7 +420,7 @@ STATIC int ctxStoreToOld (AFB_clientCtx *ctx, int timeout) {
 }
 
 // Loop on every entry and remove old context sessions.hash
-PUBLIC int ctxStoreGarbage (const int timeout) {
+PUBLIC void ctxStoreGarbage (const int timeout) {
     AFB_clientCtx *ctx;
     long idx;
     
@@ -439,7 +438,6 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
   AFB_clientCtx *clientCtx=NULL;
   const char *uuid;
   uuid_t newuuid;
-  int ret;
   
     if (request->config->token == NULL) return NULL;
 
@@ -457,7 +455,6 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
     
     // Warning when no cookie defined MHD_lookup_connection_value may return something !!!
     if ((uuid != NULL) && (strnlen (uuid, 10) >= 10))   {
-        int search;
         // search if client context exist and it not timeout let's use it
         clientCtx = ctxStoreSearch (uuid);
 
@@ -478,7 +475,7 @@ PUBLIC AFB_clientCtx *ctxClientGet (AFB_request *request, int idx) {
     // we have no session let's create one otherwise let's clean any exiting values
     if (clientCtx == NULL) {        
         clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
-        clientCtx->contexts = calloc (1, request->config->pluginCount * (sizeof (void*)));        
+        clientCtx->contexts = calloc (1, (unsigned)request->config->pluginCount * (sizeof (void*)));
         clientCtx->plugins  = request->plugins;  
     }
     
@@ -524,7 +521,6 @@ PUBLIC AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request) 
 
 // Free Client Session Context
 PUBLIC AFB_error ctxTokenReset (AFB_clientCtx *clientCtx, AFB_request *request) {
-    int ret;
 
     if (clientCtx == NULL) return AFB_EMPTY;
     //if (verbose) fprintf (stderr, "ctxClientReset New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);      
@@ -541,8 +537,6 @@ PUBLIC AFB_error ctxTokenReset (AFB_clientCtx *clientCtx, AFB_request *request) 
 
 // generate a new token
 PUBLIC AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request) {
-    int oldTnkValid;
-    const char *ornew;
     uuid_t newuuid;
     const char *token;
 
@@ -573,8 +567,6 @@ PUBLIC AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request)
 
 // generate a new token and update client context
 PUBLIC AFB_error ctxTokenRefresh (AFB_clientCtx *clientCtx, AFB_request *request) {
-    int oldTnkValid;
-    const char *oldornew;
     uuid_t newuuid;
 
     if (clientCtx == NULL) return AFB_EMPTY;

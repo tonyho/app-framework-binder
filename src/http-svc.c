@@ -29,6 +29,7 @@
    POST https://www.gnu.org/software/libmicrohttpd/manual/html_node/microhttpd_002dpost.html#microhttpd_002dpost
  */
 
+#define _GNU_SOURCE
 
 #include <microhttpd.h>
 
@@ -37,15 +38,9 @@
 #include "../include/local-def.h"
 
 // let's compute fixed URL length only once
-static apiUrlLen=0;
-static baseUrlLen=0;
-static rootUrlLen=0;
-
-// proto missing from GCC
-char *strcasestr(const char *haystack, const char *needle);
-
-static int rqtcount = 0;  // dummy request rqtcount to make each message be different
-static int postcount = 0;
+static size_t apiUrlLen=0;
+static size_t baseUrlLen=0;
+static size_t rootUrlLen=0;
 
 // try to open libmagic to handle mime types
 static AFB_error initLibMagic (AFB_session *session) {
@@ -79,18 +74,17 @@ static void endRequest (void *cls, struct MHD_Connection *connection, void **con
 
 
 // Create check etag value
-STATIC void computeEtag(char *etag, int maxlen, struct stat *sbuf) {
-    int time;
+STATIC void computeEtag(char *etag, size_t maxlen, struct stat *sbuf) {
+    long time;
     time = sbuf->st_mtim.tv_sec;
-    snprintf(etag, maxlen, "%d", time);
+    snprintf(etag, maxlen, "%ld", time);
 }
 
 STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, const char *url, AFB_staticfile *staticfile) {
     const char *etagCache, *mimetype; 
     char etagValue[15];
-    struct MHD_Response *response;
+    struct MHD_Response *response = NULL;
     struct stat sbuf; 
-    int ret;
 
     if (fstat (staticfile->fd, &sbuf) != 0) {
         fprintf(stderr, "Fail to stat file: [%s] error:%s\n", staticfile->path, strerror(errno));
@@ -168,8 +162,6 @@ abortRequest:
 // this function return either Index.htlm or a redirect to /#!route to make angular happy
 STATIC int redirectHTML5(struct MHD_Connection *connection, AFB_session *session, const char* url) {
 
-    int fd;
-    int ret;
     struct MHD_Response *response;
     AFB_staticfile staticfile;
 
@@ -187,7 +179,7 @@ STATIC int redirectHTML5(struct MHD_Connection *connection, AFB_session *session
 
 // minimal httpd file server for static HTML,JS,CSS,etc...
 STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, const char* url) {
-    int fd, ret, idx;
+    int ret, idx;
     AFB_staticfile staticfile;
     char *requestdir, *requesturl;
    
@@ -286,7 +278,7 @@ PUBLIC AFB_error httpdStart(AFB_session *session) {
                 | MHD_USE_TCP_FASTOPEN
                 | MHD_USE_DEBUG
               ,
-            session->config->httpdPort, // port
+            (uint16_t)session->config->httpdPort, // port
             &newClient, NULL, // Tcp Accept call back + extra attribute
             &newRequest, session, // Http Request Call back + extra attribute
             MHD_OPTION_NOTIFY_COMPLETED, &endRequest, NULL,

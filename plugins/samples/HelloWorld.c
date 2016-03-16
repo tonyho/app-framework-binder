@@ -20,7 +20,7 @@
 #include "local-def.h"
 
 STATIC json_object* pingSample (AFB_request *request) {
-    static pingcount = 0;
+    static int pingcount = 0;
     json_object *response;
     char query [512];
     int len;

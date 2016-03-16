@@ -69,11 +69,6 @@ static struct json_object *embed(AFB_request *request, const char *tag, struct j
 	return result;
 }
 
-static struct json_object *call(AFB_request *request, AFB_PostItem *item, const char *tag, struct json_object *(*fun)(AFB_request*,AFB_PostItem*))
-{
-	return embed(request, tag, fun(request, item));
-}
-
 static struct json_object *call_void(AFB_request *request, AFB_PostItem *item)
 {
 	struct json_object *obj = jbus_call_sj_sync(jbus, request->api, "true");

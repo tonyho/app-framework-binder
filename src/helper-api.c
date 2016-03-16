@@ -19,6 +19,8 @@
 
 #include "../include/local-def.h"
 #include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 
 // handle to hold queryAll values
@@ -30,7 +32,7 @@ typedef struct {
 
 // Sample Generic Ping Debug API
 PUBLIC json_object* getPingTest(AFB_request *request) {
-    static pingcount = 0;
+    static int pingcount = 0;
     json_object *response;
     char query  [256];
     char session[256];
@@ -62,6 +64,7 @@ STATIC int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, co
     queryHandleT *query = (queryHandleT*)handle;
         
     query->idx += snprintf (&query->msg[query->idx],query->len," %s: \'%s\',", key, value);
+    return MHD_YES; /* continue to iterate */
 }
 
 // Helper to retrieve argument from  connection
@@ -110,7 +113,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
     AFB_PostHandle *postHandle = getPostHandle(request);
     AFB_PostCtx *postFileCtx;
     char filepath[512];
-    int len;
+    ssize_t len;
             
     // This is called after PostForm and then after DonePostForm
     if (item == NULL) {
@@ -134,7 +137,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         free (postFileCtx);
         return (jresp);  
     }
-    
+#if defined(PLEASE_FIX_ME_THE_ERROR_IS_postFileCtx_NOT_INITIALIZED)
     // Make sure it's a valid PostForm request
     if (!request->post && request->post->type != AFB_POST_FORM) {
         postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"This is not a valid PostForm request\n");
@@ -152,7 +155,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
         postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Buffer size NULL key=%s]\n", item->key);
         goto ExitOnError;
     }
-
+#endif
     // Extract Application Context from posthandle [NULL == 1st iteration]    
     postFileCtx = (AFB_PostCtx*) postHandle->ctx;
 
@@ -200,7 +203,7 @@ PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char*
 
     // Check we successfully wrote full buffer
     len = write (postFileCtx->fd, item->data, item->len);
-    if (item->len != len) {
+    if ((ssize_t)item->len != len) {
         postFileCtx->jresp= jsonNewMessage(AFB_FAIL,"Fail to write file [%s] at [%s] error=\n", item->filename, strerror(errno));
         goto ExitOnError;
     }
