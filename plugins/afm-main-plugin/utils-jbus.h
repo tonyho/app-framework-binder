@@ -20,7 +20,10 @@
 struct jreq;
 struct jbus;
 
-extern struct jbus *create_jbus(int session, const char *path);
+extern struct jbus *create_jbus(const char *path, int session);
+extern struct jbus *create_jbus_session(const char *path);
+extern struct jbus *create_jbus_system(const char *path);
+
 extern void jbus_addref(struct jbus *jbus);
 extern void jbus_unref(struct jbus *jbus);
 
@@ -43,8 +46,8 @@ extern char *jbus_call_js_sync(struct jbus *jbus, const char *method, struct jso
 extern struct json_object *jbus_call_sj_sync(struct jbus *jbus, const char *method, const char *query);
 extern struct json_object *jbus_call_jj_sync(struct jbus *jbus, const char *method, struct json_object *query);
 
-extern int jbus_on_signal_s(struct jbus *jbus, const char *name, void (*onsignal)(const char *));
-extern int jbus_on_signal_j(struct jbus *jbus, const char *name, void (*onsignal)(struct json_object *));
+extern int jbus_on_signal_s(struct jbus *jbus, const char *name, void (*onsignal)(const char *, void *), void *data);
+extern int jbus_on_signal_j(struct jbus *jbus, const char *name, void (*onsignal)(struct json_object *, void *), void *data);
 
 /* verbs for servers */
 extern int jbus_reply_s(struct jreq *jreq, const char *reply);
@@ -52,8 +55,8 @@ extern int jbus_reply_j(struct jreq *jreq, struct json_object *reply);
 extern int jbus_reply_error_s(struct jreq *jreq, const char *reply);
 extern int jbus_reply_error_j(struct jreq *jreq, struct json_object *reply);
 
-extern int jbus_add_service_s(struct jbus *jbus, const char *method, void (*oncall)(struct jreq *, const char *));
-extern int jbus_add_service_j(struct jbus *jbus, const char *method, void (*oncall)(struct jreq *, struct json_object *));
+extern int jbus_add_service_s(struct jbus *jbus, const char *method, void (*oncall)(struct jreq *, const char *, void *), void *data);
+extern int jbus_add_service_j(struct jbus *jbus, const char *method, void (*oncall)(struct jreq *, struct json_object *, void *), void *data);
 extern int jbus_start_serving(struct jbus *jbus);
 extern int jbus_send_signal_s(struct jbus *jbus, const char *name, const char *content);
 extern int jbus_send_signal_j(struct jbus *jbus, const char *name, struct json_object *content);

@@ -201,7 +201,7 @@ static AFB_restapi plug_apis[] =
 	{_state_    , AFB_SESSION_CHECK, (AFB_apiCB)call_runid, "Get the state of a running application"},
 	{_install_  , AFB_SESSION_CHECK, (AFB_apiCB)call_file__appid,  "Install an application using a widget file"},
 	{_uninstall_, AFB_SESSION_CHECK, (AFB_apiCB)call_appid, "Uninstall an application"},
-	{NULL}
+	{ NULL, 0, NULL, NULL }
 };
 
 static AFB_plugin plug_desc = {
@@ -213,7 +213,7 @@ static AFB_plugin plug_desc = {
 
 AFB_plugin *pluginRegister()
 {
-	jbus = create_jbus(1, "/org/AGL/afm/user");
+	jbus = create_jbus_session("/org/AGL/afm/user");
         if (jbus)
 		return &plug_desc;
 	fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
