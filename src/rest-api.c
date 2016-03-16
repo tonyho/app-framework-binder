@@ -53,7 +53,7 @@ PUBLIC void endPostRequest(AFB_PostHandle *postHandle) {
 STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context) {
     json_object *jresp, *jcall, *jreqt;
     int idx, status, sig;
-    AFB_clientCtx *clientCtx;
+    AFB_clientCtx *clientCtx = NULL;
     AFB_plugin *plugin = request->plugins[plugidx];
     int signals[]= {SIGALRM, SIGSEGV, SIGFPE, 0};
     
@@ -368,7 +368,7 @@ PUBLIC int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     AFB_error status;
     struct MHD_Response *webResponse;
     const char *serialized;
-    AFB_request *request;
+    AFB_request *request = NULL;
     AFB_PostHandle *postHandle;
     AFB_PostRequest postRequest;
     int ret;
@@ -539,7 +539,7 @@ ExitOnError:
 
 // Loop on plugins. Check that they have the right type, prepare a JSON object with prefix
 STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
-    int idx, jdx;
+    int idx;
 
     for (idx = 0; plugins[idx] != NULL; idx++) {
         if (plugins[idx]->type != AFB_PLUGIN_JSON) {
@@ -559,20 +559,6 @@ STATIC AFB_plugin ** RegisterJsonPlugins(AFB_plugin **plugins) {
             plugins[idx]->jtype = json_object_new_string(plugins[idx]->prefix);
             json_object_get(plugins[idx]->jtype); // increase reference count to make it permanent
             plugins[idx]->prefixlen = strlen(plugins[idx]->prefix);
-            
-              
-            // Prebuild each API jtype to boost API json response
-            for (jdx = 0; plugins[idx]->apis[jdx].name != NULL; jdx++) {
-                AFB_privateApi *privateapi = malloc (sizeof (AFB_privateApi));
-                if (plugins[idx]->apis[jdx].privateapi != NULL) {
-                    fprintf (stderr, "WARNING: plugin=%s api=%s private handle should be NULL=%p\n"
-                            ,plugins[idx]->prefix,plugins[idx]->apis[jdx].name, plugins[idx]->apis[jdx].privateapi);
-                }
-                privateapi->len = (int)strlen (plugins[idx]->apis[jdx].name);
-                privateapi->jtype=json_object_new_string(plugins[idx]->apis[jdx].name);
-                json_object_get(privateapi->jtype); // increase reference count to make it permanent
-                plugins[idx]->apis[jdx].privateapi = privateapi;
-            }
         }
     }
     return (plugins);

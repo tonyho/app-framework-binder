@@ -176,6 +176,8 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
         jresp = json_object_new_object();
         json_object_object_add (jresp, "power", json_object_new_string ("off"));
     }
+    else
+        jresp = NULL;
 
     return jresp;
 }

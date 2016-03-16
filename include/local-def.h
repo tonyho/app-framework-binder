@@ -189,12 +189,6 @@ typedef struct {
 } AFB_config;
 
 typedef struct {
-  int  len;        // command number within application
-  json_object *jtype;
-} AFB_privateApi;
-
-
-typedef struct {
      char    *msg;
      size_t  len;
 } AFB_redirect_msg;
@@ -208,7 +202,6 @@ typedef struct {
   AFB_sessionE session;
   AFB_apiCB callback;
   char *info;
-  AFB_privateApi *privateapi;
 } AFB_restapi;
 
 // Plugin definition

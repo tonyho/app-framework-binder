@@ -103,6 +103,8 @@ STATIC json_object* selecting (AFB_request *request) {   /* AFB_SESSION_CHECK */
         jresp = json_object_new_object();
         json_object_object_add (jresp, "index", json_object_new_string (value));
     }
+    else
+        jresp = NULL;
 
     return jresp;
 }

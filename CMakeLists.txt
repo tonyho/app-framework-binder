@@ -23,8 +23,8 @@ add_compile_options(-ffunction-sections -fdata-sections)
 add_compile_options(-Wl,--gc-sections)
 add_compile_options(-fPIC)
 
-set(CMAKE_C_FLAGS_PROFILING    "-g -O0 -pg -Wp,-U_FORTIFY_SOURCE")
-set(CMAKE_C_FLAGS_DEBUG        "-g -O0 -ggdb -Wp,-U_FORTIFY_SOURCE")
+set(CMAKE_C_FLAGS_PROFILING    "-g -O2 -pg -Wp,-U_FORTIFY_SOURCE")
+set(CMAKE_C_FLAGS_DEBUG        "-g -O2 -ggdb -Wp,-U_FORTIFY_SOURCE")
 set(CMAKE_C_FLAGS_RELEASE      "-g -O2")
 set(CMAKE_C_FLAGS_CCOV         "-g -O2 --coverage")
 
