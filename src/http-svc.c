@@ -42,6 +42,8 @@ static size_t apiUrlLen=0;
 static size_t baseUrlLen=0;
 static size_t rootUrlLen=0;
 
+#define MAGIC_DB "/usr/share/misc/magic.mgc"
+
 // try to open libmagic to handle mime types
 static AFB_error initLibMagic (AFB_session *session) {
   

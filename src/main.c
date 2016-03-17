@@ -31,6 +31,8 @@
 #include <getopt.h>
 #include <pwd.h>
 
+#define AFB_VERSION    "0.1"
+
 static sigjmp_buf exitPoint; // context save for set/longjmp
 
 /*----------------------------------------------------------
@@ -40,7 +42,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
  static void printVersion (void) {
 
    fprintf (stderr,"\n----------------------------------------- \n");
-   fprintf (stderr,"|  AFB [Application Framework Binder] version=%s |\n", AJQ_VERSION);
+   fprintf (stderr,"|  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
    fprintf (stderr,"----------------------------------------- \n");
    fprintf (stderr,"|  Copyright(C) 2015 Fulup Ar Foll /IoT.bzh [fulup -at- iot.bzh]\n");
    fprintf (stderr,"|  AFB comes with ABSOLUTELY NO WARRANTY.\n");

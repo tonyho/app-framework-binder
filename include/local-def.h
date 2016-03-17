@@ -45,13 +45,9 @@
 
 
 
-
-#define AJQ_VERSION "0.1"
-
 /* other definitions --------------------------------------------------- */
 
 // Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
-#define MAGIC_DB "/usr/share/misc/magic.mgc"
 #define OPA_INDEX "index.html"
 #define MAX_ALIAS 10           // max number of aliases
 #define COOKIE_NAME   "afb-session"
