@@ -272,29 +272,26 @@ static void listenLoop (AFB_session *session) {
  |   Parse option and launch action
  +--------------------------------------------------------- */
 
-int main(int argc, char *argv[])  {
-  AFB_session    *session;
+static void parse_arguments(int argc, char *argv[], AFB_session *session)
+{
   char*          programName = argv [0];
   int            optionIndex = 0;
-  int            optc, ind, consoleFD;
-  int            pid, nbcmd, status;
+  int            optc, ind;
+  int            nbcmd;
+  struct option *gnuOptions;
   AFB_config     cliconfig; // temp structure to store CLI option before file config upload
 
   // ------------- Build session handler & init config -------
-  session = configInit ();
   memset(&cliconfig,0,sizeof(cliconfig));
   memset(&aliasdir  ,0,sizeof(aliasdir));
   cliconfig.aliasdir = aliasdir;
-
-  // GNU CLI getopts nterface.
-  struct option *gnuOptions;
 
   // ------------------ Process Command Line -----------------------
 
   // if no argument print help and return
   if (argc < 2) {
        printHelp(programName);
-       return 1;
+       exit(1);
   }
 
   // build GNU getopt info from cliOptions
@@ -454,18 +451,56 @@ int main(int argc, char *argv[])  {
     case DISPLAY_VERSION:
        if (optarg != 0) goto noValueForOption;
        printVersion();
-       goto normalExit;
+       exit(0);
 
     case DISPLAY_HELP:
      default:
        printHelp(programName);
-       goto normalExit;
-
+       exit(0);
     }
   }
+  free(gnuOptions);
  
   // if exist merge config file with CLI arguments
   configLoadFile  (session, &cliconfig);
+  return;
+
+
+needValueForOption:
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
+          ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
+  exit (1);
+
+notAnInteger:
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
+          ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
+  exit (1);
+
+noValueForOption:
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] don't take value\n\n"
+          ,gnuOptions[optionIndex].name);
+  exit (1);
+
+badMode:
+  fprintf (stderr,"\nERR:AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
+          ,gnuOptions[optionIndex].name);
+  exit (1);
+}
+
+/*---------------------------------------------------------
+ | main
+ |   Parse option and launch action
+ +--------------------------------------------------------- */
+
+int main(int argc, char *argv[])  {
+  AFB_session    *session;
+  char*          programName = argv [0];
+  int            consoleFD;
+  int            pid, status;
+
+  // ------------- Build session handler & init config -------
+  session = configInit ();
+  parse_arguments(argc, argv, session);
   initPlugins(session);
 
   // ------------------ sanity check ----------------------------------------
@@ -638,26 +673,6 @@ errorFork:
   fprintf (stderr,"\nERR:AFB-daemon Failed to fork son process\n\n");
   exit (1);
 
-needValueForOption:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
-          ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
-  exit (1);
-
-noValueForOption:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] don't take value\n\n"
-          ,gnuOptions[optionIndex].name);
-  exit (1);
-
-notAnInteger:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
-          ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
-  exit (1);
-
-badMode:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
-          ,gnuOptions[optionIndex].name);
-  exit (1);
-
 exitOnSignal:
   fprintf (stderr,"\n%s INF:AFB-daemon pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
                  ,configTime(), getpid());
@@ -676,5 +691,6 @@ exitInitLoop:
   if (session->background && session->config->pidfile != NULL)  unlink (session->config->pidfile);
   exit (1);
 
-} /* END AFB-daemon() */
+}
+
 
