@@ -294,7 +294,7 @@ int main(int argc, char *argv[])  {
   // if no argument print help and return
   if (argc < 2) {
        printHelp(programName);
-       return (-1);
+       return 1;
   }
 
   // build GNU getopt info from cliOptions
@@ -471,7 +471,7 @@ int main(int argc, char *argv[])  {
   // ------------------ sanity check ----------------------------------------
   if  ((session->background) && (session->foreground)) {
     fprintf (stderr, "%s ERR: cannot select foreground & background at the same time\n",configTime());
-     exit (-1);
+     exit (1);
   }
 
   // ------------------ Some useful default values -------------------------
@@ -508,7 +508,7 @@ int main(int argc, char *argv[])  {
   // ------------------ clean exit on CTR-C signal ------------------------
   if (signal (SIGINT, signalQuit) == SIG_ERR) {
     fprintf (stderr, "%s Quit Signal received.",configTime());
-    return (-1);
+    return 1;
   }
 
   // save exitPoint context when returning from longjmp closeSession and exit
@@ -624,57 +624,57 @@ normalExit:
 // ------------- Fatal ERROR display error and quit  -------------
 errorSetuid:
   fprintf (stderr,"\nERR:AFB-daemon Failed to change UID to username=[%s]\n\n", session->config->setuid);
-  exit (-1);
+  exit (1);
   
 //errorNoRoot:
 //  fprintf (stderr,"\nERR:AFB-daemon Not allow to run as root [use --seteuid=username option]\n\n");
-//  exit (-1);
+//  exit (1);
 
 errorPidFile:
   fprintf (stderr,"\nERR:AFB-daemon Failed to write pid file [%s]\n\n", session->config->pidfile);
-  exit (-1);
+  exit (1);
 
 errorFork:
   fprintf (stderr,"\nERR:AFB-daemon Failed to fork son process\n\n");
-  exit (-1);
+  exit (1);
 
 needValueForOption:
   fprintf (stderr,"\nERR:AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
-  exit (-1);
+  exit (1);
 
 noValueForOption:
   fprintf (stderr,"\nERR:AFB-daemon option [--%s] don't take value\n\n"
           ,gnuOptions[optionIndex].name);
-  exit (-1);
+  exit (1);
 
 notAnInteger:
   fprintf (stderr,"\nERR:AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
-  exit (-1);
+  exit (1);
 
 badMode:
   fprintf (stderr,"\nERR:AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
           ,gnuOptions[optionIndex].name);
-  exit (-1);
+  exit (1);
 
 exitOnSignal:
   fprintf (stderr,"\n%s INF:AFB-daemon pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
                  ,configTime(), getpid());
-  exit (-1);
+  exit (1);
 
 errConsole:
   fprintf (stderr,"\nERR:AFB-daemon cannot open /dev/console (use --foreground)\n\n");
-  exit (-1);
+  exit (1);
 
 errSessiondir:
   fprintf (stderr,"\nERR:AFB-daemon cannot read/write session dir\n\n");
-  exit (-1);
+  exit (1);
 
 exitInitLoop:
   // try to unlink pid file if any
   if (session->background && session->config->pidfile != NULL)  unlink (session->config->pidfile);
-  exit (-1);
+  exit (1);
 
 } /* END AFB-daemon() */
 
