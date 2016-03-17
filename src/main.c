@@ -84,6 +84,14 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
 #define SET_MODE           160
 #define SET_READYFD        161
 
+// Command line structure hold cli --command + help text
+typedef struct {
+  int  val;        // command number within application
+  int  has_arg;    // command number within application
+  char *name;      // command as used in --xxxx cli
+  char *help;      // help text
+} AFB_options;
+
 
 // Supported option
 static  AFB_options cliOptions [] = {
@@ -279,7 +287,6 @@ int main(int argc, char *argv[])  {
   cliconfig.aliasdir = aliasdir;
 
   // GNU CLI getopts nterface.
-  struct option ggcOption;
   struct option *gnuOptions;
 
   // ------------------ Process Command Line -----------------------
@@ -292,7 +299,7 @@ int main(int argc, char *argv[])  {
 
   // build GNU getopt info from cliOptions
   nbcmd = sizeof (cliOptions) / sizeof (AFB_options);
-  gnuOptions = malloc (sizeof (ggcOption) * (unsigned)nbcmd);
+  gnuOptions = malloc (sizeof (*gnuOptions) * (unsigned)nbcmd);
   for (ind=0; ind < nbcmd;ind++) {
     gnuOptions [ind].name    = cliOptions[ind].name;
     gnuOptions [ind].has_arg = cliOptions[ind].has_arg;

@@ -153,14 +153,6 @@ typedef struct {
   size_t len;
 } AFB_aliasdir;
 
-// Command line structure hold cli --command + help text
-typedef struct {
-  int  val;        // command number within application
-  int  has_arg;    // command number within application
-  char *name;      // command as used in --xxxx cli
-  char *help;      // help text
-} AFB_options;
-
 // main config structure
 typedef struct {
   char *logname;           // logfile path for info & error log
