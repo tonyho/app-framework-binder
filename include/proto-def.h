@@ -1,5 +1,5 @@
 /*
-   alsajson-gw -- provide a REST/HTTP interface to ALSA-Mixer
+   proto-def.h -- provide a REST/HTTP interface
 
    Copyright (C) 2015, Fulup Ar Foll
 
