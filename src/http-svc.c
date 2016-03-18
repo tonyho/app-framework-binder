@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2015 "IoT.bzh"
- * Author "Fulup Ar Foll"
+ * Copyright (C) 2016 "IoT.bzh"
+ * Author José Bollo
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,317 +14,630 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * Handle standard HTTP request
- *    Features/Restriction:
-    - handle ETAG to limit upload to modified/new files [cache default 3600s]
-    - handles redirect to index.htlm when path is a directory [code 301]
-    - only support GET method
-    - does not follow link.
-
-   References: https://www.gnu.org/software/libmicrohttpd/manual/html_node/index.html#Top
-   http://libmicrohttpd.sourcearchive.com/documentation/0.4.2/microhttpd_8h.html
-   https://gnunet.org/svn/libmicrohttpd/src/examples/fileserver_example_external_select.c
-   https://github.com/json-c/json-c
-   POST https://www.gnu.org/software/libmicrohttpd/manual/html_node/microhttpd_002dpost.html#microhttpd_002dpost
  */
-
 #define _GNU_SOURCE
-
 #include <microhttpd.h>
-
+#include <assert.h>
 #include <poll.h>
 #include <sys/stat.h>
 #include "../include/local-def.h"
 
-// let's compute fixed URL length only once
-static size_t apiUrlLen=0;
-static size_t baseUrlLen=0;
-static size_t rootUrlLen=0;
 
+
+enum afb_method {
+	afb_method_none = 0,
+	afb_method_get = 1,
+	afb_method_post = 2,
+	afb_method_head = 4,
+	afb_method_connect = 8,
+	afb_method_delete = 16,
+	afb_method_options = 32,
+	afb_method_patch = 64,
+	afb_method_put = 128,
+	afb_method_trace = 256,
+	afb_method_all = 511
+};
+
+struct afb_req_post {
+	const char *upload_data;
+	size_t *upload_data_size;
+};
+
+struct afb_req {
+	AFB_session *session;
+	struct MHD_Connection *connection;
+	enum afb_method method;
+	const char *url;
+	size_t lenurl;
+	const char *tail;
+	size_t lentail;
+	struct afb_req **recorder;
+	int (*post_handler) (struct afb_req *, struct afb_req_post *);
+	int (*post_completed) (struct afb_req *, struct afb_req_post *);
+	void *post_data;
+};
+
+struct afb_req_handler {
+	struct afb_req_handler *next;
+	const char *prefix;
+	size_t length;
+	int (*handler) (struct afb_req *, struct afb_req_post *, void *);
+	void *data;
+	int priority;
+};
+
+static char empty_string[1] = "";
+
+enum afb_method get_method(const char *method)
+{
+	switch (method[0] & ~' ') {
+	case 'C':
+		return afb_method_connect;
+	case 'D':
+		return afb_method_delete;
+	case 'G':
+		return afb_method_get;
+	case 'H':
+		return afb_method_head;
+	case 'O':
+		return afb_method_options;
+	case 'P':
+		switch (method[1] & ~' ') {
+		case 'A':
+			return afb_method_patch;
+		case 'O':
+			return afb_method_post;
+		case 'U':
+			return afb_method_put;
+		}
+		break;
+	case 'T':
+		return afb_method_trace;
+	}
+	return afb_method_none;
+}
+
+#if !defined(MHD_HTTP_METHOD_PATCH)
+#define MHD_HTTP_METHOD_PATCH "PATCH"
+#endif
+const char *get_method_name(enum afb_method method)
+{
+	switch (method) {
+	case afb_method_get:
+		return MHD_HTTP_METHOD_GET;
+	case afb_method_post:
+		return MHD_HTTP_METHOD_POST;
+	case afb_method_head:
+		return MHD_HTTP_METHOD_HEAD;
+	case afb_method_connect:
+		return MHD_HTTP_METHOD_CONNECT;
+	case afb_method_delete:
+		return MHD_HTTP_METHOD_DELETE;
+	case afb_method_options:
+		return MHD_HTTP_METHOD_OPTIONS;
+	case afb_method_patch:
+		return MHD_HTTP_METHOD_PATCH;
+	case afb_method_put:
+		return MHD_HTTP_METHOD_PUT;
+	case afb_method_trace:
+		return MHD_HTTP_METHOD_TRACE;
+	default:
+		return NULL;
+	}
+}
+
+/* a valid subpath is a relative path not looking deeper than root using .. */
+static int validsubpath(const char *subpath)
+{
+	int l = 0, i = 0;
+
+	while (subpath[i]) {
+		switch (subpath[i++]) {
+		case '.':
+			if (!subpath[i])
+				break;
+			if (subpath[i] == '/') {
+				i++;
+				break;
+			}
+			if (subpath[i++] == '.') {
+				if (!subpath[i]) {
+					if (--l < 0)
+						return 0;
+					break;
+				}
+				if (subpath[i++] == '/') {
+					if (--l < 0)
+						return 0;
+					break;
+				}
+			}
+		default:
+			while (subpath[i] && subpath[i] != '/')
+				i++;
+			l++;
+		case '/':
+			break;
+		}
+	}
+	return 1;
+}
+
+/*
+ * Removes the 'prefix' of 'length' frome the tail of 'request'
+ * if and only if the prefix exists and is terminated by a leading
+ * slash
+ */
+int afb_req_unprefix(struct afb_req *request, const char *prefix, size_t length)
+{
+	/* check the prefix ? */
+	if (length > request->lentail || (request->tail[length] && request->tail[length] != '/')
+	    || memcmp(prefix, request->tail, length))
+		return 0;
+
+	/* removes successives / */
+	while (length < request->lentail && request->tail[length + 1] == '/')
+		length++;
+
+	/* update the tail */
+	request->lentail -= length;
+	request->tail += length;
+	return 1;
+}
+
+int afb_req_valid_tail(struct afb_req *request)
+{
+	return validsubpath(request->tail);
+}
+
+void afb_req_reply_error(struct afb_req *request, unsigned int status)
+{
+	char *buffer;
+	int length;
+	struct MHD_Response *response;
+
+	length = asprintf(&buffer, "<html><body>error %u</body></html>", status);
+	if (length > 0)
+		response = MHD_create_response_from_buffer((unsigned)length, buffer, MHD_RESPMEM_MUST_FREE);
+	else {
+		buffer = "<html><body>error</body></html>";
+		response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_PERSISTENT);
+	}
+	if (!MHD_queue_response(request->connection, status, response))
+		fprintf(stderr, "Failed to reply error code %u", status);
+	MHD_destroy_response(response);
+}
+
+int afb_request_redirect_to(struct afb_req *request, const char *url)
+{
+	struct MHD_Response *response;
+
+	response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
+	MHD_add_response_header(response, "Location", url);
+	MHD_queue_response(request->connection, MHD_HTTP_MOVED_PERMANENTLY, response);
+	MHD_destroy_response(response);
+	if (verbose)
+		fprintf(stderr, "redirect from [%s] to [%s]\n", request->url, url);
+	return 1;
+}
+
+int afb_request_one_page_api_redirect(struct afb_req *request, struct afb_req_post *post, void *data)
+{
+	size_t plen;
+	char *url;
+
+	if (request->lentail >= 2 && request->tail[1] == '#')
+		return 0;
+	/*
+	 * Here we have for example:
+	 *    url  = "/pre/dir/page"   lenurl = 13
+	 *    tail =     "/dir/page"   lentail = 9
+	 *
+	 * We will produce "/pre/#!dir/page"
+	 *
+	 * Let compute plen that include the / at end (for "/pre/")
+	 */
+	plen = request->lenurl - request->lentail + 1;
+	url = alloca(request->lenurl + 3);
+	memcpy(url, request->url, plen);
+	url[plen++] = '#';
+	url[plen++] = '!';
+	memcpy(&url[plen], &request->tail[1], request->lentail);
+	return afb_request_redirect_to(request, url);
+}
+
+struct afb_req_handler *afb_req_handler_new(struct afb_req_handler *head, const char *prefix,
+					    int (*handler) (struct afb_req *, struct afb_req_post *, void *),
+					    void *data, int priority)
+{
+	struct afb_req_handler *link, *iter, *previous;
+	size_t length;
+
+	/* get the length of the prefix without its leading / */
+	length = strlen(prefix);
+	while (length && prefix[length - 1] == '/')
+		length--;
+
+	/* allocates the new link */
+	link = malloc(sizeof *link);
+	if (link == NULL)
+		return NULL;
+
+	/* initialize it */
+	link->prefix = prefix;
+	link->length = length;
+	link->handler = handler;
+	link->data = data;
+	link->priority = priority;
+
+	/* adds it */
+	previous = NULL;
+	iter = head;
+	while (iter && (priority < iter->priority || (priority == iter->priority && length <= iter->length))) {
+		previous = iter;
+		iter = iter->next;
+	}
+	link->next = iter;
+	if (previous == NULL)
+		return link;
+	previous->next = link;
+	return head;
+}
+
+int afb_req_add_handler(AFB_session * session, const char *prefix,
+			int (*handler) (struct afb_req *, struct afb_req_post *, void *), void *data, int priority)
+{
+	struct afb_req_handler *head;
+
+	head = afb_req_handler_new(session->handlers, prefix, handler, data, priority);
+	if (head == NULL)
+		return 0;
+	session->handlers = head;
+	return 1;
+}
+
+static int relay_to_doRestApi(struct afb_req *request, struct afb_req_post *post, void *data)
+{
+	return doRestApi(request->connection, request->session, &request->tail[1], get_method_name(request->method),
+			 post->upload_data, post->upload_data_size, (void **)request->recorder);
+}
+
+static int afb_req_reply_file_if_exist(struct afb_req *request, int dirfd, const char *filename)
+{
+	int rc;
+	int fd;
+	unsigned int status;
+	struct stat st;
+	char etag[1 + 2 * sizeof(int)];
+	const char *inm;
+	struct MHD_Response *response;
+
+	/* Opens the file or directory */
+	fd = openat(dirfd, filename, O_RDONLY);
+	if (fd < 0) {
+		if (errno == ENOENT)
+			return 0;
+		afb_req_reply_error(request, MHD_HTTP_FORBIDDEN);
+		return 1;
+	}
+
+	/* Retrieves file's status */
+	if (fstat(fd, &st) != 0) {
+		close(fd);
+		afb_req_reply_error(request, MHD_HTTP_INTERNAL_SERVER_ERROR);
+		return 1;
+	}
+
+	/* Don't serve directory */
+	if (S_ISDIR(st.st_mode)) {
+		rc = afb_req_reply_file_if_exist(request, fd, "index.html");
+		close(fd);
+		return rc;
+	}
+
+	/* Don't serve special files */
+	if (!S_ISREG(st.st_mode)) {
+		close(fd);
+		afb_req_reply_error(request, MHD_HTTP_FORBIDDEN);
+		return 1;
+	}
+
+	/* Check the method */
+	if ((request->method & (afb_method_get | afb_method_head)) == 0) {
+		close(fd);
+		afb_req_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
+		return 1;
+	}
+
+	/* computes the etag */
+	sprintf(etag, "%08X%08X", ((int)(st.st_mtim.tv_sec) ^ (int)(st.st_mtim.tv_nsec)), (int)(st.st_size));
+
+	/* checks the etag */
+	inm = MHD_lookup_connection_value(request->connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
+	if (inm && 0 == strcmp(inm, etag)) {
+		/* etag ok, return NOT MODIFIED */
+		close(fd);
+		if (verbose)
+			fprintf(stderr, "Not Modified: [%s]\n", filename);
+		response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
+		status = MHD_HTTP_NOT_MODIFIED;
+	} else {
+		/* check the size */
+		if (st.st_size != (off_t) (size_t) st.st_size) {
+			close(fd);
+			afb_req_reply_error(request, MHD_HTTP_INTERNAL_SERVER_ERROR);
+			return 1;
+		}
+
+		/* create the response */
+		response = MHD_create_response_from_fd((size_t) st.st_size, fd);
+		status = MHD_HTTP_OK;
+
+#if defined(USE_MAGIC_MIME_TYPE)
+		/* set the type */
+		if (request->session->magic) {
+			const char *mimetype = magic_descriptor(request->session->magic, fd);
+			if (mimetype != NULL)
+				MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
+		}
+#endif
+	}
+
+	/* fills the value and send */
+	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, request->session->cacheTimeout);
+	MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag);
+	MHD_queue_response(request->connection, status, response);
+	MHD_destroy_response(response);
+	return 1;
+}
+
+static int afb_req_reply_file(struct afb_req *request, int dirfd, const char *filename)
+{
+	int rc = afb_req_reply_file_if_exist(request, dirfd, filename);
+	if (rc == 0)
+		afb_req_reply_error(request, MHD_HTTP_NOT_FOUND);
+	return 1;
+}
+
+static int handle_alias(struct afb_req *request, struct afb_req_post *post, void *data)
+{
+	char *path;
+	const char *alias = data;
+	size_t lenalias;
+
+	if (request->method != afb_method_get) {
+		afb_req_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
+		return 1;
+	}
+
+	if (!validsubpath(request->tail)) {
+		afb_req_reply_error(request, MHD_HTTP_FORBIDDEN);
+		return 1;
+	}
+
+	lenalias = strlen(alias);
+	path = alloca(lenalias + request->lentail + 1);
+	memcpy(path, alias, lenalias);
+	memcpy(&path[lenalias], request->tail, request->lentail + 1);
+	return afb_req_reply_file(request, AT_FDCWD, path);
+}
+
+int afb_req_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
+{
+	return afb_req_add_handler(session, prefix, handle_alias, (void *)alias, priority);
+}
+
+static int my_default_init(AFB_session * session)
+{
+	int idx;
+
+	if (!afb_req_add_handler(session, session->config->rootapi, relay_to_doRestApi, NULL, 1))
+		return 0;
+
+	for (idx = 0; session->config->aliasdir[idx].url != NULL; idx++)
+		if (!afb_req_add_alias
+		    (session, session->config->aliasdir[idx].url, session->config->aliasdir[idx].path, 0))
+			return 0;
+
+	if (!afb_req_add_alias(session, "", session->config->rootdir, -10))
+		return 0;
+
+	if (!afb_req_add_handler(session, session->config->rootbase, afb_request_one_page_api_redirect, NULL, -20))
+		return 0;
+
+	return 1;
+}
+
+static int access_handler(void *cls,
+			  struct MHD_Connection *connection,
+			  const char *url,
+			  const char *methodstr,
+			  const char *version, const char *upload_data, size_t * upload_data_size, void **recorder)
+{
+	struct afb_req_post post;
+	struct afb_req request;
+	enum afb_method method;
+	AFB_session *session;
+	struct afb_req_handler *iter;
+
+	session = cls;
+	post.upload_data = upload_data;
+	post.upload_data_size = upload_data_size;
+
+#if 0
+	struct afb_req *previous;
+
+	previous = *recorder;
+	if (previous) {
+		assert((void **)previous->recorder == recorder);
+		assert(previous->session == session);
+		assert(previous->connection == connection);
+		assert(previous->method == get_method(methodstr));
+		assert(previous->url == url);
+
+		/* TODO */
+/*
+		assert(previous->post_handler != NULL);
+		previous->post_handler(previous, &post);
+		return MHD_NO;
+*/
+	}
+#endif
+
+	method = get_method(methodstr);
+	if (method == afb_method_none) {
+		afb_req_reply_error(&request, MHD_HTTP_BAD_REQUEST);
+		return MHD_YES;
+	}
+
+	/* init the request */
+	request.session = cls;
+	request.connection = connection;
+	request.method = method;
+	request.tail = request.url = url;
+	request.lentail = request.lenurl = strlen(url);
+	request.recorder = (struct afb_req **)recorder;
+	request.post_handler = NULL;
+	request.post_completed = NULL;
+	request.post_data = NULL;
+
+	/* search an handler for the request */
+	iter = session->handlers;
+	while (iter) {
+		if (afb_req_unprefix(&request, iter->prefix, iter->length)) {
+			if (iter->handler(&request, &post, iter->data))
+				return MHD_YES;
+			request.tail = request.url;
+			request.lentail = request.lenurl;
+		}
+		iter = iter->next;
+	}
+
+	/* no handler */
+	afb_req_reply_error(&request, method != afb_method_get ? MHD_HTTP_BAD_REQUEST : MHD_HTTP_NOT_FOUND);
+	return MHD_YES;
+}
+
+/* Because of POST call multiple time requestApi we need to free POST handle here */
+static void end_handler(void *cls, struct MHD_Connection *connection, void **con_cls,
+			enum MHD_RequestTerminationCode toe)
+{
+	AFB_PostHandle *posthandle = *con_cls;
+
+	/* if post handle was used let's free everything */
+	if (posthandle != NULL)
+		endPostRequest(posthandle);
+}
+
+static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
+{
+	return MHD_YES;
+}
+
+#if defined(USE_MAGIC_MIME_TYPE)
+
+#if !defined(MAGIC_DB)
 #define MAGIC_DB "/usr/share/misc/magic.mgc"
+#endif
 
-// try to open libmagic to handle mime types
-static AFB_error initLibMagic (AFB_session *session) {
-  
-    /*MAGIC_MIME tells magic to return a mime of the file, but you can specify different things*/
-    if (verbose) printf("Loading mimetype default magic database\n");
-  
-    session->magic = magic_open(MAGIC_MIME_TYPE);
-    if (session->magic == NULL) {
-        fprintf(stderr,"ERROR: unable to initialize magic library\n");
-        return AFB_FAIL;
-    }
-    
-    // Warning: should not use NULL for DB [libmagic bug wont pass efence check]
-    if (magic_load(session->magic, MAGIC_DB) != 0) {
-        fprintf(stderr,"cannot load magic database - %s\n", magic_error(session->magic));
-        magic_close(session->magic);
-        return AFB_FAIL;
-    }
+static int init_lib_magic (AFB_session *session)
+{
+	/* MAGIC_MIME tells magic to return a mime of the file, but you can specify different things */
+	if (verbose)
+		printf("Loading mimetype default magic database\n");
 
-    return AFB_SUCCESS;
+	session->magic = magic_open(MAGIC_MIME_TYPE);
+	if (session->magic == NULL) {
+		fprintf(stderr,"ERROR: unable to initialize magic library\n");
+		return 0;
+	}
+
+	/* Warning: should not use NULL for DB [libmagic bug wont pass efence check] */
+	if (magic_load(session->magic, MAGIC_DB) != 0) {
+		fprintf(stderr,"cannot load magic database - %s\n", magic_error(session->magic));
+/*
+		magic_close(session->magic);
+		session->magic = NULL;
+		return 0;
+*/
+	}
+
+	return 1;
+}
+#endif
+
+AFB_error httpdStart(AFB_session * session)
+{
+
+	if (!my_default_init(session)) {
+		printf("Error: initialisation of httpd failed");
+		return AFB_FATAL;
+	}
+
+	/* Initialise Client Session Hash Table */
+	ctxStoreInit(CTX_NBCLIENTS);
+
+#if defined(USE_MAGIC_MIME_TYPE)
+	/*TBD open libmagic cache [fail to pass EFENCE check (allocating 0 bytes)] */
+	init_lib_magic (session);
+#endif
+
+	if (verbose) {
+		printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
+		printf("AFB:notice Browser URL= http:/*localhost:%d\n", session->config->httpdPort);
+	}
+
+	session->httpd = MHD_start_daemon(
+		MHD_USE_EPOLL_LINUX_ONLY | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG,
+		(uint16_t) session->config->httpdPort,	/* port */
+		new_client_handler, NULL,	/* Tcp Accept call back + extra attribute */
+		access_handler, session,	/* Http Request Call back + extra attribute */
+		MHD_OPTION_NOTIFY_COMPLETED, end_handler, session,
+		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)15,	/* 15 seconds */
+		MHD_OPTION_END);	/* options-end */
+
+	if (session->httpd == NULL) {
+		printf("Error: httpStart invalid httpd port: %d", session->config->httpdPort);
+		return AFB_FATAL;
+	}
+	return AFB_SUCCESS;
 }
 
-// Because of POST call multiple time requestApi we need to free POST handle here
-static void endRequest (void *cls, struct MHD_Connection *connection, void **con_cls, enum MHD_RequestTerminationCode toe) {
-  AFB_PostHandle *posthandle = *con_cls;
+/* infinite loop */
+AFB_error httpdLoop(AFB_session * session)
+{
+	int count = 0;
+	const union MHD_DaemonInfo *info;
+	struct pollfd pfd;
 
-  // if post handle was used let's free everything
-  if (posthandle != NULL) endPostRequest (posthandle);
+	info = MHD_get_daemon_info(session->httpd, MHD_DAEMON_INFO_EPOLL_FD_LINUX_ONLY);
+	if (info == NULL) {
+		printf("Error: httpLoop no pollfd");
+		goto error;
+	}
+	pfd.fd = info->listen_fd;
+	pfd.events = POLLIN;
+
+	if (verbose)
+		fprintf(stderr, "AFB:notice entering httpd waiting loop\n");
+	while (TRUE) {
+		if (verbose)
+			fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
+		poll(&pfd, 1, 15000);	/* 15 seconds (as above timeout when starting) */
+		MHD_run(session->httpd);
+	}
+
+ error:
+	/* should never return from here */
+	return AFB_FATAL;
 }
 
-
-// Create check etag value
-STATIC void computeEtag(char *etag, size_t maxlen, struct stat *sbuf) {
-    long time;
-    time = sbuf->st_mtim.tv_sec;
-    snprintf(etag, maxlen, "%ld", time);
+int httpdStatus(AFB_session * session)
+{
+	return MHD_run(session->httpd);
 }
 
-STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, const char *url, AFB_staticfile *staticfile) {
-    const char *etagCache, *mimetype; 
-    char etagValue[15];
-    struct MHD_Response *response;
-    struct stat sbuf; 
-
-    if (fstat (staticfile->fd, &sbuf) != 0) {
-        fprintf(stderr, "Fail to stat file: [%s] error:%s\n", staticfile->path, strerror(errno));
-        goto abortRequest;
-    }
-       
-    // if url is a directory let's add index.html and redirect client
-    if (S_ISDIR (sbuf.st_mode)) {
-        close (staticfile->fd); // close directory check for Index
-       
-        // No trailing '/'. Let's add one and redirect for relative paths to work
-        if (url [strlen (url) -1] != '/') {
-            response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
-            strncpy(staticfile->path, url, sizeof (staticfile->path));
-            strncat(staticfile->path, "/", sizeof (staticfile->path));
-            MHD_add_response_header (response, "Location", staticfile->path);
-            MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
-            if (verbose) fprintf (stderr,"Adding trailing '/' [%s]\n",staticfile->path);      
-            goto sendRequest;
-        }
-        
-        strncat (staticfile->path, OPA_INDEX, sizeof (staticfile->path));
-        if (-1 == (staticfile->fd = open(staticfile->path, O_RDONLY)) || (fstat (staticfile->fd, &sbuf) != 0)) {
-           fprintf(stderr, "No Index.html in direcory [%s]\n", staticfile->path);
-           goto abortRequest;  
-        } 
-    } else if (! S_ISREG (sbuf.st_mode)) { // only standard file any other one including symbolic links are refused.
-        close (staticfile->fd); // nothing useful to do with this file
-        fprintf (stderr, "Fail file: [%s] is not a regular file\n", staticfile->path);
-        const char *errorstr = "<html><body>Application Framework Binder Invalid file type</body></html>";
-        response = MHD_create_response_from_buffer (strlen (errorstr),
-                     (void *) errorstr,	 MHD_RESPMEM_PERSISTENT);
-        MHD_queue_response (connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-        goto sendRequest;
-    } 
-    
-    // https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching?hl=fr
-    // ftp://ftp.heanet.ie/disk1/www.gnu.org/software/libmicrohttpd/doxygen/dc/d0c/microhttpd_8h.html
-
-    // Check etag value and load file only when modification date changes
-    etagCache = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
-    computeEtag(etagValue, sizeof (etagValue), &sbuf);
-
-    if (etagCache != NULL && strcmp(etagValue, etagCache) == 0) {
-        close(staticfile->fd); // file did not change since last upload
-        if (verbose) fprintf(stderr, "Not Modify: [%s]\n", staticfile->path);
-        response = MHD_create_response_from_buffer(0, "", MHD_RESPMEM_PERSISTENT);
-        MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
-        MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
-        MHD_queue_response(connection, MHD_HTTP_NOT_MODIFIED, response);
-
-    } else { // it's a new file, we need to upload it to client
-        response = MHD_create_response_from_fd(sbuf.st_size, staticfile->fd);
-        // if we have magic let's try to guest mime type
-        if (session->magic) {          
-           mimetype= magic_descriptor(session->magic, staticfile->fd);
-           if (mimetype != NULL)  MHD_add_response_header (response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
-        } else mimetype="application/unknown";
-        if (verbose) fprintf(stderr, "Serving: [%s] mime=%s\n", staticfile->path, mimetype);
-        MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
-        MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
-        MHD_queue_response(connection, MHD_HTTP_OK, response);
-    }
-    
-sendRequest:    
-    MHD_destroy_response(response);
-    return (MHD_YES);
-
-abortRequest:
-    return (FAILED);
-}
-
-
-// this function return either Index.htlm or a redirect to /#!route to make angular happy
-STATIC int redirectHTML5(struct MHD_Connection *connection, AFB_session *session, const char* url) {
-
-    struct MHD_Response *response;
-    AFB_staticfile staticfile;
-
-    // Url match /opa/xxxx should redirect to "/opa/#!page" to force index.html reload
-    strncpy(staticfile.path, session->config->rootbase, sizeof (staticfile.path));
-    strncat(staticfile.path, "/#!", sizeof (staticfile.path));
-    strncat(staticfile.path, &url[1], sizeof (staticfile.path));
-    response = MHD_create_response_from_buffer(0,"", MHD_RESPMEM_PERSISTENT);
-    MHD_add_response_header (response, "Location", staticfile.path);
-    MHD_queue_response (connection, MHD_HTTP_MOVED_PERMANENTLY, response);
-    if (verbose) fprintf (stderr,"checkHTML5 redirect to [%s]\n",staticfile.path);
-    return (MHD_YES);
-}
-
-
-// minimal httpd file server for static HTML,JS,CSS,etc...
-STATIC int requestFile(struct MHD_Connection *connection, AFB_session *session, const char* url) {
-    int ret, idx;
-    AFB_staticfile staticfile;
-    char *requestdir, *requesturl;
-   
-    // default search for file is rootdir base
-    requestdir= session->config->rootdir;
-    requesturl=(char*)url;
-    
-    // Check for optional aliases
-    for (idx=0; session->config->aliasdir[idx].url != NULL; idx++) {
-        if (0 == strncmp(url, session->config->aliasdir[idx].url, session->config->aliasdir[idx].len)) {
-             requestdir = session->config->aliasdir[idx].path;
-             requesturl=(char*)&url[session->config->aliasdir[idx].len];
-             break;
-        }
-    }
-    
-    // build full path from rootdir + url
-    strncpy(staticfile.path, requestdir, sizeof (staticfile.path));   
-    strncat(staticfile.path, requesturl, sizeof (staticfile.path));
-
-    // try to open file and get its size
-    if (-1 == (staticfile.fd = open(staticfile.path, O_RDONLY))) {
-        fprintf(stderr, "Fail to open file: [%s] error:%s\n", staticfile.path, strerror(errno));
-        return (FAILED);
-    }
-    // open file is OK let use it
-    ret = servFile (connection, session, url, &staticfile);
-    return ret;
-}
-
-// Check and Dispatch HTTP request
-STATIC int newRequest(void *cls,
-        struct MHD_Connection *connection,
-        const char *url,
-        const char *method,
-        const char *version,
-        const char *upload_data, size_t *upload_data_size, void **con_cls) {
-
-    AFB_session *session = cls;
-    struct MHD_Response *response;
-    int ret;
-    
-    // this is a REST API let's check for plugins
-    if (0 == strncmp(url, session->config->rootapi, apiUrlLen)) {
-        ret = doRestApi(connection, session, &url[apiUrlLen+1], method, upload_data, upload_data_size, con_cls);
-        return ret;
-    }
-    
-    // From here only accept get request
-    if (0 != strcmp(method, MHD_HTTP_METHOD_GET)) return MHD_NO; /* unexpected method */
-   
-    // If a static file exist serve it now
-    ret = requestFile(connection, session, url);
-    if (ret != FAILED) return ret;
-    
-    // no static was served let's try HTML5 OPA redirect
-    if (0 == strncmp(url, session->config->rootbase, baseUrlLen)) {
-        ret = redirectHTML5(connection, session, &url[baseUrlLen]);
-        return ret;
-    }
-
-     // Nothing respond to this request Files, API, Angular Base
-    const char *errorstr = "<html><body>AFB-Daemon File Not Find file</body></html>";
-    response = MHD_create_response_from_buffer(strlen(errorstr), (void*)errorstr, MHD_RESPMEM_PERSISTENT);
-    ret = MHD_queue_response(connection, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
-    return (MHD_YES);
-}
-
-STATIC int newClient(void *cls, const struct sockaddr * addr, socklen_t addrlen) {
-    // check if client is coming from an acceptable IP
-    return (MHD_YES); // MHD_NO
-}
-
-
-PUBLIC AFB_error httpdStart(AFB_session *session) {
-
-    // compute fixed URL length at startup time
-    apiUrlLen = strlen (session->config->rootapi);
-    baseUrlLen= strlen (session->config->rootbase);
-    rootUrlLen= strlen (session->config->rootdir);
-    
-    // Initialise Client Session Hash Table
-    ctxStoreInit (CTX_NBCLIENTS);
-     
-    //TBD open libmagic cache [fail to pass EFENCE check (allocating 0 bytes)]
-    //initLibMagic (session);
-    
-    
-    if (verbose) {
-        printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
-        printf("AFB:notice Browser URL= http://localhost:%d\n", session->config->httpdPort);
-    }
-
-    session->httpd = (void*) MHD_start_daemon(
-                MHD_USE_EPOLL_LINUX_ONLY
-                | MHD_USE_TCP_FASTOPEN
-                | MHD_USE_DEBUG
-              ,
-            (uint16_t)session->config->httpdPort, // port
-            &newClient, NULL, // Tcp Accept call back + extra attribute
-            &newRequest, session, // Http Request Call back + extra attribute
-            MHD_OPTION_NOTIFY_COMPLETED, &endRequest, NULL,
-            MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) 15, // 15 seconds
-            MHD_OPTION_END); // options-end
-    // TBD: MHD_OPTION_SOCK_ADDR
-
-    if (session->httpd == NULL) {
-        printf("Error: httpStart invalid httpd port: %d", session->config->httpdPort);
-        return AFB_FATAL;
-    }
-    return AFB_SUCCESS;
-}
-
-// infinite loop
-PUBLIC AFB_error httpdLoop(AFB_session *session) {
-    int count = 0;
-    const union MHD_DaemonInfo *info;
-    struct pollfd pfd;
-
-    info = MHD_get_daemon_info(session->httpd,
-                               MHD_DAEMON_INFO_EPOLL_FD_LINUX_ONLY);
-    if (info == NULL) {
-        printf("Error: httpLoop no pollfd");
-        goto error;
-    }
-    pfd.fd = info->listen_fd;
-    pfd.events = POLLIN;
-
-    if (verbose) fprintf(stderr, "AFB:notice entering httpd waiting loop\n");
-    while (TRUE) {
-        if (verbose) fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
-        poll(&pfd, 1, 15000); // 15 seconds (as above timeout when starting)
-        MHD_run(session->httpd);
-    }
-
-error:
-    // should never return from here
-    return AFB_FATAL;
-}
-
-PUBLIC int httpdStatus(AFB_session *session) {
-    return (MHD_run(session->httpd));
-}
-
-PUBLIC void httpdStop(AFB_session *session) {
-    MHD_stop_daemon(session->httpd);
+void httpdStop(AFB_session * session)
+{
+	MHD_stop_daemon(session->httpd);
 }

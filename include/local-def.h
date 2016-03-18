@@ -234,7 +234,9 @@ typedef struct {
   AFB_plugin **plugins;
 } AFB_request;
 
-
+struct afb_req_handler;
+struct afb_req;
+struct MHD_Daemon;
 typedef struct {
   AFB_config  *config;   // pointer to current config
   // List of commands to execute
@@ -243,12 +245,13 @@ typedef struct {
   int  foreground;        // run in forground mode
   int  configsave;        // Save config on disk on start
   char *cacheTimeout;     // http require timeout to be a string
-  void *httpd;            // anonymous structure for httpd handler
+  struct MHD_Daemon *httpd;            // anonymous structure for httpd handler
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  forceexit;         // when autoconfig from script force exit before starting server
   int  readyfd;           // a #fd to signal when ready to serve
   AFB_plugin **plugins;   // pointer to REST/API plugins 
   magic_t  magic;         // Mime type file magic lib
+  struct afb_req_handler *handlers;
   sigjmp_buf restartCkpt; // context save for restart set/longjmp
 } AFB_session;
 
