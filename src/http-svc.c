@@ -85,7 +85,7 @@ STATIC void computeEtag(char *etag, size_t maxlen, struct stat *sbuf) {
 STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, const char *url, AFB_staticfile *staticfile) {
     const char *etagCache, *mimetype; 
     char etagValue[15];
-    struct MHD_Response *response = NULL;
+    struct MHD_Response *response;
     struct stat sbuf; 
 
     if (fstat (staticfile->fd, &sbuf) != 0) {
@@ -139,14 +139,13 @@ STATIC int servFile (struct MHD_Connection *connection, AFB_session *session, co
         MHD_queue_response(connection, MHD_HTTP_NOT_MODIFIED, response);
 
     } else { // it's a new file, we need to upload it to client
+        response = MHD_create_response_from_fd(sbuf.st_size, staticfile->fd);
         // if we have magic let's try to guest mime type
         if (session->magic) {          
            mimetype= magic_descriptor(session->magic, staticfile->fd);
            if (mimetype != NULL)  MHD_add_response_header (response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
         } else mimetype="application/unknown";
-        
         if (verbose) fprintf(stderr, "Serving: [%s] mime=%s\n", staticfile->path, mimetype);
-        response = MHD_create_response_from_fd(sbuf.st_size, staticfile->fd);
         MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, session->cacheTimeout); // default one hour cache
         MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etagValue);
         MHD_queue_response(connection, MHD_HTTP_OK, response);
