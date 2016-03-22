@@ -328,10 +328,17 @@ static int afb_req_reply_file(struct afb_req *request, int dirfd, const char *fi
 	return 1;
 }
 
+struct afb_diralias {
+	const char *alias;
+	const char *directory;
+	size_t lendir;
+	int dirfd;
+};
+
 static int handle_alias(struct afb_req *request, struct afb_req_post *post, void *data)
 {
 	char *path;
-	const char *alias = data;
+	struct afb_diralias *da = data;
 	size_t lenalias;
 
 	if (request->method != afb_method_get) {
@@ -344,16 +351,31 @@ static int handle_alias(struct afb_req *request, struct afb_req_post *post, void
 		return 1;
 	}
 
-	lenalias = strlen(alias);
-	path = alloca(lenalias + request->lentail + 1);
-	memcpy(path, alias, lenalias);
-	memcpy(&path[lenalias], request->tail, request->lentail + 1);
-	return afb_req_reply_file(request, AT_FDCWD, path);
+	return afb_req_reply_file(request, da->dirfd, &request->tail[request->lentail + 1]);
 }
 
 int afb_req_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
 {
-	return afb_req_add_handler(session, prefix, handle_alias, (void *)alias, priority);
+	struct afb_diralias *da;
+	int dirfd;
+
+	dirfd = open(alias, O_PATH|O_DIRECTORY);
+	if (dirfd < 0) {
+		/* TODO message */
+		return 0;
+	}
+	da = malloc(sizeof *da);
+	if (da != NULL) {
+		da->alias = prefix;
+		da->directory = alias;
+		da->lendir = strlen(da->directory);
+		da->dirfd = dirfd;
+		if (afb_req_add_handler(session, prefix, handle_alias, (void *)alias, priority))
+			return 1;
+		free(da);
+	}
+	close(dirfd);
+	return 0;
 }
 
 static int my_default_init(AFB_session * session)
@@ -377,11 +399,15 @@ static int my_default_init(AFB_session * session)
 	return 1;
 }
 
-static int access_handler(void *cls,
-			  struct MHD_Connection *connection,
-			  const char *url,
-			  const char *methodstr,
-			  const char *version, const char *upload_data, size_t * upload_data_size, void **recorder)
+static int access_handler(
+		void *cls,
+		struct MHD_Connection *connection,
+		const char *url,
+		const char *methodstr,
+		const char *version,
+		const char *upload_data,
+		size_t * upload_data_size,
+		void **recorder)
 {
 	struct afb_req_post post;
 	struct afb_req request;
