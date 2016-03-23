@@ -25,12 +25,12 @@
 #include "afb-method.h"
 
 
-struct afb_req_post {
+struct afb_hreq_post {
 	const char *upload_data;
 	size_t *upload_data_size;
 };
 
-struct afb_req {
+struct afb_hreq {
 	AFB_session *session;
 	struct MHD_Connection *connection;
 	enum afb_method method;
@@ -38,9 +38,9 @@ struct afb_req {
 	size_t lenurl;
 	const char *tail;
 	size_t lentail;
-	struct afb_req **recorder;
-	int (*post_handler) (struct afb_req *, struct afb_req_post *);
-	int (*post_completed) (struct afb_req *, struct afb_req_post *);
+	struct afb_hreq **recorder;
+	int (*post_handler) (struct afb_hreq *, struct afb_hreq_post *);
+	int (*post_completed) (struct afb_hreq *, struct afb_hreq_post *);
 	void *post_data;
 };
 
@@ -48,7 +48,7 @@ struct afb_req_handler {
 	struct afb_req_handler *next;
 	const char *prefix;
 	size_t length;
-	int (*handler) (struct afb_req *, struct afb_req_post *, void *);
+	int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *);
 	void *data;
 	int priority;
 };
@@ -97,7 +97,7 @@ static int validsubpath(const char *subpath)
  * if and only if the prefix exists and is terminated by a leading
  * slash
  */
-int afb_req_unprefix(struct afb_req *request, const char *prefix, size_t length)
+int afb_req_unprefix(struct afb_hreq *request, const char *prefix, size_t length)
 {
 	/* check the prefix ? */
 	if (length > request->lentail || (request->tail[length] && request->tail[length] != '/')
@@ -114,12 +114,12 @@ int afb_req_unprefix(struct afb_req *request, const char *prefix, size_t length)
 	return 1;
 }
 
-int afb_req_valid_tail(struct afb_req *request)
+int afb_req_valid_tail(struct afb_hreq *request)
 {
 	return validsubpath(request->tail);
 }
 
-void afb_req_reply_error(struct afb_req *request, unsigned int status)
+void afb_req_reply_error(struct afb_hreq *request, unsigned int status)
 {
 	char *buffer;
 	int length;
@@ -137,7 +137,7 @@ void afb_req_reply_error(struct afb_req *request, unsigned int status)
 	MHD_destroy_response(response);
 }
 
-int afb_request_redirect_to(struct afb_req *request, const char *url)
+int afb_request_redirect_to(struct afb_hreq *request, const char *url)
 {
 	struct MHD_Response *response;
 
@@ -150,7 +150,7 @@ int afb_request_redirect_to(struct afb_req *request, const char *url)
 	return 1;
 }
 
-int afb_request_one_page_api_redirect(struct afb_req *request, struct afb_req_post *post, void *data)
+int afb_request_one_page_api_redirect(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
 {
 	size_t plen;
 	char *url;
@@ -176,7 +176,7 @@ int afb_request_one_page_api_redirect(struct afb_req *request, struct afb_req_po
 }
 
 struct afb_req_handler *afb_req_handler_new(struct afb_req_handler *head, const char *prefix,
-					    int (*handler) (struct afb_req *, struct afb_req_post *, void *),
+					    int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *),
 					    void *data, int priority)
 {
 	struct afb_req_handler *link, *iter, *previous;
@@ -214,7 +214,7 @@ struct afb_req_handler *afb_req_handler_new(struct afb_req_handler *head, const 
 }
 
 int afb_req_add_handler(AFB_session * session, const char *prefix,
-			int (*handler) (struct afb_req *, struct afb_req_post *, void *), void *data, int priority)
+			int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *), void *data, int priority)
 {
 	struct afb_req_handler *head;
 
@@ -225,13 +225,13 @@ int afb_req_add_handler(AFB_session * session, const char *prefix,
 	return 1;
 }
 
-static int relay_to_doRestApi(struct afb_req *request, struct afb_req_post *post, void *data)
+static int relay_to_doRestApi(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
 {
 	return doRestApi(request->connection, request->session, &request->tail[1], get_method_name(request->method),
 			 post->upload_data, post->upload_data_size, (void **)request->recorder);
 }
 
-static int afb_req_reply_file_if_exist(struct afb_req *request, int dirfd, const char *filename)
+static int afb_req_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char *filename)
 {
 	int rc;
 	int fd;
@@ -320,7 +320,7 @@ static int afb_req_reply_file_if_exist(struct afb_req *request, int dirfd, const
 	return 1;
 }
 
-static int afb_req_reply_file(struct afb_req *request, int dirfd, const char *filename)
+static int afb_req_reply_file(struct afb_hreq *request, int dirfd, const char *filename)
 {
 	int rc = afb_req_reply_file_if_exist(request, dirfd, filename);
 	if (rc == 0)
@@ -335,7 +335,7 @@ struct afb_diralias {
 	int dirfd;
 };
 
-static int handle_alias(struct afb_req *request, struct afb_req_post *post, void *data)
+static int handle_alias(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
 {
 	char *path;
 	struct afb_diralias *da = data;
@@ -409,8 +409,8 @@ static int access_handler(
 		size_t * upload_data_size,
 		void **recorder)
 {
-	struct afb_req_post post;
-	struct afb_req request;
+	struct afb_hreq_post post;
+	struct afb_hreq request;
 	enum afb_method method;
 	AFB_session *session;
 	struct afb_req_handler *iter;
@@ -420,7 +420,7 @@ static int access_handler(
 	post.upload_data_size = upload_data_size;
 
 #if 0
-	struct afb_req *previous;
+	struct afb_hreq *previous;
 
 	previous = *recorder;
 	if (previous) {
@@ -451,7 +451,7 @@ static int access_handler(
 	request.method = method;
 	request.tail = request.url = url;
 	request.lentail = request.lenurl = strlen(url);
-	request.recorder = (struct afb_req **)recorder;
+	request.recorder = (struct afb_hreq **)recorder;
 	request.post_handler = NULL;
 	request.post_completed = NULL;
 	request.post_data = NULL;
