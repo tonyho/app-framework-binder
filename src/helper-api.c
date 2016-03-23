@@ -30,9 +30,19 @@ typedef struct {
      size_t  len;
 } queryHandleT;
 
+// Error code are requested through function to manage json usage count
+typedef struct {
+  int   level;
+  const char* label;
+  json_object *json;
+} AFB_errorT;
+
 static AFB_errorT   AFBerr [AFB_SUCCESS+1];
 static json_object *jTypeStatic;
+
 PUBLIC int verbose;
+
+static const char *ERROR_LABEL[] = {"false", "true", "fatal", "fail", "warning", "empty", "success"};
 
 /* ------------------------------------------------------------------------------
  * Get localtime and return in a string

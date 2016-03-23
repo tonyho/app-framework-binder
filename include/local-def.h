@@ -83,9 +83,6 @@ typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLU
 // prebuild json error are constructed in config.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
-extern char *ERROR_LABEL[];
-#define ERROR_LABEL_DEF {"false", "true", "fatal", "fail", "warning", "empty", "success"}
-
 #define BANNER "<html><head><title>Application Framework Binder</title></head><body>Application Framework </body></html>"
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT "multipart/form-data"
@@ -95,13 +92,6 @@ extern char *ERROR_LABEL[];
 
 typedef json_object* (*AFB_apiCB)();
 typedef void (*AFB_freeCtxCB)(void*, void*, char*);
-
-// Error code are requested through function to manage json usage count
-typedef struct {
-  int   level;
-  char* label;
-  json_object *json;
-} AFB_errorT;
 
 typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
 typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;

@@ -28,7 +28,6 @@
 
 #define AFB_CONFIG_JTYPE "AFB_config"
 
-PUBLIC  char *ERROR_LABEL[]=ERROR_LABEL_DEF;
 
 // load config from disk and merge with CLI option
 PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
