@@ -26,8 +26,8 @@
 #include "afb-hreq.h"
 
 
-struct afb_req_handler {
-	struct afb_req_handler *next;
+struct afb_hsrv_handler {
+	struct afb_hsrv_handler *next;
 	const char *prefix;
 	size_t length;
 	int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *);
@@ -35,8 +35,18 @@ struct afb_req_handler {
 	int priority;
 };
 
+struct afb_diralias {
+	const char *alias;
+	const char *directory;
+	size_t lendir;
+	int dirfd;
+};
 
-int afb_request_one_page_api_redirect(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
+
+int afb_request_one_page_api_redirect(
+		struct afb_hreq *request,
+		struct afb_hreq_post *post,
+		void *data)
 {
 	size_t plen;
 	char *url;
@@ -61,11 +71,14 @@ int afb_request_one_page_api_redirect(struct afb_hreq *request, struct afb_hreq_
 	return afb_hreq_redirect_to(request, url);
 }
 
-struct afb_req_handler *afb_req_handler_new(struct afb_req_handler *head, const char *prefix,
-					    int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *),
-					    void *data, int priority)
+struct afb_hsrv_handler *afb_hsrv_handler_new(
+		struct afb_hsrv_handler *head,
+		const char *prefix,
+		int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *),
+		void *data,
+		int priority)
 {
-	struct afb_req_handler *link, *iter, *previous;
+	struct afb_hsrv_handler *link, *iter, *previous;
 	size_t length;
 
 	/* get the length of the prefix without its leading / */
@@ -99,12 +112,16 @@ struct afb_req_handler *afb_req_handler_new(struct afb_req_handler *head, const 
 	return head;
 }
 
-int afb_req_add_handler(AFB_session * session, const char *prefix,
-			int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *), void *data, int priority)
+int afb_req_add_handler(
+		AFB_session * session,
+		const char *prefix,
+		int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *),
+		void *data,
+		int priority)
 {
-	struct afb_req_handler *head;
+	struct afb_hsrv_handler *head;
 
-	head = afb_req_handler_new(session->handlers, prefix, handler, data, priority);
+	head = afb_hsrv_handler_new(session->handlers, prefix, handler, data, priority);
 	if (head == NULL)
 		return 0;
 	session->handlers = head;
@@ -116,13 +133,6 @@ static int relay_to_doRestApi(struct afb_hreq *request, struct afb_hreq_post *po
 	return doRestApi(request->connection, request->session, &request->tail[1], get_method_name(request->method),
 			 post->upload_data, post->upload_data_size, (void **)request->recorder);
 }
-
-struct afb_diralias {
-	const char *alias;
-	const char *directory;
-	size_t lendir;
-	int dirfd;
-};
 
 static int handle_alias(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
 {
@@ -138,7 +148,7 @@ static int handle_alias(struct afb_hreq *request, struct afb_hreq_post *post, vo
 		return 1;
 	}
 
-	return afb_hreq_reply_file(request, da->dirfd, &request->tail[request->lentail + 1]);
+	return afb_hreq_reply_file(request, da->dirfd, &request->tail[1]);
 }
 
 int afb_req_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
@@ -200,7 +210,7 @@ static int access_handler(
 	struct afb_hreq request;
 	enum afb_method method;
 	AFB_session *session;
-	struct afb_req_handler *iter;
+	struct afb_hsrv_handler *iter;
 
 	session = cls;
 	post.upload_data = upload_data;

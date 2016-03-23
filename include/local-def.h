@@ -234,8 +234,7 @@ typedef struct {
   AFB_plugin **plugins;
 } AFB_request;
 
-struct afb_req_handler;
-struct afb_req;
+struct afb_hsrv_handler;
 struct MHD_Daemon;
 typedef struct {
   AFB_config  *config;   // pointer to current config
@@ -251,7 +250,7 @@ typedef struct {
   int  readyfd;           // a #fd to signal when ready to serve
   AFB_plugin **plugins;   // pointer to REST/API plugins 
   magic_t  magic;         // Mime type file magic lib
-  struct afb_req_handler *handlers;
+  struct afb_hsrv_handler *handlers;
   sigjmp_buf restartCkpt; // context save for restart set/longjmp
 } AFB_session;
 
