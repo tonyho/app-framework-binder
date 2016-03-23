@@ -66,33 +66,33 @@ static int validsubpath(const char *subpath)
 }
 
 /*
- * Removes the 'prefix' of 'length' frome the tail of 'request'
+ * Removes the 'prefix' of 'length' frome the tail of 'hreq'
  * if and only if the prefix exists and is terminated by a leading
  * slash
  */
-int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length)
+int afb_hreq_unprefix(struct afb_hreq *hreq, const char *prefix, size_t length)
 {
 	/* check the prefix ? */
-	if (length > request->lentail || (request->tail[length] && request->tail[length] != '/')
-	    || memcmp(prefix, request->tail, length))
+	if (length > hreq->lentail || (hreq->tail[length] && hreq->tail[length] != '/')
+	    || memcmp(prefix, hreq->tail, length))
 		return 0;
 
 	/* removes successives / */
-	while (length < request->lentail && request->tail[length + 1] == '/')
+	while (length < hreq->lentail && hreq->tail[length + 1] == '/')
 		length++;
 
 	/* update the tail */
-	request->lentail -= length;
-	request->tail += length;
+	hreq->lentail -= length;
+	hreq->tail += length;
 	return 1;
 }
 
-int afb_hreq_valid_tail(struct afb_hreq *request)
+int afb_hreq_valid_tail(struct afb_hreq *hreq)
 {
-	return validsubpath(request->tail);
+	return validsubpath(hreq->tail);
 }
 
-void afb_hreq_reply_error(struct afb_hreq *request, unsigned int status)
+void afb_hreq_reply_error(struct afb_hreq *hreq, unsigned int status)
 {
 	char *buffer;
 	int length;
@@ -105,12 +105,12 @@ void afb_hreq_reply_error(struct afb_hreq *request, unsigned int status)
 		buffer = "<html><body>error</body></html>";
 		response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_PERSISTENT);
 	}
-	if (!MHD_queue_response(request->connection, status, response))
+	if (!MHD_queue_response(hreq->connection, status, response))
 		fprintf(stderr, "Failed to reply error code %u", status);
 	MHD_destroy_response(response);
 }
 
-int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char *filename)
+int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *filename)
 {
 	int rc;
 	int fd;
@@ -125,20 +125,29 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char
 	if (fd < 0) {
 		if (errno == ENOENT)
 			return 0;
-		afb_hreq_reply_error(request, MHD_HTTP_FORBIDDEN);
+		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
 		return 1;
 	}
 
 	/* Retrieves file's status */
 	if (fstat(fd, &st) != 0) {
 		close(fd);
-		afb_hreq_reply_error(request, MHD_HTTP_INTERNAL_SERVER_ERROR);
+		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 		return 1;
 	}
 
-	/* Don't serve directory */
+	/* serve directory */
 	if (S_ISDIR(st.st_mode)) {
-		rc = afb_hreq_reply_file_if_exist(request, fd, "index.html");
+		if (hreq->url[hreq->lenurl - 1] != '/') {
+			/* the redirect is needed for reliability of relative path */
+			char *tourl = alloca(hreq->lenurl + 2);
+			memcpy(tourl, hreq->url, hreq->lenurl);
+			tourl[hreq->lenurl] = '/';
+			tourl[hreq->lenurl + 1] = 0;
+			rc = afb_hreq_redirect_to(hreq, tourl);
+		} else {
+			rc = afb_hreq_reply_file_if_exist(hreq, fd, "index.html");
+		}
 		close(fd);
 		return rc;
 	}
@@ -146,14 +155,14 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char
 	/* Don't serve special files */
 	if (!S_ISREG(st.st_mode)) {
 		close(fd);
-		afb_hreq_reply_error(request, MHD_HTTP_FORBIDDEN);
+		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
 		return 1;
 	}
 
 	/* Check the method */
-	if ((request->method & (afb_method_get | afb_method_head)) == 0) {
+	if ((hreq->method & (afb_method_get | afb_method_head)) == 0) {
 		close(fd);
-		afb_hreq_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
+		afb_hreq_reply_error(hreq, MHD_HTTP_METHOD_NOT_ALLOWED);
 		return 1;
 	}
 
@@ -161,7 +170,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char
 	sprintf(etag, "%08X%08X", ((int)(st.st_mtim.tv_sec) ^ (int)(st.st_mtim.tv_nsec)), (int)(st.st_size));
 
 	/* checks the etag */
-	inm = MHD_lookup_connection_value(request->connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
+	inm = MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
 	if (inm && 0 == strcmp(inm, etag)) {
 		/* etag ok, return NOT MODIFIED */
 		close(fd);
@@ -173,7 +182,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char
 		/* check the size */
 		if (st.st_size != (off_t) (size_t) st.st_size) {
 			close(fd);
-			afb_hreq_reply_error(request, MHD_HTTP_INTERNAL_SERVER_ERROR);
+			afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 			return 1;
 		}
 
@@ -183,8 +192,8 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char
 
 #if defined(USE_MAGIC_MIME_TYPE)
 		/* set the type */
-		if (request->session->magic) {
-			const char *mimetype = magic_descriptor(request->session->magic, fd);
+		if (hreq->session->magic) {
+			const char *mimetype = magic_descriptor(hreq->session->magic, fd);
 			if (mimetype != NULL)
 				MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
 		}
@@ -192,31 +201,31 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char
 	}
 
 	/* fills the value and send */
-	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, request->session->cacheTimeout);
+	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, hreq->session->cacheTimeout);
 	MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag);
-	MHD_queue_response(request->connection, status, response);
+	MHD_queue_response(hreq->connection, status, response);
 	MHD_destroy_response(response);
 	return 1;
 }
 
-int afb_hreq_reply_file(struct afb_hreq *request, int dirfd, const char *filename)
+int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 {
-	int rc = afb_hreq_reply_file_if_exist(request, dirfd, filename);
+	int rc = afb_hreq_reply_file_if_exist(hreq, dirfd, filename);
 	if (rc == 0)
-		afb_hreq_reply_error(request, MHD_HTTP_NOT_FOUND);
+		afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
 	return 1;
 }
 
-int afb_hreq_redirect_to(struct afb_hreq *request, const char *url)
+int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
 {
 	struct MHD_Response *response;
 
 	response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
 	MHD_add_response_header(response, MHD_HTTP_HEADER_LOCATION, url);
-	MHD_queue_response(request->connection, MHD_HTTP_MOVED_PERMANENTLY, response);
+	MHD_queue_response(hreq->connection, MHD_HTTP_MOVED_PERMANENTLY, response);
 	MHD_destroy_response(response);
 	if (verbose)
-		fprintf(stderr, "redirect from [%s] to [%s]\n", request->url, url);
+		fprintf(stderr, "redirect from [%s] to [%s]\n", hreq->url, url);
 	return 1;
 }
 
