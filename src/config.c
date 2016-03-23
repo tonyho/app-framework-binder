@@ -30,29 +30,6 @@
 
 PUBLIC  char *ERROR_LABEL[]=ERROR_LABEL_DEF;
 
-PUBLIC int verbose;
-STATIC AFB_errorT   AFBerr [AFB_SUCCESS+1];
-STATIC json_object *jTypeStatic;
-
-/* ------------------------------------------------------------------------------
- * Get localtime and return in a string
- * ------------------------------------------------------------------------------ */
-
-PUBLIC char * configTime (void) {
-  static char reqTime [26];
-  time_t tt;
-  struct tm *rt;
-
-  /* Get actual Date and Time */
-  time (&tt);
-  rt = localtime (&tt);
-
-  strftime (reqTime, sizeof (reqTime), "(%d-%b %H:%M)",rt);
-
-  // return pointer on static data
-  return (reqTime);
-}
-
 // load config from disk and merge with CLI option
 PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    static char cacheTimeout [10];
@@ -229,129 +206,11 @@ PUBLIC AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig) {
    return AFB_SUCCESS;
 }
 
-// Save the config on disk
-PUBLIC void configStoreFile (AFB_session * session) {
-   json_object * AFBConfig;
-   time_t rawtime;
-   struct tm * timeinfo;
-   int err;
 
-   AFBConfig =  json_object_new_object();
-
-   // add a timestamp and store session on disk
-   time ( &rawtime );  timeinfo = localtime ( &rawtime );
-   // A copy of the string is made and the memory is managed by the json_object
-   json_object_object_add (AFBConfig, "jtype"         , json_object_new_string (AFB_CONFIG_JTYPE));
-   json_object_object_add (AFBConfig, "timestamp"     , json_object_new_string (asctime (timeinfo)));
-   json_object_object_add (AFBConfig, "rootdir"       , json_object_new_string (session->config->rootdir));
-   json_object_object_add (AFBConfig, "rootapi"       , json_object_new_string (session->config->rootapi));
-   json_object_object_add (AFBConfig, "rootbase"      , json_object_new_string (session->config->rootbase));
-   json_object_object_add (AFBConfig, "plugins"       , json_object_new_string (session->config->ldpaths));
-   json_object_object_add (AFBConfig, "sessiondir"    , json_object_new_string (session->config->sessiondir));
-   json_object_object_add (AFBConfig, "pidfile"       , json_object_new_string (session->config->pidfile));
-   json_object_object_add (AFBConfig, "setuid"        , json_object_new_string (session->config->setuid));
-   json_object_object_add (AFBConfig, "httpdPort"     , json_object_new_int (session->config->httpdPort));
-   json_object_object_add (AFBConfig, "localhostonly" , json_object_new_int (session->config->localhostOnly));
-   json_object_object_add (AFBConfig, "cachetimeout"  , json_object_new_int (session->config->cacheTimeout));
-   json_object_object_add (AFBConfig, "apitimeout"    , json_object_new_int (session->config->apiTimeout));
-   json_object_object_add (AFBConfig, "cntxtimeout"   , json_object_new_int (session->config->cntxTimeout));
-
-   err = json_object_to_file (session->config->configfile, AFBConfig);
-   json_object_put   (AFBConfig);    // decrease reference count to free the json object
-   if (err < 0) {
-      fprintf(stderr, "AFB: Fail to save config on disk [%s]\n ", session->config->configfile);
-   }
-}
-
-
-PUBLIC AFB_session *configInit () {
-
-  AFB_session *session;
-  AFB_config  *config;
-  int idx, verbosesav;
-
-
-  session = malloc (sizeof (AFB_session));
-  memset (session,0, sizeof (AFB_session));
-
-  // create config handle
-  config = malloc (sizeof (AFB_config));
-  memset (config,0, sizeof (AFB_config));
-
-  // stack config handle into session
-  session->config = config;
-
-  jTypeStatic = json_object_new_string ("AFB_message");
-
-  // initialise JSON constant messages and increase reference count to make them permanent
-  verbosesav = verbose;
-  verbose = 0;  // run initialisation in silent mode
-
-
-  for (idx = 0; idx <= AFB_SUCCESS; idx++) {
-     AFBerr[idx].level = idx;
-     AFBerr[idx].label = ERROR_LABEL [idx];
-     AFBerr[idx].json  = jsonNewMessage (idx, NULL);
-  }
-  verbose = verbosesav;
-  
-  return (session);
-}
-
-
-// get JSON object from error level and increase its reference count
-PUBLIC json_object *jsonNewStatus (AFB_error level) {
-
-  json_object *target =  AFBerr[level].json;
-  json_object_get (target);
-
-  return (target);
-}
-
-// get AFB object type with adequate usage count
-PUBLIC json_object *jsonNewjtype (void) {
-  json_object_get (jTypeStatic); // increase reference count
-  return (jTypeStatic);
-}
-
-// build an ERROR message and return it as a valid json object
-PUBLIC  json_object *jsonNewMessage (AFB_error level, char* format, ...) {
-   static int count = 0;
-   json_object * AFBResponse;
-   va_list args;
-   char message [512];
-
-   // format message
-   if (format != NULL) {
-       va_start(args, format);
-       vsnprintf (message, sizeof (message), format, args);
-       va_end(args);
-   }
-
-   AFBResponse = json_object_new_object();
-   json_object_object_add (AFBResponse, "jtype", jsonNewjtype ());
-   json_object_object_add (AFBResponse, "status" , json_object_new_string (ERROR_LABEL[level]));
-   if (format != NULL) {
-        json_object_object_add (AFBResponse, "info"   , json_object_new_string (message));
-   }
-   if (verbose) {
-        fprintf (stderr, "AFB:%-6s [%3d]: ", AFBerr [level].label, count++);
-        if (format != NULL) {
-            fprintf (stderr, "%s", message);
-        } else {
-            fprintf (stderr, "No Message");
-        }
-        fprintf (stderr, "\n");
-   }
-
-   return (AFBResponse);
-}
-
-// Dump a message on stderr
-PUBLIC void jsonDumpObject (json_object * jObject) {
-
-   if (verbose) {
-        fprintf (stderr, "AFB:dump [%s]\n", json_object_to_json_string(jObject));
-   }
+PUBLIC AFB_session *configInit ()
+{
+  AFB_session *session = calloc (1, sizeof (AFB_session));
+  session->config = calloc (1, sizeof (AFB_config));
+  return session;
 }
 

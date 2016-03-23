@@ -30,8 +30,32 @@ typedef struct {
      size_t  len;
 } queryHandleT;
 
+static AFB_errorT   AFBerr [AFB_SUCCESS+1];
+static json_object *jTypeStatic;
+PUBLIC int verbose;
+
+/* ------------------------------------------------------------------------------
+ * Get localtime and return in a string
+ * ------------------------------------------------------------------------------ */
+
+PUBLIC char * configTime (void) {
+  static char reqTime [26];
+  time_t tt;
+  struct tm *rt;
+
+  /* Get actual Date and Time */
+  time (&tt);
+  rt = localtime (&tt);
+
+  strftime (reqTime, sizeof (reqTime), "(%d-%b %H:%M)",rt);
+
+  // return pointer on static data
+  return (reqTime);
+}
+
+
 // Sample Generic Ping Debug API
-PUBLIC json_object* getPingTest(AFB_request *request) {
+json_object* getPingTest(AFB_request *request) {
     static int pingcount = 0;
     json_object *response;
     char query  [256];
@@ -53,14 +77,14 @@ PUBLIC json_object* getPingTest(AFB_request *request) {
 
 
 // Helper to retrieve argument from  connection
-PUBLIC const char* getQueryValue(const AFB_request * request, const char *name) {
+const char* getQueryValue(const AFB_request * request, const char *name) {
     const char *value;
 
     value = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, name);
     return (value);
 }
 
-STATIC int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, const char *value) {
+static int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, const char *value) {
     queryHandleT *query = (queryHandleT*)handle;
         
     query->idx += snprintf (&query->msg[query->idx],query->len," %s: \'%s\',", key, value);
@@ -68,25 +92,25 @@ STATIC int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, co
 }
 
 // Helper to retrieve argument from  connection
-PUBLIC int getQueryAll(AFB_request * request, char *buffer, size_t len) {
+int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     queryHandleT query;
     buffer[0] = '\0'; // start with an empty string
-    query.msg= buffer;
-    query.len= len;
-    query.idx= 0;
+    query.msg = buffer;
+    query.len = len;
+    query.idx = 0;
 
     MHD_get_connection_values (request->connection, MHD_GET_ARGUMENT_KIND, getQueryCB, &query);
     return (len);
 }
 
 // Helper to retrieve POST handle
-PUBLIC AFB_PostHandle* getPostHandle (AFB_request *request) {
+AFB_PostHandle* getPostHandle (AFB_request *request) {
     if (request->post == NULL) return (NULL);
     return ((AFB_PostHandle*) request->post->data);
 }
 
 // Helper to retrieve POST file context
-PUBLIC AFB_PostCtx* getPostContext (AFB_request *request) {
+AFB_PostCtx* getPostContext (AFB_request *request) {
     AFB_PostHandle* postHandle;
     if (request->post == NULL) return (NULL);
     
@@ -96,7 +120,7 @@ PUBLIC AFB_PostCtx* getPostContext (AFB_request *request) {
     return ((AFB_PostCtx*) postHandle->ctx);
 }
 
-PUBLIC char* getPostPath (AFB_request *request) {
+char* getPostPath (AFB_request *request) {
     AFB_PostHandle *postHandle = getPostHandle(request);
     AFB_PostCtx *postFileCtx;
     
@@ -108,7 +132,7 @@ PUBLIC char* getPostPath (AFB_request *request) {
     return (postFileCtx->path);
 }
 
-PUBLIC json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) {
+json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) {
 
     AFB_PostHandle *postHandle = getPostHandle(request);
     AFB_PostCtx *postFileCtx;
@@ -216,3 +240,88 @@ ExitOnError:
     request->errcode = MHD_HTTP_EXPECTATION_FAILED;
     return NULL;
 }
+
+
+
+static void jsoninit()
+{
+  int idx, verbosesav;
+
+  if (jTypeStatic)
+	return;
+
+  // initialise JSON constant messages and increase reference count to make them permanent
+  verbosesav = verbose;
+  verbose = 0;  // run initialisation in silent mode
+  jTypeStatic = json_object_new_string ("AFB_message");
+  for (idx = 0; idx <= AFB_SUCCESS; idx++) {
+     AFBerr[idx].level = idx;
+     AFBerr[idx].label = ERROR_LABEL [idx];
+     AFBerr[idx].json  = jsonNewMessage (idx, NULL);
+  }
+  verbose = verbosesav;
+}
+
+
+
+// get JSON object from error level and increase its reference count
+struct json_object *jsonNewStatus (AFB_error level)
+{
+  jsoninit();
+  json_object *target =  AFBerr[level].json;
+  json_object_get (target);
+
+  return (target);
+}
+
+// get AFB object type with adequate usage count
+struct json_object *jsonNewjtype (void)
+{
+  jsoninit();
+  json_object_get (jTypeStatic); // increase reference count
+  return (jTypeStatic);
+}
+
+// build an ERROR message and return it as a valid json object
+struct json_object *jsonNewMessage (AFB_error level, char* format, ...) {
+   static int count = 0;
+   json_object * AFBResponse;
+   va_list args;
+   char message [512];
+
+  jsoninit();
+
+   // format message
+   if (format != NULL) {
+       va_start(args, format);
+       vsnprintf (message, sizeof (message), format, args);
+       va_end(args);
+   }
+
+   AFBResponse = json_object_new_object();
+   json_object_object_add (AFBResponse, "jtype", jsonNewjtype ());
+   json_object_object_add (AFBResponse, "status" , json_object_new_string (ERROR_LABEL[level]));
+   if (format != NULL) {
+        json_object_object_add (AFBResponse, "info"   , json_object_new_string (message));
+   }
+   if (verbose) {
+        fprintf (stderr, "AFB:%-6s [%3d]: ", AFBerr [level].label, count++);
+        if (format != NULL) {
+            fprintf (stderr, "%s", message);
+        } else {
+            fprintf (stderr, "No Message");
+        }
+        fprintf (stderr, "\n");
+   }
+
+   return (AFBResponse);
+}
+
+// Dump a message on stderr
+void jsonDumpObject (struct json_object * jObject) {
+
+   if (verbose) {
+        fprintf (stderr, "AFB:dump [%s]\n", json_object_to_json_string(jObject));
+   }
+}
+
