@@ -69,7 +69,7 @@ STATIC AFB_error callPluginApi(AFB_request *request, int plugidx, void *context)
       sigaddset   (&sigset, signum);
       sigprocmask (SIG_UNBLOCK, &sigset, 0);
 
-      fprintf (stderr, "Oops:%s Plugin Api Timeout timeout\n", configTime());
+      fprintf (stderr, "Oops: Plugin Api Timeout timeout\n");
       longjmp (request->checkPluginCall, signum);
     }
 
@@ -663,3 +663,4 @@ void initPlugins(AFB_session *session) {
     session->plugins = RegisterJsonPlugins(plugins);
     session->config->pluginCount = count;
 }
+

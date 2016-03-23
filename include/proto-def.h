@@ -20,7 +20,6 @@
 */
 
 // helper-api
-extern json_object* getPingTest(AFB_request *request);
 extern const char* getQueryValue (const AFB_request * request, const char *name);
 extern int getQueryAll(AFB_request * request, char *query, size_t len);
 extern AFB_PostHandle* getPostHandle (AFB_request *request);
@@ -33,8 +32,6 @@ extern json_object *jsonNewStatus (AFB_error level);
 extern json_object *jsonNewjtype (void);
 extern json_object *jsonNewMessage (AFB_error level, char* format, ...);
 extern void jsonDumpObject (json_object * jObject);
-
-extern char *configTime        (void);
 
 // rest-api
 extern void endPostRequest(AFB_PostHandle *posthandle); 

@@ -1,29 +1,20 @@
 /* 
  * Copyright (C) 2015 "IoT.bzh"
  * Author "Fulup Ar Foll"
+ * Author José Bollo <jose.bollo@iot.bzh>
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
-/* 
- * File:   main.c
- * Author: "Fulup Ar Foll"
- *
- * Created on 05 December 2015, 15:38
- */
-
-#include "local-def.h"
 
 #include <syslog.h>
 #include <setjmp.h>
@@ -33,25 +24,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "local-def.h"
+
+#if !defined(PLUGIN_INSTALL_DIR)
+#error "you should define PLUGIN_INSTALL_DIR"
+#endif
+
 #define AFB_VERSION    "0.1"
-
-static sigjmp_buf exitPoint; // context save for set/longjmp
-
-/*----------------------------------------------------------
- | printversion
- |   print version and copyright
- +--------------------------------------------------------- */
- static void printVersion (void) {
-
-   fprintf (stderr,"\n----------------------------------------- \n");
-   fprintf (stderr,"|  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
-   fprintf (stderr,"----------------------------------------- \n");
-   fprintf (stderr,"|  Copyright(C) 2016 /IoT.bzh [fulup -at- iot.bzh]\n");
-   fprintf (stderr,"|  AFB comes with ABSOLUTELY NO WARRANTY.\n");
-   fprintf (stderr,"|  Licence [what ever makes you happy] until you fix bugs by yourself :)\n\n");
-   exit (0);
- } // end printVersion
-
 
 // Define command line option
 #define SET_VERBOSE        1
@@ -63,7 +42,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
 #define SET_ROOT_DIR       6
 #define SET_ROOT_BASE      7
 #define SET_ROOT_API       8
-#define SET_ROOT_ALIAS     9
+#define SET_ALIAS          9
 
 #define SET_CACHE_TIMEOUT  10
 #define SET_SESSION_DIR    11
@@ -99,11 +78,11 @@ static  AFB_options cliOptions [] = {
   {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB]"},
   {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa]"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api]"},
-  {SET_ROOT_ALIAS   ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
+  {SET_ALIAS        ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
   
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
   {SET_CNTXTIMEOUT  ,1,"cntxtimeout"     , "Client Session Context Timeout [default 900]"},
-  {SET_CACHE_TIMEOUT     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
+  {SET_CACHE_TIMEOUT,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
   
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
 
@@ -119,7 +98,23 @@ static  AFB_options cliOptions [] = {
  };
 
 static AFB_aliasdir aliasdir[MAX_ALIAS];
-static int aliascount=0;
+static int aliascount = 0;
+
+
+/*----------------------------------------------------------
+ | printversion
+ |   print version and copyright
+ +--------------------------------------------------------- */
+static void printVersion (void)
+{
+   fprintf (stderr,"\n----------------------------------------- \n");
+   fprintf (stderr,"|  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
+   fprintf (stderr,"----------------------------------------- \n");
+   fprintf (stderr,"|  Copyright(C) 2016 /IoT.bzh [fulup -at- iot.bzh]\n");
+   fprintf (stderr,"|  AFB comes with ABSOLUTELY NO WARRANTY.\n");
+   fprintf (stderr,"|  Licence Apache 2\n\n");
+   exit (0);
+}
 
 // load config from disk and merge with CLI option
 static AFB_error config_set_default (AFB_session * session)
@@ -187,26 +182,6 @@ static AFB_error config_set_default (AFB_session * session)
 }
 
 
-
-/*----------------------------------------------------------
- | timeout signalQuit
- |
- +--------------------------------------------------------- */
-void signalQuit (int signum) {
-
-  sigset_t sigset;
-
-  // unlock timeout signal to allow a new signal to come
-  sigemptyset (&sigset);
-  sigaddset   (&sigset, SIGABRT);
-  sigprocmask (SIG_UNBLOCK, &sigset, 0);
-
-  fprintf (stderr, "%s ERR:Received signal quit\n",configTime());
-  syslog (LOG_ERR, "Daemon got kill3 & quit [please report bug]");
-  longjmp (exitPoint, signum);
-}
-
-
 /*----------------------------------------------------------
  | printHelp
  |   print information from long option array
@@ -235,10 +210,28 @@ void signalQuit (int signum) {
  | closeSession
  |   try to close everything before leaving
  +--------------------------------------------------------- */
-static void closeSession (AFB_session *session) {
-
-
+static void closeSession (int status, void *data) {
+//	AFB_session *session = data;
 }
+
+/*----------------------------------------------------------
+ | timeout signalQuit
+ |
+ +--------------------------------------------------------- */
+void signalQuit (int signum) {
+
+  sigset_t sigset;
+
+  // unlock timeout signal to allow a new signal to come
+  sigemptyset (&sigset);
+  sigaddset   (&sigset, SIGABRT);
+  sigprocmask (SIG_UNBLOCK, &sigset, 0);
+
+  fprintf (stderr, "ERR: Received signal quit\n");
+  syslog (LOG_ERR, "Daemon got kill3 & quit [please report bug]");
+  exit(1);
+}
+
 
 /*----------------------------------------------------------
  | listenLoop
@@ -247,16 +240,10 @@ static void closeSession (AFB_session *session) {
 static void listenLoop (AFB_session *session) {
   AFB_error  err;
 
-  if (signal (SIGABRT, signalQuit) == SIG_ERR) {
-        fprintf (stderr, "%s ERR: main fail to install Signal handler\n", configTime());
-        return;
-  }
-
   // ------ Start httpd server
-  if (session->config->httpdPort > 0) {
 
-        err = httpdStart (session);
-        if (err != AFB_SUCCESS) return;
+   err = httpdStart (session);
+   if (err != AFB_SUCCESS) return;
 
 	if (session->readyfd != 0) {
 		static const char readystr[] = "READY=1";
@@ -264,11 +251,10 @@ static void listenLoop (AFB_session *session) {
 		close(session->readyfd);
 	}
 
-        // infinite loop
-        httpdLoop(session);
+   // infinite loop
+   httpdLoop(session);
 
-        fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
-  }
+   fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
 }
   
 /*---------------------------------------------------------
@@ -349,7 +335,7 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
        if (verbose) fprintf(stderr, "Forcing Rootapi=%s\n",session->config->rootapi);
        break;
        
-    case SET_ROOT_ALIAS:
+    case SET_ALIAS:
        if (optarg == 0) goto needValueForOption;
        if (aliascount < MAX_ALIAS) {
             aliasdir[aliascount].url  = strsep(&optarg,":");
@@ -427,7 +413,6 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
   }
   free(gnuOptions);
  
-  // if exist merge config file with CLI arguments
   config_set_default  (session);
   return;
 
@@ -461,56 +446,53 @@ badMode:
 int main(int argc, char *argv[])  {
   AFB_session    *session;
   int            consoleFD;
-  int            pid, status;
+  int            pid;
+
+  // open syslog if ever needed
+  openlog("afb-daemon", 0, LOG_DAEMON);
 
   // ------------- Build session handler & init config -------
   session = calloc (1, sizeof (AFB_session));
   session->config = calloc (1, sizeof (AFB_config));
+
+  on_exit(closeSession, session);
   parse_arguments(argc, argv, session);
 
   initPlugins(session);
 
   // ------------------ sanity check ----------------------------------------
   if  ((session->background) && (session->foreground)) {
-    fprintf (stderr, "%s ERR: cannot select foreground & background at the same time\n",configTime());
+    fprintf (stderr, "ERR: cannot select foreground & background at the same time\n");
+     exit (1);
+  }
+  if (session->config->httpdPort <= 0) {
+    fprintf (stderr, "ERR: no port is defined\n");
      exit (1);
   }
 
   // ------------------ Some useful default values -------------------------
   if  ((session->background == 0) && (session->foreground == 0)) session->foreground=1;
 
-  // open syslog if ever needed
-  openlog("AFB-log", 0, LOG_DAEMON);
-
   // ------------------ clean exit on CTR-C signal ------------------------
-  if (signal (SIGINT, signalQuit) == SIG_ERR) {
-    fprintf (stderr, "%s Quit Signal received.",configTime());
-    return 1;
+  if (signal (SIGINT, signalQuit) == SIG_ERR || signal (SIGABRT, signalQuit) == SIG_ERR) {
+     fprintf (stderr, "ERR: main fail to install Signal handler\n");
+     return 1;
   }
 
-  // save exitPoint context when returning from longjmp closeSession and exit
-  status = setjmp (exitPoint); // return !+ when coming from longjmp
-  if (status != 0) {
-    if (verbose) printf ("INF: main returning from longjump after signal [%d]\n", status);
-    closeSession (session);
-    goto exitOnSignal;
-  }
 
   // let's run this program with a low priority
-  status=nice (20);
+  nice (20);
 
   // ------------------ Finaly Process Commands -----------------------------
-    // let's not take the risk to run as ROOT
-    //if (getuid() == 0)  goto errorNoRoot;
+  // let's not take the risk to run as ROOT
+  //if (getuid() == 0)  goto errorNoRoot;
 
-    // check session dir and create if it does not exist
-    if (sessionCheckdir (session) != AFB_SUCCESS) goto errSessiondir;
-    if (verbose) fprintf (stderr, "AFB: notice Init config done\n");
+  // check session dir and create if it does not exist
+  if (sessionCheckdir (session) != AFB_SUCCESS) goto errSessiondir;
+  if (verbose) fprintf (stderr, "AFB: notice Init config done\n");
 
-
-
-    // ---- run in foreground mode --------------------
-    if (session->foreground) {
+  // ---- run in foreground mode --------------------
+  if (session->foreground) {
 
         if (verbose) fprintf (stderr,"AFB: notice Foreground mode\n");
 
@@ -539,8 +521,8 @@ int main(int argc, char *argv[])  {
  	     printf ("\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
 
          // redirect default I/O on console
-         close (2); status=dup(consoleFD);  // redirect stderr
-         close (1); status=dup(consoleFD);  // redirect stdout
+         close (2); dup(consoleFD);  // redirect stderr
+         close (1); dup(consoleFD);  // redirect stdout
          close (0);           // no need for stdin
          close (consoleFD);
 
@@ -548,7 +530,7 @@ int main(int argc, char *argv[])  {
 	     sleep (2);  // allow main to leave and release port
 
          fprintf (stderr, "----------------------------\n");
-         fprintf (stderr, "%s INF: main background pid=%d\n", configTime(), getpid());
+         fprintf (stderr, "INF: main background pid=%d\n", getpid());
          fflush  (stderr);
 
          // if everything look OK then look forever
@@ -569,19 +551,12 @@ int main(int argc, char *argv[])  {
 
   } // end background-foreground
 
-normalExit:
-  closeSession (session);   // try to close everything before leaving
   if (verbose) printf ("\n---- Application Framework Binder Normal End ------\n");
   exit(0);
 
 // ------------- Fatal ERROR display error and quit  -------------
 errorFork:
   fprintf (stderr,"\nERR: AFB-daemon Failed to fork son process\n\n");
-  exit (1);
-
-exitOnSignal:
-  fprintf (stderr,"\n%s INF: AFB-daemon pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
-                 ,configTime(), getpid());
   exit (1);
 
 errConsole:

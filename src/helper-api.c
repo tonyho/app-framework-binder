@@ -45,46 +45,6 @@ PUBLIC int verbose;
 
 static const char *ERROR_LABEL[] = {"false", "true", "fatal", "fail", "warning", "empty", "success"};
 
-/* ------------------------------------------------------------------------------
- * Get localtime and return in a string
- * ------------------------------------------------------------------------------ */
-
-PUBLIC char * configTime (void) {
-  static char reqTime [26];
-  time_t tt;
-  struct tm *rt;
-
-  /* Get actual Date and Time */
-  time (&tt);
-  rt = localtime (&tt);
-
-  strftime (reqTime, sizeof (reqTime), "(%d-%b %H:%M)",rt);
-
-  // return pointer on static data
-  return (reqTime);
-}
-
-
-// Sample Generic Ping Debug API
-json_object* getPingTest(AFB_request *request) {
-    static int pingcount = 0;
-    json_object *response;
-    char query  [256];
-    char session[256];
-    int len;
-    
-    // request all query key/value
-    len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
-    
-    // check if we have some post data
-    if (request->post == NULL)  request->post->data="NoData"; 
-          
-    // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d uuid=%s query={%s} session={0x%x} PostData: [%s] "
-               , pingcount++, request->uuid, query, session, request->post->data);
-    return (response);
-}
 
 
 // Helper to retrieve argument from  connection

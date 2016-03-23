@@ -42,7 +42,6 @@ struct afb_diralias {
 	int dirfd;
 };
 
-
 int afb_request_one_page_api_redirect(
 		struct afb_hreq *request,
 		struct afb_hreq_post *post,
