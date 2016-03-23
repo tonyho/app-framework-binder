@@ -116,8 +116,6 @@ static  AFB_options cliOptions [] = {
   {SET_PID_FILE     ,1,"pidfile"         , "PID file path [default none]"},
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
   {SET_CONFIG_FILE  ,1,"config"          , "Config Filename [default rootdir/sessions/configs/default.AFB]"},
-  {SET_CONFIG_SAVE  ,0,"save"            , "Save config on disk [default no]"},
-  {SET_CONFIG_EXIT  ,0,"saveonly"        , "Save config on disk and then exit"},
 
   {SET_LDPATH       ,1,"ldpaths"         , "Load Plugins from dir1:dir2:... [default = PLUGIN_INSTALL_DIR"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
@@ -394,17 +392,6 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
        if (!sscanf (optarg, "%d", &cliconfig.cacheTimeout)) goto notAnInteger;
        break;
 
-    case SET_CONFIG_EXIT:
-       if (optarg != 0) goto noValueForOption;
-       session->configsave  = 1;
-       session->forceexit   = 1;
-       break;
-
-    case SET_CONFIG_SAVE:
-       if (optarg != 0) goto noValueForOption;
-       session->configsave  = 1;
-       break;
-
     case SET_USERID:
        if (optarg == 0) goto needValueForOption;
        cliconfig.setuid = optarg;
@@ -559,9 +546,6 @@ int main(int argc, char *argv[])  {
 
   // ------------------ Finaly Process Commands -----------------------------
    // if --save then store config on disk upfront
-   if (session->configsave) configStoreFile (session);
-   if (session->forceexit)  exit (0);
-
     if (session->config->setuid) {
         int err;
         struct passwd *passwd;
