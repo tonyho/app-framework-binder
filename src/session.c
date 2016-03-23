@@ -343,7 +343,7 @@ PUBLIC void ctxStoreInit (int nbSession) {
    
    // let's create as store as hashtable does not have any
    sessions.store = calloc (1 + (unsigned)nbSession, sizeof(AFB_clientCtx));
-   sessions.max=nbSession;
+   sessions.max = nbSession;
 }
 
 STATIC AFB_clientCtx *ctxStoreSearch (const char* uuid) {

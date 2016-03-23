@@ -325,9 +325,6 @@ AFB_error httpdStart(AFB_session * session)
 		return AFB_FATAL;
 	}
 
-	/* Initialise Client Session Hash Table */
-	ctxStoreInit(CTX_NBCLIENTS);
-
 #if defined(USE_MAGIC_MIME_TYPE)
 	/*TBD open libmagic cache [fail to pass EFENCE check (allocating 0 bytes)] */
 	init_lib_magic (session);

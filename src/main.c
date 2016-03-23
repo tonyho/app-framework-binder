@@ -503,8 +503,6 @@ int main(int argc, char *argv[])  {
   on_exit(closeSession, session);
   parse_arguments(argc, argv, session);
 
-  initPlugins(session);
-
   // ------------------ sanity check ----------------------------------------
   if  ((session->background) && (session->foreground)) {
     fprintf (stderr, "ERR: cannot select foreground & background at the same time\n");
@@ -514,6 +512,9 @@ int main(int argc, char *argv[])  {
     fprintf (stderr, "ERR: no port is defined\n");
      exit (1);
   }
+
+  initPlugins(session);
+  ctxStoreInit(CTX_NBCLIENTS);
 
   // ------------------ Some useful default values -------------------------
   if  ((session->background == 0) && (session->foreground == 0)) session->foreground=1;
