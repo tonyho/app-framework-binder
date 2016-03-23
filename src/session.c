@@ -31,14 +31,6 @@
 #include <search.h>
 
 
-#define AFB_SESSION_JTYPE "AFB_session"
-#define AFB_SESSION_JLIST "AFB_sessions.hash"
-#define AFB_SESSION_JINFO "AFB_infos"
-
-
-#define AFB_CURRENT_SESSION "active-session"  // file link name within sndcard dir
-#define AFB_DEFAULT_SESSION "current-session" // should be in sync with UI
-
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
   pthread_mutex_t mutex;          // declare a mutex to protect hash table
@@ -47,30 +39,15 @@ static struct {
   int max;
 } sessions;
 
-// verify we can read/write in session dir
-PUBLIC AFB_error sessionCheckdir (AFB_session *session) {
+#if defined(ALLOWS_SESSION_FILES)
 
-   int err;
+#define AFB_SESSION_JTYPE "AFB_session"
+#define AFB_SESSION_JLIST "AFB_sessions.hash"
+#define AFB_SESSION_JINFO "AFB_infos"
 
-   // in case session dir would not exist create one
-   if (verbose) fprintf (stderr, "AFB:notice checking session dir [%s]\n", session->config->sessiondir);
-   mkdir(session->config->sessiondir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 
-   // change for session directory
-   err = chdir(session->config->sessiondir);
-   if (err) {
-     fprintf(stderr,"AFB: Fail to chdir to %s error=%s\n", session->config->sessiondir, strerror(err));
-     return err;
-   }
-
-   // verify we can write session in directory
-   json_object *dummy= json_object_new_object();
-   json_object_object_add (dummy, "checked"  , json_object_new_int (getppid()));
-   err = json_object_to_file ("./AFB-probe.json", dummy);
-   if (err < 0) return err;
-
-   return AFB_SUCCESS;
-}
+#define AFB_CURRENT_SESSION "active-session"  // file link name within sndcard dir
+#define AFB_DEFAULT_SESSION "current-session" // should be in sync with UI
 
 // let's return only sessions.hash files
 STATIC int fileSelect (const struct dirent *entry) {
@@ -101,6 +78,48 @@ STATIC  json_object *checkCardDirExit (AFB_session *session, AFB_request *reques
     }
     close (sessionDir);
     return NULL;
+}
+
+// Create a link toward last used sessionname within sndcard directory
+STATIC void makeSessionLink (const char *cardname, const char *sessionname) {
+   char linkname [256], filename [256];
+   int err;
+   // create a link to keep track of last uploaded sessionname for this card
+   strncpy (filename, sessionname, sizeof(filename));
+   strncat (filename, ".afb", sizeof(filename));
+
+   strncpy (linkname, cardname, sizeof(linkname));
+   strncat (linkname, "/", sizeof(filename));
+   strncat (linkname, AFB_CURRENT_SESSION, sizeof(linkname));
+   strncat (linkname, ".afb", sizeof(filename));
+   unlink (linkname); // remove previous link if any
+   err = symlink (filename, linkname);
+   if (err < 0) fprintf (stderr, "Fail to create link %s->%s error=%s\n", linkname, filename, strerror(errno));
+}
+
+// verify we can read/write in session dir
+PUBLIC AFB_error sessionCheckdir (AFB_session *session) {
+
+   int err;
+
+   // in case session dir would not exist create one
+   if (verbose) fprintf (stderr, "AFB:notice checking session dir [%s]\n", session->config->sessiondir);
+   mkdir(session->config->sessiondir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+   // change for session directory
+   err = chdir(session->config->sessiondir);
+   if (err) {
+     fprintf(stderr,"AFB: Fail to chdir to %s error=%s\n", session->config->sessiondir, strerror(err));
+     return err;
+   }
+
+   // verify we can write session in directory
+   json_object *dummy= json_object_new_object();
+   json_object_object_add (dummy, "checked"  , json_object_new_int (getppid()));
+   err = json_object_to_file ("./AFB-probe.json", dummy);
+   if (err < 0) return err;
+
+   return AFB_SUCCESS;
 }
 
 // create a session in current directory
@@ -161,23 +180,6 @@ PUBLIC json_object *sessionList (AFB_session *session, AFB_request *request) {
     json_object_object_add (ajgResponse, "data"    , sessionsJ);
 
     return (ajgResponse);
-}
-
-// Create a link toward last used sessionname within sndcard directory
-STATIC void makeSessionLink (const char *cardname, const char *sessionname) {
-   char linkname [256], filename [256];
-   int err;
-   // create a link to keep track of last uploaded sessionname for this card
-   strncpy (filename, sessionname, sizeof(filename));
-   strncat (filename, ".afb", sizeof(filename));
-
-   strncpy (linkname, cardname, sizeof(linkname));
-   strncat (linkname, "/", sizeof(filename));
-   strncat (linkname, AFB_CURRENT_SESSION, sizeof(linkname));
-   strncat (linkname, ".afb", sizeof(filename));
-   unlink (linkname); // remove previous link if any
-   err = symlink (filename, linkname);
-   if (err < 0) fprintf (stderr, "Fail to create link %s->%s error=%s\n", linkname, filename, strerror(errno));
 }
 
 // Load Json session object from disk
@@ -313,7 +315,7 @@ OnErrorExit:
    json_object_put (jsonSession);
    return response;
 }
-
+#endif
 
 // Free context [XXXX Should be protected again memory abort XXXX]
 STATIC void ctxUuidFreeCB (AFB_clientCtx *client) {

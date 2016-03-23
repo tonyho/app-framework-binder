@@ -532,11 +532,13 @@ int main(int argc, char *argv[])  {
   // let's not take the risk to run as ROOT
   //if (getuid() == 0)  goto errorNoRoot;
 
+#if defined(ALLOWS_SESSION_FILES)
   // check session dir and create if it does not exist
   if (sessionCheckdir (session) != AFB_SUCCESS) {
   	fprintf (stderr,"\nERR: AFB-daemon cannot read/write session dir\n\n");
   	exit (1);
   }
+#endif
   if (verbose) fprintf (stderr, "AFB: notice Init config done\n");
 
   // ---- run in foreground mode --------------------
