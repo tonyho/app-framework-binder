@@ -16,6 +16,9 @@
  */
 
 
+struct afb_req_itf;
+
+
 struct afb_hreq_post {
 	const char *upload_data;
 	size_t *upload_data_size;
@@ -35,16 +38,16 @@ struct afb_hreq {
 	void *post_data;
 };
 
-int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
+extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
 
-int afb_hreq_valid_tail(struct afb_hreq *request);
+extern int afb_hreq_valid_tail(struct afb_hreq *request);
 
-void afb_hreq_reply_error(struct afb_hreq *request, unsigned int status);
+extern void afb_hreq_reply_error(struct afb_hreq *request, unsigned int status);
 
-int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char *filename);
+extern int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char *filename);
 
-int afb_hreq_reply_file(struct afb_hreq *request, int dirfd, const char *filename);
+extern int afb_hreq_reply_file(struct afb_hreq *request, int dirfd, const char *filename);
 
-int afb_hreq_redirect_to(struct afb_hreq *request, const char *url);
+extern int afb_hreq_redirect_to(struct afb_hreq *request, const char *url);
 
-
+extern struct afb_req_itf afb_hreq_itf;

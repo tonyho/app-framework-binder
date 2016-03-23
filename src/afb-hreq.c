@@ -23,10 +23,11 @@
 
 #include "../include/local-def.h"
 #include "afb-method.h"
+#include "afb-req-itf.h"
 #include "afb-hreq.h"
 
-
 static char empty_string[1] = "";
+
 
 /* a valid subpath is a relative path not looking deeper than root using .. */
 static int validsubpath(const char *subpath)
@@ -228,4 +229,19 @@ int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
 		fprintf(stderr, "redirect from [%s] to [%s]\n", hreq->url, url);
 	return 1;
 }
+
+const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name)
+{
+	return MHD_lookup_connection_value(hreq->connection, MHD_COOKIE_KIND, name);
+}
+
+const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name)
+{
+	return MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name);
+}
+
+struct afb_req_itf afb_hreq_itf = {
+	.get_cookie = (void*)afb_hreq_get_cookie,
+	.get_argument = (void*)afb_hreq_get_argument
+};
 
