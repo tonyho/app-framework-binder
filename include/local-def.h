@@ -78,7 +78,7 @@ extern int verbose;  // this is the only global variable
 // Plugin Type
 typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginE;
 
-// prebuild json error are constructed in config.c
+// prebuild json error are constructed in helper-api.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
 #define MAX_POST_SIZE  4096   // maximum size for POST data

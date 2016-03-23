@@ -38,12 +38,12 @@ typedef struct {
   json_object *json;
 } AFB_errorT;
 
-static AFB_errorT   AFBerr [AFB_SUCCESS+1];
+static AFB_errorT   AFBerr [AFB_UNAUTH+1];
 static json_object *jTypeStatic;
 
 PUBLIC int verbose;
 
-static const char *ERROR_LABEL[] = {"false", "true", "fatal", "fail", "warning", "empty", "success"};
+static const char *ERROR_LABEL[] = {"false", "true", "fatal", "fail", "warning", "empty", "success", "done", "unauth"};
 
 
 
@@ -225,7 +225,7 @@ static void jsoninit()
   verbosesav = verbose;
   verbose = 0;  // run initialisation in silent mode
   jTypeStatic = json_object_new_string ("AFB_message");
-  for (idx = 0; idx <= AFB_SUCCESS; idx++) {
+  for (idx = 0; idx <= AFB_UNAUTH; idx++) {
      AFBerr[idx].level = idx;
      AFBerr[idx].label = ERROR_LABEL [idx];
      AFBerr[idx].json  = jsonNewMessage (idx, NULL);
