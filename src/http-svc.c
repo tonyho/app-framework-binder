@@ -23,26 +23,8 @@
 
 #include "../include/local-def.h"
 #include "afb-method.h"
+#include "afb-hreq.h"
 
-
-struct afb_hreq_post {
-	const char *upload_data;
-	size_t *upload_data_size;
-};
-
-struct afb_hreq {
-	AFB_session *session;
-	struct MHD_Connection *connection;
-	enum afb_method method;
-	const char *url;
-	size_t lenurl;
-	const char *tail;
-	size_t lentail;
-	struct afb_hreq **recorder;
-	int (*post_handler) (struct afb_hreq *, struct afb_hreq_post *);
-	int (*post_completed) (struct afb_hreq *, struct afb_hreq_post *);
-	void *post_data;
-};
 
 struct afb_req_handler {
 	struct afb_req_handler *next;
@@ -53,102 +35,6 @@ struct afb_req_handler {
 	int priority;
 };
 
-static char empty_string[1] = "";
-
-/* a valid subpath is a relative path not looking deeper than root using .. */
-static int validsubpath(const char *subpath)
-{
-	int l = 0, i = 0;
-
-	while (subpath[i]) {
-		switch (subpath[i++]) {
-		case '.':
-			if (!subpath[i])
-				break;
-			if (subpath[i] == '/') {
-				i++;
-				break;
-			}
-			if (subpath[i++] == '.') {
-				if (!subpath[i]) {
-					if (--l < 0)
-						return 0;
-					break;
-				}
-				if (subpath[i++] == '/') {
-					if (--l < 0)
-						return 0;
-					break;
-				}
-			}
-		default:
-			while (subpath[i] && subpath[i] != '/')
-				i++;
-			l++;
-		case '/':
-			break;
-		}
-	}
-	return 1;
-}
-
-/*
- * Removes the 'prefix' of 'length' frome the tail of 'request'
- * if and only if the prefix exists and is terminated by a leading
- * slash
- */
-int afb_req_unprefix(struct afb_hreq *request, const char *prefix, size_t length)
-{
-	/* check the prefix ? */
-	if (length > request->lentail || (request->tail[length] && request->tail[length] != '/')
-	    || memcmp(prefix, request->tail, length))
-		return 0;
-
-	/* removes successives / */
-	while (length < request->lentail && request->tail[length + 1] == '/')
-		length++;
-
-	/* update the tail */
-	request->lentail -= length;
-	request->tail += length;
-	return 1;
-}
-
-int afb_req_valid_tail(struct afb_hreq *request)
-{
-	return validsubpath(request->tail);
-}
-
-void afb_req_reply_error(struct afb_hreq *request, unsigned int status)
-{
-	char *buffer;
-	int length;
-	struct MHD_Response *response;
-
-	length = asprintf(&buffer, "<html><body>error %u</body></html>", status);
-	if (length > 0)
-		response = MHD_create_response_from_buffer((unsigned)length, buffer, MHD_RESPMEM_MUST_FREE);
-	else {
-		buffer = "<html><body>error</body></html>";
-		response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_PERSISTENT);
-	}
-	if (!MHD_queue_response(request->connection, status, response))
-		fprintf(stderr, "Failed to reply error code %u", status);
-	MHD_destroy_response(response);
-}
-
-int afb_request_redirect_to(struct afb_hreq *request, const char *url)
-{
-	struct MHD_Response *response;
-
-	response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
-	MHD_add_response_header(response, "Location", url);
-	MHD_queue_response(request->connection, MHD_HTTP_MOVED_PERMANENTLY, response);
-	MHD_destroy_response(response);
-	if (verbose)
-		fprintf(stderr, "redirect from [%s] to [%s]\n", request->url, url);
-	return 1;
-}
 
 int afb_request_one_page_api_redirect(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
 {
@@ -172,7 +58,7 @@ int afb_request_one_page_api_redirect(struct afb_hreq *request, struct afb_hreq_
 	url[plen++] = '#';
 	url[plen++] = '!';
 	memcpy(&url[plen], &request->tail[1], request->lentail);
-	return afb_request_redirect_to(request, url);
+	return afb_hreq_redirect_to(request, url);
 }
 
 struct afb_req_handler *afb_req_handler_new(struct afb_req_handler *head, const char *prefix,
@@ -231,103 +117,6 @@ static int relay_to_doRestApi(struct afb_hreq *request, struct afb_hreq_post *po
 			 post->upload_data, post->upload_data_size, (void **)request->recorder);
 }
 
-static int afb_req_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char *filename)
-{
-	int rc;
-	int fd;
-	unsigned int status;
-	struct stat st;
-	char etag[1 + 2 * sizeof(int)];
-	const char *inm;
-	struct MHD_Response *response;
-
-	/* Opens the file or directory */
-	fd = openat(dirfd, filename, O_RDONLY);
-	if (fd < 0) {
-		if (errno == ENOENT)
-			return 0;
-		afb_req_reply_error(request, MHD_HTTP_FORBIDDEN);
-		return 1;
-	}
-
-	/* Retrieves file's status */
-	if (fstat(fd, &st) != 0) {
-		close(fd);
-		afb_req_reply_error(request, MHD_HTTP_INTERNAL_SERVER_ERROR);
-		return 1;
-	}
-
-	/* Don't serve directory */
-	if (S_ISDIR(st.st_mode)) {
-		rc = afb_req_reply_file_if_exist(request, fd, "index.html");
-		close(fd);
-		return rc;
-	}
-
-	/* Don't serve special files */
-	if (!S_ISREG(st.st_mode)) {
-		close(fd);
-		afb_req_reply_error(request, MHD_HTTP_FORBIDDEN);
-		return 1;
-	}
-
-	/* Check the method */
-	if ((request->method & (afb_method_get | afb_method_head)) == 0) {
-		close(fd);
-		afb_req_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
-		return 1;
-	}
-
-	/* computes the etag */
-	sprintf(etag, "%08X%08X", ((int)(st.st_mtim.tv_sec) ^ (int)(st.st_mtim.tv_nsec)), (int)(st.st_size));
-
-	/* checks the etag */
-	inm = MHD_lookup_connection_value(request->connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
-	if (inm && 0 == strcmp(inm, etag)) {
-		/* etag ok, return NOT MODIFIED */
-		close(fd);
-		if (verbose)
-			fprintf(stderr, "Not Modified: [%s]\n", filename);
-		response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
-		status = MHD_HTTP_NOT_MODIFIED;
-	} else {
-		/* check the size */
-		if (st.st_size != (off_t) (size_t) st.st_size) {
-			close(fd);
-			afb_req_reply_error(request, MHD_HTTP_INTERNAL_SERVER_ERROR);
-			return 1;
-		}
-
-		/* create the response */
-		response = MHD_create_response_from_fd((size_t) st.st_size, fd);
-		status = MHD_HTTP_OK;
-
-#if defined(USE_MAGIC_MIME_TYPE)
-		/* set the type */
-		if (request->session->magic) {
-			const char *mimetype = magic_descriptor(request->session->magic, fd);
-			if (mimetype != NULL)
-				MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
-		}
-#endif
-	}
-
-	/* fills the value and send */
-	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, request->session->cacheTimeout);
-	MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag);
-	MHD_queue_response(request->connection, status, response);
-	MHD_destroy_response(response);
-	return 1;
-}
-
-static int afb_req_reply_file(struct afb_hreq *request, int dirfd, const char *filename)
-{
-	int rc = afb_req_reply_file_if_exist(request, dirfd, filename);
-	if (rc == 0)
-		afb_req_reply_error(request, MHD_HTTP_NOT_FOUND);
-	return 1;
-}
-
 struct afb_diralias {
 	const char *alias;
 	const char *directory;
@@ -337,21 +126,19 @@ struct afb_diralias {
 
 static int handle_alias(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
 {
-	char *path;
 	struct afb_diralias *da = data;
-	size_t lenalias;
 
 	if (request->method != afb_method_get) {
-		afb_req_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
+		afb_hreq_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
 		return 1;
 	}
 
-	if (!validsubpath(request->tail)) {
-		afb_req_reply_error(request, MHD_HTTP_FORBIDDEN);
+	if (!afb_hreq_valid_tail(request)) {
+		afb_hreq_reply_error(request, MHD_HTTP_FORBIDDEN);
 		return 1;
 	}
 
-	return afb_req_reply_file(request, da->dirfd, &request->tail[request->lentail + 1]);
+	return afb_hreq_reply_file(request, da->dirfd, &request->tail[request->lentail + 1]);
 }
 
 int afb_req_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
@@ -441,7 +228,7 @@ static int access_handler(
 
 	method = get_method(methodstr);
 	if (method == afb_method_none) {
-		afb_req_reply_error(&request, MHD_HTTP_BAD_REQUEST);
+		afb_hreq_reply_error(&request, MHD_HTTP_BAD_REQUEST);
 		return MHD_YES;
 	}
 
@@ -459,7 +246,7 @@ static int access_handler(
 	/* search an handler for the request */
 	iter = session->handlers;
 	while (iter) {
-		if (afb_req_unprefix(&request, iter->prefix, iter->length)) {
+		if (afb_hreq_unprefix(&request, iter->prefix, iter->length)) {
 			if (iter->handler(&request, &post, iter->data))
 				return MHD_YES;
 			request.tail = request.url;
@@ -469,7 +256,7 @@ static int access_handler(
 	}
 
 	/* no handler */
-	afb_req_reply_error(&request, method != afb_method_get ? MHD_HTTP_BAD_REQUEST : MHD_HTTP_NOT_FOUND);
+	afb_hreq_reply_error(&request, method != afb_method_get ? MHD_HTTP_BAD_REQUEST : MHD_HTTP_NOT_FOUND);
 	return MHD_YES;
 }
 
