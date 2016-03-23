@@ -29,6 +29,8 @@
 
 #define AFB_MSG_JTYPE "AJB_reply"
 
+#define JSON_CONTENT  "application/json"
+#define FORM_CONTENT  "multipart/form-data"  /* TODO: replace with MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA */
 
 
 static json_object     *afbJsonType;

@@ -52,7 +52,6 @@
 #define MAX_ALIAS 10           // max number of aliases
 #define COOKIE_NAME   "afb-session"
 
-
 #define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout [0=NoLimit for Debug Only]
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout
@@ -61,7 +60,6 @@
 #define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout
 #define AFB_MAX_PLUGINS     20     // Max number of plugins for a given binder
 
-typedef int BOOL;
 #ifndef FALSE
   #define FALSE 0
 #endif
@@ -83,9 +81,6 @@ typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLU
 // prebuild json error are constructed in config.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
-#define BANNER "<html><head><title>Application Framework Binder</title></head><body>Application Framework </body></html>"
-#define JSON_CONTENT  "application/json"
-#define FORM_CONTENT "multipart/form-data"
 #define MAX_POST_SIZE  4096   // maximum size for POST data
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 
@@ -143,26 +138,6 @@ typedef struct {
   size_t len;
 } AFB_aliasdir;
 
-// main config structure
-typedef struct {
-  char *logname;           // logfile path for info & error log
-  char *console;           // console device name (can be a file or a tty)
-  int  localhostOnly;
-  int   httpdPort;
-  char *ldpaths;           // list of plugins directories
-  char *rootdir;           // base dir for httpd file download
-  char *rootbase;          // Angular HTML5 base URL
-  char *rootapi;           // Base URL for REST APIs
-  char *sessiondir;        // where to store mixer session files
-  char *token;             // initial authentication token [default NULL no session]
-  int  cacheTimeout;
-  int  apiTimeout;
-  int  cntxTimeout;        // Client Session Context timeout
-  int  pluginCount;        // loaded plugins count
-  AFB_Mode mode;           // mode of listening
-  AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
-} AFB_config;
-
 typedef struct {
      char    *msg;
      size_t  len;
@@ -203,6 +178,24 @@ typedef struct {
   AFB_plugin **plugins; // we need plugins reference to cleanup session outside of call context
 } AFB_clientCtx;
 
+// main config structure
+typedef struct {
+  char *console;           // console device name (can be a file or a tty)
+  int   httpdPort;
+  char *ldpaths;           // list of plugins directories
+  char *rootdir;           // base dir for httpd file download
+  char *rootbase;          // Angular HTML5 base URL
+  char *rootapi;           // Base URL for REST APIs
+  char *sessiondir;        // where to store mixer session files
+  char *token;             // initial authentication token [default NULL no session]
+  int  cacheTimeout;
+  int  apiTimeout;
+  int  cntxTimeout;        // Client Session Context timeout
+  int  pluginCount;        // loaded plugins count
+  AFB_Mode mode;           // mode of listening
+  AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
+} AFB_config;
+
 // MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
 typedef struct {
   const char *uuid;
@@ -223,6 +216,7 @@ typedef struct {
 
 struct afb_hsrv_handler;
 struct MHD_Daemon;
+
 typedef struct {
   AFB_config  *config;   // pointer to current config
   // List of commands to execute
