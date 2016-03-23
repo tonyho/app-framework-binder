@@ -655,11 +655,6 @@ void initPlugins(AFB_session *session) {
         close (dirfd);
     }
 
-    if (count == 0) {
-        fprintf(stderr, "No plugins found, afb-daemon is unlikely to work in this configuration, exiting...\n");
-        exit (1);
-    }
-    
     // downsize structure to effective number of loaded plugins
     plugins = (AFB_plugin **)realloc (plugins, (unsigned)(count+1)*sizeof(AFB_plugin*));
     plugins[count] = NULL;
