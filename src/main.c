@@ -454,22 +454,22 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
 
 
 needValueForOption:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
+  fprintf (stderr,"\nERR: AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
   exit (1);
 
 notAnInteger:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
+  fprintf (stderr,"\nERR: AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
   exit (1);
 
 noValueForOption:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] don't take value\n\n"
+  fprintf (stderr,"\nERR: AFB-daemon option [--%s] don't take value\n\n"
           ,gnuOptions[optionIndex].name);
   exit (1);
 
 badMode:
-  fprintf (stderr,"\nERR:AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
+  fprintf (stderr,"\nERR: AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
           ,gnuOptions[optionIndex].name);
   exit (1);
 }
@@ -507,19 +507,19 @@ int main(int argc, char *argv[])  {
     pid = readPidFile (session->config);  // enforce commandline option
     switch (pid) {
     case -1:
-      fprintf (stderr, "%s ERR:main --kill ignored no PID file [%s]\n",configTime(), session->config->pidfile);
+      fprintf (stderr, "%s ERR: main --kill ignored no PID file [%s]\n",configTime(), session->config->pidfile);
       break;
     case 0:
-      fprintf (stderr, "%s ERR:main --kill ignored no active AFB process\n",configTime());
+      fprintf (stderr, "%s ERR: main --kill ignored no active AFB process\n",configTime());
       break;
     default:
       status = kill (pid,SIGINT );
       if (status == 0) {
-	     if (verbose) printf ("%s INF:main signal INTR sent to pid:%d \n", configTime(), pid);
+	     if (verbose) printf ("%s INF: main signal INTR sent to pid:%d \n", configTime(), pid);
       } else {
          // try kill -9
          status = kill (pid,9);
-         if (status != 0)  fprintf (stderr, "%s ERR:main failled to killed pid=%d \n",configTime(), pid);
+         if (status != 0)  fprintf (stderr, "%s ERR: main failled to killed pid=%d \n",configTime(), pid);
       }
     } // end switch pid
 
@@ -536,7 +536,7 @@ int main(int argc, char *argv[])  {
   // save exitPoint context when returning from longjmp closeSession and exit
   status = setjmp (exitPoint); // return !+ when coming from longjmp
   if (status != 0) {
-    if (verbose) printf ("INF:main returning from longjump after signal [%d]\n", status);
+    if (verbose) printf ("INF: main returning from longjump after signal [%d]\n", status);
     closeSession (session);
     goto exitOnSignal;
   }
@@ -562,14 +562,14 @@ int main(int argc, char *argv[])  {
 
     // check session dir and create if it does not exist
     if (sessionCheckdir (session) != AFB_SUCCESS) goto errSessiondir;
-    if (verbose) fprintf (stderr, "AFB:notice Init config done\n");
+    if (verbose) fprintf (stderr, "AFB: notice Init config done\n");
 
 
 
     // ---- run in foreground mode --------------------
     if (session->foreground) {
 
-        if (verbose) fprintf (stderr,"AFB:notice Foreground mode\n");
+        if (verbose) fprintf (stderr,"AFB: notice Foreground mode\n");
 
         // write a pid file for --kill-previous and --raise-debug option
         status = writePidFile (session->config, getpid());
@@ -598,7 +598,7 @@ int main(int argc, char *argv[])  {
       if (pid == 0) {
 
  	     printf ("\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
- 	     if (verbose) printf ("AFB:info use '%s --restart --rootdir=%s # [--pidfile=%s] to restart daemon\n", programName,session->config->rootdir, session->config->pidfile);
+ 	     if (verbose) printf ("AFB: info use '%s --restart --rootdir=%s # [--pidfile=%s] to restart daemon\n", programName,session->config->rootdir, session->config->pidfile);
 
          // redirect default I/O on console
          close (2); status=dup(consoleFD);  // redirect stderr
@@ -610,7 +610,7 @@ int main(int argc, char *argv[])  {
 	     sleep (2);  // allow main to leave and release port
 
          fprintf (stderr, "----------------------------\n");
-         fprintf (stderr, "%s INF:main background pid=%d\n", configTime(), getpid());
+         fprintf (stderr, "%s INF: main background pid=%d\n", configTime(), getpid());
          fflush  (stderr);
 
          // if everything look OK then look forever
@@ -618,7 +618,7 @@ int main(int argc, char *argv[])  {
 
          // should normally never return from this loop
          listenLoop(session);
-         syslog (LOG_ERR, "AFB:FAIL background infinite loop exited check [%s]\n", session->config->console);
+         syslog (LOG_ERR, "AFB: FAIL background infinite loop exited check [%s]\n", session->config->console);
 
          goto exitInitLoop;
       }
@@ -642,7 +642,7 @@ normalExit:
 
 // ------------- Fatal ERROR display error and quit  -------------
 errorSetuid:
-  fprintf (stderr,"\nERR:AFB-daemon Failed to change UID to username=[%s]\n\n", session->config->setuid);
+  fprintf (stderr,"\nERR: AFB-daemon Failed to change UID to username=[%s]\n\n", session->config->setuid);
   exit (1);
   
 //errorNoRoot:
@@ -650,31 +650,30 @@ errorSetuid:
 //  exit (1);
 
 errorPidFile:
-  fprintf (stderr,"\nERR:AFB-daemon Failed to write pid file [%s]\n\n", session->config->pidfile);
+  fprintf (stderr,"\nERR: AFB-daemon Failed to write pid file [%s]\n\n", session->config->pidfile);
   exit (1);
 
 errorFork:
-  fprintf (stderr,"\nERR:AFB-daemon Failed to fork son process\n\n");
+  fprintf (stderr,"\nERR: AFB-daemon Failed to fork son process\n\n");
   exit (1);
 
 exitOnSignal:
-  fprintf (stderr,"\n%s INF:AFB-daemon pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
+  fprintf (stderr,"\n%s INF: AFB-daemon pid=%d received exit signal (Hopefully crtl-C or --kill-previous !!!)\n\n"
                  ,configTime(), getpid());
   exit (1);
 
 errConsole:
-  fprintf (stderr,"\nERR:AFB-daemon cannot open /dev/console (use --foreground)\n\n");
+  fprintf (stderr,"\nERR: AFB-daemon cannot open /dev/console (use --foreground)\n\n");
   exit (1);
 
 errSessiondir:
-  fprintf (stderr,"\nERR:AFB-daemon cannot read/write session dir\n\n");
+  fprintf (stderr,"\nERR: AFB-daemon cannot read/write session dir\n\n");
   exit (1);
 
 exitInitLoop:
   // try to unlink pid file if any
   if (session->background && session->config->pidfile != NULL)  unlink (session->config->pidfile);
   exit (1);
-
 }
 
 
