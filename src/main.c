@@ -206,57 +206,6 @@ static AFB_error config_set_default (AFB_session * session)
     fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/plugins:/usr/lib64/agl/plugins\n", name);
 } // end printHelp
 
-/*----------------------------------------------------------
- | closeSession
- |   try to close everything before leaving
- +--------------------------------------------------------- */
-static void closeSession (int status, void *data) {
-//	AFB_session *session = data;
-}
-
-/*----------------------------------------------------------
- | timeout signalQuit
- |
- +--------------------------------------------------------- */
-void signalQuit (int signum) {
-
-  sigset_t sigset;
-
-  // unlock timeout signal to allow a new signal to come
-  sigemptyset (&sigset);
-  sigaddset   (&sigset, SIGABRT);
-  sigprocmask (SIG_UNBLOCK, &sigset, 0);
-
-  fprintf (stderr, "ERR: Received signal quit\n");
-  syslog (LOG_ERR, "Daemon got kill3 & quit [please report bug]");
-  exit(1);
-}
-
-
-/*----------------------------------------------------------
- | listenLoop
- |   Main listening HTTP loop
- +--------------------------------------------------------- */
-static void listenLoop (AFB_session *session) {
-  AFB_error  err;
-
-  // ------ Start httpd server
-
-   err = httpdStart (session);
-   if (err != AFB_SUCCESS) return;
-
-	if (session->readyfd != 0) {
-		static const char readystr[] = "READY=1";
-		write(session->readyfd, readystr, sizeof(readystr) - 1);
-		close(session->readyfd);
-	}
-
-   // infinite loop
-   httpdLoop(session);
-
-   fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
-}
-  
 /*---------------------------------------------------------
  | main
  |   Parse option and launch action
@@ -438,6 +387,104 @@ badMode:
   exit (1);
 }
 
+/*----------------------------------------------------------
+ | closeSession
+ |   try to close everything before leaving
+ +--------------------------------------------------------- */
+static void closeSession (int status, void *data) {
+	/* AFB_session *session = data; */
+}
+
+/*----------------------------------------------------------
+ | timeout signalQuit
+ |
+ +--------------------------------------------------------- */
+void signalQuit (int signum) {
+
+  sigset_t sigset;
+
+  // unlock timeout signal to allow a new signal to come
+  sigemptyset (&sigset);
+  sigaddset   (&sigset, SIGABRT);
+  sigprocmask (SIG_UNBLOCK, &sigset, 0);
+
+  fprintf (stderr, "ERR: Received signal quit\n");
+  syslog (LOG_ERR, "Daemon got kill3 & quit [please report bug]");
+  exit(1);
+}
+
+
+/*----------------------------------------------------------
+ | listenLoop
+ |   Main listening HTTP loop
+ +--------------------------------------------------------- */
+static void listenLoop (AFB_session *session) {
+  AFB_error  err;
+
+  // ------ Start httpd server
+
+   err = httpdStart (session);
+   if (err != AFB_SUCCESS) return;
+
+	if (session->readyfd != 0) {
+		static const char readystr[] = "READY=1";
+		write(session->readyfd, readystr, sizeof(readystr) - 1);
+		close(session->readyfd);
+	}
+
+   // infinite loop
+   httpdLoop(session);
+
+   fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
+}
+  
+/*----------------------------------------------------------
+ | daemonize
+ |   set the process in background
+ +--------------------------------------------------------- */
+static void daemonize(AFB_session *session)
+{
+  int            consoleFD;
+  int            pid;
+
+      // open /dev/console to redirect output messAFBes
+      consoleFD = open(session->config->console, O_WRONLY | O_APPEND | O_CREAT , 0640);
+      if (consoleFD < 0) {
+  		fprintf (stderr,"\nERR: AFB-daemon cannot open /dev/console (use --foreground)\n\n");
+  		exit (1);
+      }
+
+      // fork process when running background mode
+      pid = fork ();
+
+      // if fail nothing much to do
+      if (pid == -1) {
+  		fprintf (stderr,"\nERR: AFB-daemon Failed to fork son process\n\n");
+  		exit (1);
+	}
+
+      // if in father process, just leave
+      if (pid != 0) _exit (0);
+
+      // son process get all data in standalone mode
+     printf ("\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
+
+      // redirect default I/O on console
+      close (2); dup(consoleFD);  // redirect stderr
+      close (1); dup(consoleFD);  // redirect stdout
+      close (0);           // no need for stdin
+      close (consoleFD);
+
+#if 0
+  	 setsid();   // allow father process to fully exit
+     sleep (2);  // allow main to leave and release port
+#endif
+
+         fprintf (stderr, "----------------------------\n");
+         fprintf (stderr, "INF: main background pid=%d\n", getpid());
+         fflush  (stderr);
+}
+
 /*---------------------------------------------------------
  | main
  |   Parse option and launch action
@@ -445,8 +492,6 @@ badMode:
 
 int main(int argc, char *argv[])  {
   AFB_session    *session;
-  int            consoleFD;
-  int            pid;
 
   // open syslog if ever needed
   openlog("afb-daemon", 0, LOG_DAEMON);
@@ -488,7 +533,10 @@ int main(int argc, char *argv[])  {
   //if (getuid() == 0)  goto errorNoRoot;
 
   // check session dir and create if it does not exist
-  if (sessionCheckdir (session) != AFB_SUCCESS) goto errSessiondir;
+  if (sessionCheckdir (session) != AFB_SUCCESS) {
+  	fprintf (stderr,"\nERR: AFB-daemon cannot read/write session dir\n\n");
+  	exit (1);
+  }
   if (verbose) fprintf (stderr, "AFB: notice Init config done\n");
 
   // ---- run in foreground mode --------------------
@@ -496,79 +544,26 @@ int main(int argc, char *argv[])  {
 
         if (verbose) fprintf (stderr,"AFB: notice Foreground mode\n");
 
-        // enter listening loop in foreground
-        listenLoop(session);
-        goto exitInitLoop;
   } // end foreground
-
 
   // --------- run in background mode -----------
   if (session->background) {
 
-       // if (status != 0) goto errorCommand;
       if (verbose) printf ("AFB: Entering background mode\n");
 
-      // open /dev/console to redirect output messAFBes
-      consoleFD = open(session->config->console, O_WRONLY | O_APPEND | O_CREAT , 0640);
-      if (consoleFD < 0) goto errConsole;
-
-      // fork process when running background mode
-      pid = fork ();
-
-      // son process get all data in standalone mode
-      if (pid == 0) {
-
- 	     printf ("\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
-
-         // redirect default I/O on console
-         close (2); dup(consoleFD);  // redirect stderr
-         close (1); dup(consoleFD);  // redirect stdout
-         close (0);           // no need for stdin
-         close (consoleFD);
-
-    	 setsid();   // allow father process to fully exit
-	     sleep (2);  // allow main to leave and release port
-
-         fprintf (stderr, "----------------------------\n");
-         fprintf (stderr, "INF: main background pid=%d\n", getpid());
-         fflush  (stderr);
+      daemonize(session);
 
          // if everything look OK then look forever
          syslog (LOG_ERR, "AFB: Entering infinite loop in background mode");
 
-         // should normally never return from this loop
-         listenLoop(session);
-         syslog (LOG_ERR, "AFB: FAIL background infinite loop exited check [%s]\n", session->config->console);
-
-         goto exitInitLoop;
-      }
-
-      // if fail nothing much to do
-      if (pid == -1) goto errorFork;
-
-      // we are in father process, we don't need this one
-      _exit (0);
 
   } // end background-foreground
 
+
+  listenLoop(session);
   if (verbose) printf ("\n---- Application Framework Binder Normal End ------\n");
   exit(0);
 
-// ------------- Fatal ERROR display error and quit  -------------
-errorFork:
-  fprintf (stderr,"\nERR: AFB-daemon Failed to fork son process\n\n");
-  exit (1);
-
-errConsole:
-  fprintf (stderr,"\nERR: AFB-daemon cannot open /dev/console (use --foreground)\n\n");
-  exit (1);
-
-errSessiondir:
-  fprintf (stderr,"\nERR: AFB-daemon cannot read/write session dir\n\n");
-  exit (1);
-
-exitInitLoop:
-  exit (1);
 }
 
 
