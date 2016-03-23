@@ -153,10 +153,7 @@ typedef struct {
   char *rootdir;           // base dir for httpd file download
   char *rootbase;          // Angular HTML5 base URL
   char *rootapi;           // Base URL for REST APIs
-  char *pidfile;           // where to store pid when running background
   char *sessiondir;        // where to store mixer session files
-  char *configfile;        // where to store configuration on gateway exit
-  char *setuid;            // downgrade uid to username
   char *token;             // initial authentication token [default NULL no session]
   int  cacheTimeout;
   int  apiTimeout;
@@ -229,17 +226,15 @@ struct MHD_Daemon;
 typedef struct {
   AFB_config  *config;   // pointer to current config
   // List of commands to execute
-  int  killPrevious;
   int  background;        // run in backround mode
   int  foreground;        // run in forground mode
   char *cacheTimeout;     // http require timeout to be a string
-  struct MHD_Daemon *httpd;            // anonymous structure for httpd handler
+  struct MHD_Daemon *httpd;            // structure for httpd handler
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  readyfd;           // a #fd to signal when ready to serve
   AFB_plugin **plugins;   // pointer to REST/API plugins 
   magic_t  magic;         // Mime type file magic lib
   struct afb_hsrv_handler *handlers;
-  sigjmp_buf restartCkpt; // context save for restart set/longjmp
 } AFB_session;
 
 

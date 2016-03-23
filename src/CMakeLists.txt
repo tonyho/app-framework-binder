@@ -1,7 +1,6 @@
 
 ADD_LIBRARY(src OBJECT
 	main.c
-	config.c
 	session.c
 	http-svc.c
 	rest-api.c

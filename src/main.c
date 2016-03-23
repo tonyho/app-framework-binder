@@ -30,6 +30,8 @@
 #include <signal.h>
 #include <getopt.h>
 #include <pwd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define AFB_VERSION    "0.1"
 
@@ -44,7 +46,7 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
    fprintf (stderr,"\n----------------------------------------- \n");
    fprintf (stderr,"|  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
    fprintf (stderr,"----------------------------------------- \n");
-   fprintf (stderr,"|  Copyright(C) 2015 Fulup Ar Foll /IoT.bzh [fulup -at- iot.bzh]\n");
+   fprintf (stderr,"|  Copyright(C) 2016 /IoT.bzh [fulup -at- iot.bzh]\n");
    fprintf (stderr,"|  AFB comes with ABSOLUTELY NO WARRANTY.\n");
    fprintf (stderr,"|  Licence [what ever makes you happy] until you fix bugs by yourself :)\n\n");
    exit (0);
@@ -52,37 +54,30 @@ static sigjmp_buf exitPoint; // context save for set/longjmp
 
 
 // Define command line option
-#define SET_VERBOSE        101
-#define SET_BACKGROUND     105
-#define SET_FORGROUND      106
-#define KILL_PREV_EXIT     107
-#define KILL_PREV_REST     108
-#define SET_FAKE_MOD       109
+#define SET_VERBOSE        1
+#define SET_BACKGROUND     2
+#define SET_FORGROUND      3
+#define SET_FAKE_MOD       4
 
-#define SET_TCP_PORT       120
-#define SET_ROOT_DIR       121
-#define SET_ROOT_BASE      122
-#define SET_ROOT_API       123
-#define SET_ROOT_ALIAS     124
+#define SET_TCP_PORT       5
+#define SET_ROOT_DIR       6
+#define SET_ROOT_BASE      7
+#define SET_ROOT_API       8
+#define SET_ROOT_ALIAS     9
 
-#define SET_CACHE_TO       130
-#define SET_USERID         131
-#define SET_PID_FILE       132
-#define SET_SESSION_DIR    133
-#define SET_CONFIG_FILE    134
-#define SET_CONFIG_SAVE    135
-#define SET_CONFIG_EXIT    138
+#define SET_CACHE_TIMEOUT  10
+#define SET_SESSION_DIR    11
 
-#define SET_AUTH_TOKEN     141
-#define SET_LDPATH         142
-#define SET_APITIMEOUT     143
-#define SET_CNTXTIMEOUT    144
+#define SET_AUTH_TOKEN     12
+#define SET_LDPATH         13
+#define SET_APITIMEOUT     14
+#define SET_CNTXTIMEOUT    15
 
-#define DISPLAY_VERSION    150
-#define DISPLAY_HELP       151
+#define DISPLAY_VERSION    16
+#define DISPLAY_HELP       17
 
-#define SET_MODE           160
-#define SET_READYFD        161
+#define SET_MODE           18
+#define SET_READYFD        19
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -99,8 +94,6 @@ static  AFB_options cliOptions [] = {
 
   {SET_FORGROUND    ,0,"foreground"      , "Get all in foreground mode"},
   {SET_BACKGROUND   ,0,"daemon"          , "Get all in background mode"},
-  {KILL_PREV_EXIT   ,0,"kill"            , "Kill active process if any and exit"},
-  {KILL_PREV_REST   ,0,"restart"         , "Kill active process if any and restart"},
 
   {SET_TCP_PORT     ,1,"port"            , "HTTP listening TCP port  [default 1234]"},
   {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB]"},
@@ -110,12 +103,9 @@ static  AFB_options cliOptions [] = {
   
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
   {SET_CNTXTIMEOUT  ,1,"cntxtimeout"     , "Client Session Context Timeout [default 900]"},
-  {SET_CACHE_TO     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
+  {SET_CACHE_TIMEOUT     ,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
   
-  {SET_USERID       ,1,"setuid"          , "Change user id [default don't change]"},
-  {SET_PID_FILE     ,1,"pidfile"         , "PID file path [default none]"},
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
-  {SET_CONFIG_FILE  ,1,"config"          , "Config Filename [default rootdir/sessions/configs/default.AFB]"},
 
   {SET_LDPATH       ,1,"ldpaths"         , "Load Plugins from dir1:dir2:... [default = PLUGIN_INSTALL_DIR"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
@@ -130,6 +120,73 @@ static  AFB_options cliOptions [] = {
 
 static AFB_aliasdir aliasdir[MAX_ALIAS];
 static int aliascount=0;
+
+// load config from disk and merge with CLI option
+static AFB_error config_set_default (AFB_session * session)
+{
+   static char cacheTimeout [10];
+   
+   // default HTTP port
+   if (session->config->httpdPort == 0) session->config->httpdPort=1234;
+   
+   // default Plugin API timeout
+   if (session->config->apiTimeout == 0) session->config->apiTimeout=DEFLT_API_TIMEOUT;
+   
+   // default AUTH_TOKEN
+   if (session->config->token == NULL) session->config->token= DEFLT_AUTH_TOKEN;
+
+   // cache timeout default one hour
+   if (session->config->cacheTimeout == 0) session->config->cacheTimeout=DEFLT_CACHE_TIMEOUT;
+
+   // cache timeout default one hour
+   if (session->config->cntxTimeout == 0) session->config->cntxTimeout=DEFLT_CNTX_TIMEOUT;
+
+   if (session->config->rootdir == NULL) {
+       session->config->rootdir = getenv("AFBDIR");
+       if (session->config->rootdir == NULL) {
+           session->config->rootdir = malloc (512);
+           strncpy  (session->config->rootdir, getenv("HOME"),512);
+           strncat (session->config->rootdir, "/.AFB",512);
+       }
+       // if directory does not exist createit
+       mkdir (session->config->rootdir,  O_RDWR | S_IRWXU | S_IRGRP);
+   }
+   
+   // if no Angular/HTML5 rootbase let's try '/' as default
+   if  (session->config->rootbase == NULL) {
+       session->config->rootbase = "/opa";
+   }
+   
+   if  (session->config->rootapi == NULL) {
+       session->config->rootapi = "/api";
+   }
+
+   if  (session->config->ldpaths == NULL) {
+       session->config->ldpaths = PLUGIN_INSTALL_DIR;
+   }
+
+   // if no session dir create a default path from rootdir
+   if  (session->config->sessiondir == NULL) {
+       session->config->sessiondir = malloc (512);
+       strncpy (session->config->sessiondir, session->config->rootdir, 512);
+       strncat (session->config->sessiondir, "/sessions",512);
+   }
+
+   // if no config dir create a default path from sessiondir
+   if  (session->config->console == NULL) {
+       session->config->console = malloc (512);
+       strncpy (session->config->console, session->config->sessiondir, 512);
+       strncat (session->config->console, "/AFB-console.out",512);
+   }
+
+   // cacheTimeout is an integer but HTTPd wants it as a string
+   snprintf (cacheTimeout, sizeof (cacheTimeout),"%d", session->config->cacheTimeout);
+   session->cacheTimeout = cacheTimeout; // httpd uses cacheTimeout string version
+
+   return AFB_SUCCESS;
+}
+
+
 
 /*----------------------------------------------------------
  | timeout signalQuit
@@ -173,57 +230,6 @@ void signalQuit (int signum) {
     }
     fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/plugins:/usr/lib64/agl/plugins\n", name);
 } // end printHelp
-
-/*----------------------------------------------------------
- | writePidFile
- |   write a file in /var/run/AFB with pid
- +--------------------------------------------------------- */
-static int writePidFile (AFB_config *config, int pid) {
-  FILE *file;
-
-  // if no pid file configure just return
-  if (config->pidfile == NULL) return 0;
-
-  // open pid file in write mode
-  file = fopen(config->pidfile,"w");
-  if (file == NULL) {
-    fprintf (stderr,"%s ERR:writePidFile fail to open [%s]\n",configTime(), config->pidfile);
-    return -1;
-  }
-
-  // write pid in file and close
-  fprintf (file, "%d\n", pid);
-  fclose  (file);
-  return 0;
-}
-
-/*----------------------------------------------------------
- | readPidFile
- |   read file in /var/run/AFB with pid
- +--------------------------------------------------------- */
-static int readPidFile (AFB_config *config) {
-  int  pid;
-  FILE *file;
-  int  status;
-
-  if (config->pidfile == NULL) return -1;
-
-  // open pid file in write mode
-  file = fopen(config->pidfile,"r");
-  if (file == NULL) {
-    fprintf (stderr,"%s ERR:readPidFile fail to open [%s]\n",configTime(), config->pidfile);
-    return -1;
-  }
-
-  // write pid in file and close
-  status = fscanf  (file, "%d\n", &pid);
-  fclose  (file);
-
-  // never kill pid 0
-  if (status != 1) return -1;
-
-  return (pid);
-}
 
 /*----------------------------------------------------------
  | closeSession
@@ -277,12 +283,10 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
   int            optc, ind;
   int            nbcmd;
   struct option *gnuOptions;
-  AFB_config     cliconfig; // temp structure to store CLI option before file config upload
 
   // ------------- Build session handler & init config -------
-  memset(&cliconfig,0,sizeof(cliconfig));
   memset(&aliasdir  ,0,sizeof(aliasdir));
-  cliconfig.aliasdir = aliasdir;
+  session->config->aliasdir = aliasdir;
 
   // ------------------ Process Command Line -----------------------
 
@@ -314,35 +318,35 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
 
     case SET_TCP_PORT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &cliconfig.httpdPort)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &session->config->httpdPort)) goto notAnInteger;
        break;
        
     case SET_APITIMEOUT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &cliconfig.apiTimeout)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &session->config->apiTimeout)) goto notAnInteger;
        break;
 
     case SET_CNTXTIMEOUT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &cliconfig.cntxTimeout)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &session->config->cntxTimeout)) goto notAnInteger;
        break;
 
     case SET_ROOT_DIR:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.rootdir   = optarg;
-       if (verbose) fprintf(stderr, "Forcing Rootdir=%s\n",cliconfig.rootdir);
+       session->config->rootdir   = optarg;
+       if (verbose) fprintf(stderr, "Forcing Rootdir=%s\n",session->config->rootdir);
        break;       
        
     case SET_ROOT_BASE:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.rootbase   = optarg;
-       if (verbose) fprintf(stderr, "Forcing Rootbase=%s\n",cliconfig.rootbase);
+       session->config->rootbase   = optarg;
+       if (verbose) fprintf(stderr, "Forcing Rootbase=%s\n",session->config->rootbase);
        break;
 
     case SET_ROOT_API:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.rootapi   = optarg;
-       if (verbose) fprintf(stderr, "Forcing Rootapi=%s\n",cliconfig.rootapi);
+       session->config->rootapi   = optarg;
+       if (verbose) fprintf(stderr, "Forcing Rootapi=%s\n",session->config->rootapi);
        break;
        
     case SET_ROOT_ALIAS:
@@ -364,37 +368,22 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
        
     case SET_AUTH_TOKEN:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.token   = optarg;
+       session->config->token   = optarg;
        break;
 
     case SET_LDPATH:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.ldpaths = optarg;
-       break;
-
-    case SET_PID_FILE:
-       if (optarg == 0) goto needValueForOption;
-       cliconfig.pidfile   = optarg;
+       session->config->ldpaths = optarg;
        break;
 
     case SET_SESSION_DIR:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.sessiondir   = optarg;
+       session->config->sessiondir   = optarg;
        break;
 
-    case  SET_CONFIG_FILE:
+    case  SET_CACHE_TIMEOUT:
        if (optarg == 0) goto needValueForOption;
-       cliconfig.configfile   = optarg;
-       break;
-
-    case  SET_CACHE_TO:
-       if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &cliconfig.cacheTimeout)) goto notAnInteger;
-       break;
-
-    case SET_USERID:
-       if (optarg == 0) goto needValueForOption;
-       cliconfig.setuid = optarg;
+       if (!sscanf (optarg, "%d", &session->config->cacheTimeout)) goto notAnInteger;
        break;
 
     case SET_FAKE_MOD:
@@ -412,21 +401,11 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
        session->background  = 1;
        break;
 
-     case KILL_PREV_REST:
-       if (optarg != 0) goto noValueForOption;
-       session->killPrevious  = 1;
-       break;
-
-     case KILL_PREV_EXIT:
-       if (optarg != 0) goto noValueForOption;
-       session->killPrevious  = 2;
-       break;
-
     case SET_MODE:
        if (optarg == 0) goto needValueForOption;
-       if (!strcmp(optarg, "local")) cliconfig.mode = AFB_MODE_LOCAL;
-       else if (!strcmp(optarg, "remote")) cliconfig.mode = AFB_MODE_REMOTE;
-       else if (!strcmp(optarg, "global")) cliconfig.mode = AFB_MODE_GLOBAL;
+       if (!strcmp(optarg, "local")) session->config->mode = AFB_MODE_LOCAL;
+       else if (!strcmp(optarg, "remote")) session->config->mode = AFB_MODE_REMOTE;
+       else if (!strcmp(optarg, "global")) session->config->mode = AFB_MODE_GLOBAL;
        else goto badMode;
        break;
 
@@ -449,7 +428,7 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
   free(gnuOptions);
  
   // if exist merge config file with CLI arguments
-  configLoadFile  (session, &cliconfig);
+  config_set_default  (session);
   return;
 
 
@@ -481,13 +460,14 @@ badMode:
 
 int main(int argc, char *argv[])  {
   AFB_session    *session;
-  char*          programName = argv [0];
   int            consoleFD;
   int            pid, status;
 
   // ------------- Build session handler & init config -------
-  session = configInit ();
+  session = calloc (1, sizeof (AFB_session));
+  session->config = calloc (1, sizeof (AFB_config));
   parse_arguments(argc, argv, session);
+
   initPlugins(session);
 
   // ------------------ sanity check ----------------------------------------
@@ -501,31 +481,6 @@ int main(int argc, char *argv[])  {
 
   // open syslog if ever needed
   openlog("AFB-log", 0, LOG_DAEMON);
-
-  // -------------- Try to kill any previous process if asked ---------------------
-  if (session->killPrevious) {
-    pid = readPidFile (session->config);  // enforce commandline option
-    switch (pid) {
-    case -1:
-      fprintf (stderr, "%s ERR: main --kill ignored no PID file [%s]\n",configTime(), session->config->pidfile);
-      break;
-    case 0:
-      fprintf (stderr, "%s ERR: main --kill ignored no active AFB process\n",configTime());
-      break;
-    default:
-      status = kill (pid,SIGINT );
-      if (status == 0) {
-	     if (verbose) printf ("%s INF: main signal INTR sent to pid:%d \n", configTime(), pid);
-      } else {
-         // try kill -9
-         status = kill (pid,9);
-         if (status != 0)  fprintf (stderr, "%s ERR: main failled to killed pid=%d \n",configTime(), pid);
-      }
-    } // end switch pid
-
-    if (session->killPrevious >= 2) goto normalExit;
-  } // end killPrevious
-
 
   // ------------------ clean exit on CTR-C signal ------------------------
   if (signal (SIGINT, signalQuit) == SIG_ERR) {
@@ -545,18 +500,6 @@ int main(int argc, char *argv[])  {
   status=nice (20);
 
   // ------------------ Finaly Process Commands -----------------------------
-   // if --save then store config on disk upfront
-    if (session->config->setuid) {
-        int err;
-        struct passwd *passwd;
-        passwd=getpwnam(session->config->setuid);
-        
-        if (passwd == NULL) goto errorSetuid;
-        
-        err = setuid(passwd->pw_uid);
-        if (err) goto errorSetuid;
-    }
-
     // let's not take the risk to run as ROOT
     //if (getuid() == 0)  goto errorNoRoot;
 
@@ -570,10 +513,6 @@ int main(int argc, char *argv[])  {
     if (session->foreground) {
 
         if (verbose) fprintf (stderr,"AFB: notice Foreground mode\n");
-
-        // write a pid file for --kill-previous and --raise-debug option
-        status = writePidFile (session->config, getpid());
-        if (status == -1) goto errorPidFile;
 
         // enter listening loop in foreground
         listenLoop(session);
@@ -598,7 +537,6 @@ int main(int argc, char *argv[])  {
       if (pid == 0) {
 
  	     printf ("\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
- 	     if (verbose) printf ("AFB: info use '%s --restart --rootdir=%s # [--pidfile=%s] to restart daemon\n", programName,session->config->rootdir, session->config->pidfile);
 
          // redirect default I/O on console
          close (2); status=dup(consoleFD);  // redirect stderr
@@ -626,10 +564,6 @@ int main(int argc, char *argv[])  {
       // if fail nothing much to do
       if (pid == -1) goto errorFork;
 
-      // fork worked and we are in father process
-      status = writePidFile (session->config, pid);
-      if (status == -1) goto errorPidFile;
-
       // we are in father process, we don't need this one
       _exit (0);
 
@@ -641,18 +575,6 @@ normalExit:
   exit(0);
 
 // ------------- Fatal ERROR display error and quit  -------------
-errorSetuid:
-  fprintf (stderr,"\nERR: AFB-daemon Failed to change UID to username=[%s]\n\n", session->config->setuid);
-  exit (1);
-  
-//errorNoRoot:
-//  fprintf (stderr,"\nERR:AFB-daemon Not allow to run as root [use --seteuid=username option]\n\n");
-//  exit (1);
-
-errorPidFile:
-  fprintf (stderr,"\nERR: AFB-daemon Failed to write pid file [%s]\n\n", session->config->pidfile);
-  exit (1);
-
 errorFork:
   fprintf (stderr,"\nERR: AFB-daemon Failed to fork son process\n\n");
   exit (1);
@@ -671,8 +593,6 @@ errSessiondir:
   exit (1);
 
 exitInitLoop:
-  // try to unlink pid file if any
-  if (session->background && session->config->pidfile != NULL)  unlink (session->config->pidfile);
   exit (1);
 }
 

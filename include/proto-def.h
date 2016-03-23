@@ -66,8 +66,5 @@ extern AFB_error httpdLoop           (AFB_session *session);
 extern void  httpdStop               (AFB_session *session);
 
 
-// config management
-extern AFB_session *configInit (void);
-extern AFB_error configLoadFile (AFB_session * session, AFB_config *cliconfig);
 
 
