@@ -166,7 +166,7 @@ int afb_req_add_alias(AFB_session * session, const char *prefix, const char *ali
 		da->directory = alias;
 		da->lendir = strlen(da->directory);
 		da->dirfd = dirfd;
-		if (afb_req_add_handler(session, prefix, handle_alias, (void *)alias, priority))
+		if (afb_req_add_handler(session, prefix, handle_alias, da, priority))
 			return 1;
 		free(da);
 	}
