@@ -39,8 +39,8 @@ static struct {
   int max;
 } sessions;
 
-static const char key_uuid = "uuid";
-static const char key_token = "token";
+static const char key_uuid[] = "uuid";
+static const char key_token[] = "token";
 
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void ctxUuidFreeCB (AFB_clientCtx *client)
