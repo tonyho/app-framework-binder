@@ -245,6 +245,7 @@ static int access_handler(
 	request.session = cls;
 	request.connection = connection;
 	request.method = method;
+	request.version = version;
 	request.tail = request.url = url;
 	request.lentail = request.lenurl = strlen(url);
 	request.recorder = (struct afb_hreq **)recorder;

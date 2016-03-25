@@ -28,6 +28,7 @@ struct afb_hreq {
 	AFB_session *session;
 	struct MHD_Connection *connection;
 	enum afb_method method;
+	const char *version;
 	const char *url;
 	size_t lenurl;
 	const char *tail;
@@ -49,5 +50,11 @@ extern int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, con
 extern int afb_hreq_reply_file(struct afb_hreq *request, int dirfd, const char *filename);
 
 extern int afb_hreq_redirect_to(struct afb_hreq *request, const char *url);
+
+extern const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name);
+
+extern const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name);
+
+extern const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name);
 
 extern struct afb_req_itf afb_hreq_itf;

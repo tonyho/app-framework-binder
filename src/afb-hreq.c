@@ -240,6 +240,11 @@ const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name)
 	return MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name);
 }
 
+const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name)
+{
+	return MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, name);
+}
+
 struct afb_req_itf afb_hreq_itf = {
 	.get_cookie = (void*)afb_hreq_get_cookie,
 	.get_argument = (void*)afb_hreq_get_argument

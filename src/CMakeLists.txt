@@ -6,6 +6,8 @@ ADD_LIBRARY(src OBJECT
 	rest-api.c
 	afb-method.c
 	afb-hreq.c
+	afb-websock.c
+	websock.c
 	helper-api.c)
 
 INCLUDE_DIRECTORIES(${include_dirs})
