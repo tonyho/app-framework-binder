@@ -24,11 +24,12 @@
 #include <sys/uio.h>
 
 #include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
 
 #include "websock.h"
 
 #include "../include/local-def.h"
-
 
 #include "afb-method.h"
 #include "afb-hreq.h"
@@ -124,46 +125,70 @@ static void make_accept_value(const char *key, char result[29])
 	result[28] = 0;
 }
 
-static int handshake(struct afb_hreq *hreq, struct afb_websock **ws)
+static int headerhas(const char *header, const char *needle)
+{
+	static const char sep[] = " \t,";
+	size_t len, n;
+
+	n = strlen(needle);
+	for(;;) {
+		header += strspn(header, sep);
+		if (!*header)
+			return 0;
+		len = strcspn(header, sep);
+printf("!!!%.*s!!!\n",len,header);
+		if (n == len && 0 == strncasecmp(needle, header, n))
+			return 1;
+		header += len;
+	}
+}
+
+int afb_websock_check(struct afb_hreq *hreq, int *later)
 {
 	const char *connection, *upgrade, *key, *version, *protocols;
 	char acceptval[29];
 	int vernum;
 	struct MHD_Response *response;
 
+	/* is an upgrade to websocket ? */
 	upgrade = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_UPGRADE);
+printf("upgrade %s\n", upgrade);
 	if (upgrade == NULL || strcasecmp(upgrade, websocket_s))
 		return 0;
 
+	/* is a connection for upgrade ? */
 	connection = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_CONNECTION);
-	if (connection == NULL || strcasecmp (connection, MHD_HTTP_HEADER_UPGRADE))
+printf("connection %s\n", connection);
+	if (connection == NULL || !headerhas (connection, MHD_HTTP_HEADER_UPGRADE))
 		return 0;
 
+	/* is a get ? */
 	if(hreq->method != afb_method_get || strcasecmp(hreq->version, MHD_HTTP_VERSION_1_1))
 		return 0;
 
+	/* has a key and a version ? */
 	key = afb_hreq_get_header(hreq, sec_websocket_key_s);
 	version = afb_hreq_get_header(hreq, sec_websocket_version_s);
+printf("key %s\n", key);
+printf("version %s\n", connection);
 	if (key == NULL || version == NULL)
 		return 0;
 
+	/* is a supported version ? */
 	vernum = atoi(version);
-	if (vernum != 13)
-		return 0;
-
-	if (*ws == NULL)
-		return 1;
-
-	protocols = afb_hreq_get_header(hreq, sec_websocket_protocol_s);
-
 	if (vernum != 13) {
 		response = MHD_create_response_from_data(0,NULL,0,0);
 		MHD_add_response_header (response, sec_websocket_version_s, "13");
 		MHD_queue_response (hreq->connection, MHD_HTTP_BAD_REQUEST, response);
 		MHD_destroy_response (response);
-		return 2;
+		*later = 1;
+		return 1;
 	}
 
+	/* is the protocol supported ? */
+	protocols = afb_hreq_get_header(hreq, sec_websocket_protocol_s);
+
+	/* send the accept connection */
 	make_accept_value(key, acceptval);
 	response = MHD_create_response_from_data(0,NULL,0,0);
 	MHD_add_response_header (response, sec_websocket_accept_s, acceptval);
@@ -172,24 +197,24 @@ static int handshake(struct afb_hreq *hreq, struct afb_websock **ws)
 	MHD_queue_response (hreq->connection, MHD_HTTP_SWITCHING_PROTOCOLS, response);
 	MHD_destroy_response (response);
 
+	*later = 0;
 	return 1;
 }
 
-int afb_websock_is_handshake(struct afb_hreq *hreq)
+struct afb_websock *afb_websock_create(struct MHD_Connection *connection)
 {
-	return handshake(hreq, NULL);
-}
+	struct afb_websock *result;
 
-int afb_websock_open_if(struct afb_hreq *hreq, struct afb_websock **ws)
-{
-	assert(*ws != NULL);
-	*ws = NULL;
-	return handshake(hreq, ws);
-}
-
-int afb_websock_open(struct afb_hreq *hreq, struct afb_websock **ws)
-{
-	int rc = afb_websock_open_if(hreq, ws);
-	return rc ? rc : -1;
+	result = malloc(sizeof * result);
+	if (result) {
+		result->connection = connection;
+		result->fd = MHD_get_connection_info(connection, MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd;
+		result->ws = websock_create(&afb_websock_itf, result);
+		if (result->ws == NULL) {
+			free(result);
+			result = NULL;
+		}
+	}
+	return result;
 }
 

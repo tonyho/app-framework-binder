@@ -38,10 +38,6 @@ extern void endPostRequest(AFB_PostHandle *posthandle);
 extern int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
     , const char *upload_data, size_t *upload_data_size, void **con_cls);
 
-extern void initPlugins (AFB_session *session);
-
-extern  AFB_plugin* pluginRegister ();
-
 // Session handling
 #if defined(ALLOWS_SESSION_FILES)
 extern AFB_error sessionCheckdir     (AFB_session *session);

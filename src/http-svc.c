@@ -24,6 +24,7 @@
 #include "../include/local-def.h"
 #include "afb-method.h"
 #include "afb-hreq.h"
+#include "afb-websock.h"
 
 
 struct afb_hsrv_handler {
@@ -42,15 +43,15 @@ struct afb_diralias {
 	int dirfd;
 };
 
-int afb_request_one_page_api_redirect(
-		struct afb_hreq *request,
+int afb_hreq_one_page_api_redirect(
+		struct afb_hreq *hreq,
 		struct afb_hreq_post *post,
 		void *data)
 {
 	size_t plen;
 	char *url;
 
-	if (request->lentail >= 2 && request->tail[1] == '#')
+	if (hreq->lentail >= 2 && hreq->tail[1] == '#')
 		return 0;
 	/*
 	 * Here we have for example:
@@ -61,13 +62,13 @@ int afb_request_one_page_api_redirect(
 	 *
 	 * Let compute plen that include the / at end (for "/pre/")
 	 */
-	plen = request->lenurl - request->lentail + 1;
-	url = alloca(request->lenurl + 3);
-	memcpy(url, request->url, plen);
+	plen = hreq->lenurl - hreq->lentail + 1;
+	url = alloca(hreq->lenurl + 3);
+	memcpy(url, hreq->url, plen);
 	url[plen++] = '#';
 	url[plen++] = '!';
-	memcpy(&url[plen], &request->tail[1], request->lentail);
-	return afb_hreq_redirect_to(request, url);
+	memcpy(&url[plen], &hreq->tail[1], hreq->lentail);
+	return afb_hreq_redirect_to(hreq, url);
 }
 
 struct afb_hsrv_handler *afb_hsrv_handler_new(
@@ -127,27 +128,35 @@ int afb_req_add_handler(
 	return 1;
 }
 
-static int relay_to_doRestApi(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
+static int relay_to_doRestApi(struct afb_hreq *hreq, struct afb_hreq_post *post, void *data)
 {
-	return doRestApi(request->connection, request->session, &request->tail[1], get_method_name(request->method),
-			 post->upload_data, post->upload_data_size, (void **)request->recorder);
+	int later;
+	if (afb_websock_check(hreq, &later)) {
+		if (!later) {
+			struct afb_websock *ws = afb_websock_create(hreq->connection);
+		}
+		return 1;
+	}
+
+	return doRestApi(hreq->connection, hreq->session, &hreq->tail[1], get_method_name(hreq->method),
+			 post->upload_data, post->upload_data_size, (void **)hreq->recorder);
 }
 
-static int handle_alias(struct afb_hreq *request, struct afb_hreq_post *post, void *data)
+static int handle_alias(struct afb_hreq *hreq, struct afb_hreq_post *post, void *data)
 {
 	struct afb_diralias *da = data;
 
-	if (request->method != afb_method_get) {
-		afb_hreq_reply_error(request, MHD_HTTP_METHOD_NOT_ALLOWED);
+	if (hreq->method != afb_method_get) {
+		afb_hreq_reply_error(hreq, MHD_HTTP_METHOD_NOT_ALLOWED);
 		return 1;
 	}
 
-	if (!afb_hreq_valid_tail(request)) {
-		afb_hreq_reply_error(request, MHD_HTTP_FORBIDDEN);
+	if (!afb_hreq_valid_tail(hreq)) {
+		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
 		return 1;
 	}
 
-	return afb_hreq_reply_file(request, da->dirfd, &request->tail[1]);
+	return afb_hreq_reply_file(hreq, da->dirfd, &hreq->tail[1]);
 }
 
 int afb_req_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
@@ -189,7 +198,7 @@ static int my_default_init(AFB_session * session)
 	if (!afb_req_add_alias(session, "", session->config->rootdir, -10))
 		return 0;
 
-	if (!afb_req_add_handler(session, session->config->rootbase, afb_request_one_page_api_redirect, NULL, -20))
+	if (!afb_req_add_handler(session, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
 		return 0;
 
 	return 1;
@@ -206,7 +215,7 @@ static int access_handler(
 		void **recorder)
 {
 	struct afb_hreq_post post;
-	struct afb_hreq request;
+	struct afb_hreq hreq;
 	enum afb_method method;
 	AFB_session *session;
 	struct afb_hsrv_handler *iter;
@@ -237,36 +246,36 @@ static int access_handler(
 
 	method = get_method(methodstr);
 	if (method == afb_method_none) {
-		afb_hreq_reply_error(&request, MHD_HTTP_BAD_REQUEST);
+		afb_hreq_reply_error(&hreq, MHD_HTTP_BAD_REQUEST);
 		return MHD_YES;
 	}
 
 	/* init the request */
-	request.session = cls;
-	request.connection = connection;
-	request.method = method;
-	request.version = version;
-	request.tail = request.url = url;
-	request.lentail = request.lenurl = strlen(url);
-	request.recorder = (struct afb_hreq **)recorder;
-	request.post_handler = NULL;
-	request.post_completed = NULL;
-	request.post_data = NULL;
+	hreq.session = cls;
+	hreq.connection = connection;
+	hreq.method = method;
+	hreq.version = version;
+	hreq.tail = hreq.url = url;
+	hreq.lentail = hreq.lenurl = strlen(url);
+	hreq.recorder = (struct afb_hreq **)recorder;
+	hreq.post_handler = NULL;
+	hreq.post_completed = NULL;
+	hreq.post_data = NULL;
 
 	/* search an handler for the request */
 	iter = session->handlers;
 	while (iter) {
-		if (afb_hreq_unprefix(&request, iter->prefix, iter->length)) {
-			if (iter->handler(&request, &post, iter->data))
+		if (afb_hreq_unprefix(&hreq, iter->prefix, iter->length)) {
+			if (iter->handler(&hreq, &post, iter->data))
 				return MHD_YES;
-			request.tail = request.url;
-			request.lentail = request.lenurl;
+			hreq.tail = hreq.url;
+			hreq.lentail = hreq.lenurl;
 		}
 		iter = iter->next;
 	}
 
 	/* no handler */
-	afb_hreq_reply_error(&request, method != afb_method_get ? MHD_HTTP_BAD_REQUEST : MHD_HTTP_NOT_FOUND);
+	afb_hreq_reply_error(&hreq, method != afb_method_get ? MHD_HTTP_BAD_REQUEST : MHD_HTTP_NOT_FOUND);
 	return MHD_YES;
 }
 
@@ -337,7 +346,7 @@ AFB_error httpdStart(AFB_session * session)
 	}
 
 	session->httpd = MHD_start_daemon(
-		MHD_USE_EPOLL_LINUX_ONLY | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG,
+		MHD_USE_EPOLL_LINUX_ONLY | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
 		(uint16_t) session->config->httpdPort,	/* port */
 		new_client_handler, NULL,	/* Tcp Accept call back + extra attribute */
 		access_handler, session,	/* Http Request Call back + extra attribute */

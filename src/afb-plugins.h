@@ -16,26 +16,15 @@
  */
 
 
-struct afb_req_itf {
-	const char *(*get_cookie)(void *data, const char *name);
-	const char *(*get_argument)(void *data, const char *name);
-};
+AFB_plugin *afb_plugins_search(AFB_session *session, const char *prefix, size_t length);
 
-struct afb_req {
-	struct afb_req_itf *itf;
-	void *data;
-};
+int afb_plugins_add_plugin(AFB_session *session, const char *path);
 
-inline const char *afb_get_cookie(struct afb_req req, const char *name)
-{
-	return req.itf->get_cookie(req.data, name);
-}
+int afb_plugins_add_directory(AFB_session * session, const char *path);
 
-inline const char *afb_get_argument(struct afb_req req, const char *name)
-{
-	return req.itf->get_argument(req.data, name);
-}
+int afb_plugins_add_path(AFB_session * session, const char *path);
 
+int afb_plugins_add_pathset(AFB_session * session, const char *pathset);
 
-
+void initPlugins(AFB_session * session);
 

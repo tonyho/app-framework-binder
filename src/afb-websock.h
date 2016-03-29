@@ -15,27 +15,7 @@
  * limitations under the License.
  */
 
-
-struct afb_req_itf {
-	const char *(*get_cookie)(void *data, const char *name);
-	const char *(*get_argument)(void *data, const char *name);
-};
-
-struct afb_req {
-	struct afb_req_itf *itf;
-	void *data;
-};
-
-inline const char *afb_get_cookie(struct afb_req req, const char *name)
-{
-	return req.itf->get_cookie(req.data, name);
-}
-
-inline const char *afb_get_argument(struct afb_req req, const char *name)
-{
-	return req.itf->get_argument(req.data, name);
-}
-
-
+int afb_websock_check(struct afb_hreq *hreq, int *later);
+struct afb_websock *afb_websock_create(struct MHD_Connection *connection);
 
 

@@ -58,3 +58,4 @@ extern const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name
 extern const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name);
 
 extern struct afb_req_itf afb_hreq_itf;
+

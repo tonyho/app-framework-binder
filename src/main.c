@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "local-def.h"
+#include "afb-plugins.h"
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"
