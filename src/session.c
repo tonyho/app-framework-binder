@@ -31,6 +31,7 @@
 #include <search.h>
 
 #include "afb-apis.h"
+#include "session.h"
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
@@ -169,7 +170,7 @@ void ctxStoreGarbage (const int timeout)
 }
 
 // This function will return exiting client context or newly created client context
-AFB_clientCtx *ctxClientGet (AFB_request *request, int apiidx)
+AFB_clientCtx *ctxClientGet (AFB_request *request)
 {
   AFB_clientCtx *clientCtx=NULL;
   const char *uuid;
@@ -201,8 +202,6 @@ AFB_clientCtx *ctxClientGet (AFB_request *request, int apiidx)
                 ctxStoreDel (clientCtx);
                 clientCtx = NULL;
             } else {
-                request->context = clientCtx->contexts[apiidx];
-                request->uuid = uuid;
                 return clientCtx;
             }
         }
@@ -225,10 +224,6 @@ AFB_clientCtx *ctxClientGet (AFB_request *request, int apiidx)
         free (clientCtx);
         return NULL;
     }
-
-    // if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);
-    request->context = clientCtx->contexts[apiidx];
-    request->uuid = clientCtx->uuid;
     return clientCtx;
 }
 

@@ -27,6 +27,7 @@
 
 #include "local-def.h"
 #include "afb-apis.h"
+#include "session.h"
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"

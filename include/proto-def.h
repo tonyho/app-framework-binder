@@ -38,14 +38,6 @@ extern void endPostRequest(AFB_PostHandle *posthandle);
 extern int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
     , const char *upload_data, size_t *upload_data_size, void **con_cls);
 
-// Session handling
-extern AFB_error ctxTokenRefresh (AFB_clientCtx *clientCtx, AFB_request *request);
-extern AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request);
-extern AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request);
-extern AFB_error ctxTokenReset (AFB_clientCtx *clientCtx, AFB_request *request);
-extern AFB_clientCtx *ctxClientGet (AFB_request *request, int idx);
-extern void      ctxStoreInit (int);
-
 
 
 // Httpd server

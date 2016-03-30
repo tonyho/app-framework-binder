@@ -79,14 +79,16 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 	if (AFB_SESSION_NONE != session) {
 
 		// add client context to request
-		clientCtx = ctxClientGet(request, apiidx);
+		clientCtx = ctxClientGet(request);
 		if (clientCtx == NULL) {
 			request->errcode = MHD_HTTP_INSUFFICIENT_STORAGE;
 			json_object_object_add(jcall, "status", json_object_new_string("fail"));
 			json_object_object_add(jcall, "info", json_object_new_string("Client Session Context Full !!!"));
 			json_object_object_add(jreqt, "request", jcall);
 			goto ExitOnDone;
-		};
+		}
+		request->context = clientCtx->contexts[apiidx];
+		request->uuid = clientCtx->uuid;
 
 		if (verbose)
 			fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[%p] Uuid=[%s] Token=[%s]\n", request->prefix, request->api, session, clientCtx, clientCtx->uuid, clientCtx->token);
