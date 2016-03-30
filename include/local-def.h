@@ -240,7 +240,6 @@ typedef struct {
   void *context;             // Hold Client Context when using session
   int  restfull;             // request is resfull [uuid token provided]
   int  errcode;              // http error code
-  sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
   struct AFB_config *config;         // plugin may need access to config
   struct MHD_Connection *connection;
 } AFB_request;
