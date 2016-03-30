@@ -31,6 +31,7 @@
 #include <signal.h>
 
 #include "afb-apis.h"
+#include "session.h"
 
 #define AFB_MSG_JTYPE "AJB_reply"
 
@@ -72,7 +73,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 	// prepare an object to store calling values
 	jcall = json_object_new_object();
 	json_object_object_add(jcall, "prefix", json_object_new_string(request->prefix));
-	json_object_object_add(jcall, "api", json_object_new_string(request->api));
+	json_object_object_add(jcall, "api", json_object_new_string(request->method));
 
 	// Out of SessionNone every call get a client context session
 	session = afb_apis_get(apiidx, verbidx)->session;
@@ -91,7 +92,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 		request->uuid = clientCtx->uuid;
 
 		if (verbose)
-			fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[%p] Uuid=[%s] Token=[%s]\n", request->prefix, request->api, session, clientCtx, clientCtx->uuid, clientCtx->token);
+			fprintf(stderr, "Plugin=[%s] Api=[%s] Middleware=[%d] Client=[%p] Uuid=[%s] Token=[%s]\n", request->prefix, request->method, session, clientCtx, clientCtx->uuid, clientCtx->token);
 
 		switch (session) {
 
@@ -209,7 +210,7 @@ static AFB_error callPluginApi(AFB_request * request, int apiidx, int verbidx, v
 		// prepare an object to store calling values
 		jcall = json_object_new_object();
 		json_object_object_add(jcall, "prefix", json_object_new_string(request->prefix));
-		json_object_object_add(jcall, "api", json_object_new_string(request->api));
+		json_object_object_add(jcall, "api", json_object_new_string(request->method));
 
 		// Plugin aborted somewhere during its execution
 		json_object_object_add(jcall, "status", json_object_new_string("abort"));
@@ -241,7 +242,7 @@ STATIC AFB_error findAndCallApi(AFB_request * request, void *context)
 	int apiidx, verbidx;
 	AFB_error status;
 
-	if (!request->api || !request->prefix)
+	if (!request->method || !request->prefix)
 		return AFB_FAIL;
 
 	/* get the plugin if any */
@@ -253,9 +254,9 @@ STATIC AFB_error findAndCallApi(AFB_request * request, void *context)
 	}
 
 	/* get the verb if any */
-	verbidx = afb_apis_get_verbidx(apiidx, request->api);
+	verbidx = afb_apis_get_verbidx(apiidx, request->method);
 	if (verbidx < 0) {
-		request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->api, request->prefix, request->url);
+		request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->method, request->prefix, request->url);
 		request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
 		return AFB_FAIL;
 	}
@@ -265,7 +266,7 @@ STATIC AFB_error findAndCallApi(AFB_request * request, void *context)
 
 	/* plugin callback did not return a valid Json Object */
 	if (status == AFB_FAIL) {
-		request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->api, request->prefix, request->url);
+		request->jresp = jsonNewMessage(AFB_FATAL, "No API=[%s] for Plugin=[%s] url=[%s]", request->method, request->prefix, request->url);
 		request->errcode = MHD_HTTP_UNPROCESSABLE_ENTITY;
 		return AFB_FAIL;
 	}
@@ -319,7 +320,7 @@ STATIC void freeRequest(AFB_request * request)
 {
 
 	free(request->prefix);
-	free(request->api);
+	free(request->method);
 	free(request);
 }
 
@@ -353,7 +354,7 @@ STATIC AFB_request *createRequest(struct MHD_Connection *connection, AFB_session
 	request->config = session->config;
 	request->url = url;
 	request->prefix = strdup(baseurl);
-	request->api = strdup(baseapi);
+	request->method = strdup(baseapi);
 
  Done:
 	free(urlcpy1);

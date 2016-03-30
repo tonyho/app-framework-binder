@@ -234,7 +234,7 @@ typedef struct {
   const char *uuid;
   const char *url;
   char *prefix;              // plugin convivial name
-  char *api;
+  char *method;
   AFB_PostRequest *post;
   json_object *jresp;
   void *context;             // Hold Client Context when using session

@@ -71,7 +71,7 @@ static struct json_object *embed(AFB_request *request, const char *tag, struct j
 
 static struct json_object *call_void(AFB_request *request, AFB_PostItem *item)
 {
-	struct json_object *obj = jbus_call_sj_sync(jbus, request->api, "true");
+	struct json_object *obj = jbus_call_sj_sync(jbus, request->method, "true");
 	if (verbose)
 		fprintf(stderr, "(afm-main-plugin) call_void: true -> %s\n", obj ? json_object_to_json_string(obj) : "NULL");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
@@ -91,7 +91,7 @@ static struct json_object *call_appid(AFB_request *request, AFB_PostItem *item)
 		request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
 		return NULL;
 	}
-	obj = jbus_call_sj_sync(jbus, request->api, sid);
+	obj = jbus_call_sj_sync(jbus, request->method, sid);
 	if (verbose)
 		fprintf(stderr, "(afm-main-plugin) call_appid: %s -> %s\n", sid, obj ? json_object_to_json_string(obj) : "NULL");
 	free(sid);
@@ -107,7 +107,7 @@ static struct json_object *call_runid(AFB_request *request, AFB_PostItem *item)
 		request->errcode = MHD_HTTP_BAD_REQUEST;
 		return NULL;
 	}
-	obj = jbus_call_sj_sync(jbus, request->api, id);
+	obj = jbus_call_sj_sync(jbus, request->method, id);
 	if (verbose)
 		fprintf(stderr, "(afm-main-plugin) call_runid: %s -> %s\n", id, obj ? json_object_to_json_string(obj) : "NULL");
 	request->errcode = obj ? MHD_HTTP_OK : MHD_HTTP_FAILED_DEPENDENCY;
@@ -174,7 +174,7 @@ static struct json_object *call_file__appid(AFB_request *request, AFB_PostItem *
 			if (0 >= asprintf(&query, "\"%s\"", filename))
 				request->errcode = MHD_HTTP_INTERNAL_SERVER_ERROR;
 			else {
-				obj = jbus_call_sj_sync(jbus, request->api, query);
+				obj = jbus_call_sj_sync(jbus, request->method, query);
 				if (verbose)
 					fprintf(stderr, "(afm-main-plugin) call_file_appid: %s -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
 				free(query);
