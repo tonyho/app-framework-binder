@@ -26,6 +26,8 @@
 
 /* ------ LOCAL HELPER FUNCTIONS --------- */
 
+static pluginHandleT *the_radio = NULL;
+
 /* detect new radio devices */
 STATIC void updateRadioDevList(pluginHandleT *handle) {
 
@@ -116,9 +118,9 @@ STATIC AFB_error releaseRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
 }
 
 /* called when client session dies [e.g. client quits for more than 15mns] */
-STATIC void freeRadio (void *context, void *handle) {
+STATIC void freeRadio (void *context) {
 
-    releaseRadio (handle, context);
+    releaseRadio (the_radio, context);
     free (context);
 }
 
@@ -140,7 +142,7 @@ STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
 
 STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
 
-    pluginHandleT *handle = (pluginHandleT*)request->handle;
+    pluginHandleT *handle = the_radio;
     radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
     const char *value = getQueryValue (request, "value");
     json_object *jresp;
@@ -325,8 +327,8 @@ PUBLIC AFB_plugin* pluginRegister () {
     plugin->prefix  = "radio";
     plugin->apis  = pluginApis;
 
-    plugin->handle = initRadioPlugin();
     plugin->freeCtxCB = (AFB_freeCtxCB)freeRadio;
 
-    return (plugin);
+    radio = initRadioPlugin();
+    return plugin;
 };

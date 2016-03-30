@@ -75,9 +75,6 @@
 
 extern int verbose;  // this is the only global variable
 
-// Plugin Type
-typedef enum  {AFB_PLUGIN_JSON=123456789, AFB_PLUGIN_JSCRIPT=987654321,  AFB_PLUGIN_RAW=987123546} AFB_pluginE;
-
 // prebuild json error are constructed in helper-api.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 
@@ -85,11 +82,73 @@ typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 
 
+
+
+
+
+
+
+// Plugin Type
+enum  AFB_pluginE
+{
+	AFB_PLUGIN_JSON = 123456789,
+	AFB_PLUGIN_JSCRIPT = 987654321,
+	AFB_PLUGIN_RAW = 987123546
+};
+
+// Enum for Session/Token/Authentication middleware
+enum AFB_sessionE
+{
+	AFB_SESSION_NONE,
+	AFB_SESSION_CREATE,
+	AFB_SESSION_CLOSE,
+	AFB_SESSION_RENEW,
+	AFB_SESSION_CHECK
+};
+
+// API definition
+struct AFB_restapi
+{
+	const char *name;
+	enum AFB_sessionE session;
+	json_object* (*callback)();
+	const char *info;
+};
+
+// Plugin definition
+struct AFB_plugin
+{
+	enum AFB_pluginE type;  
+	const char *info;
+	const char *prefix;
+	const struct AFB_restapi *apis;
+	void (*freeCtxCB)(void*);  // callback to free application context [null for standard free]
+};
+
+typedef enum AFB_pluginE AFB_pluginE;
+typedef enum AFB_sessionE AFB_sessionE;
 typedef json_object* (*AFB_apiCB)();
-typedef void (*AFB_freeCtxCB)(void*, void*, char*);
+typedef void (*AFB_freeCtxCB)(void*);
+typedef struct AFB_restapi AFB_restapi;
+typedef struct AFB_plugin AFB_plugin;
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
 typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
+
+
 
 // Post Upload File Handle
 typedef struct {
@@ -143,31 +202,6 @@ typedef struct {
      size_t  len;
 } AFB_redirect_msg;
 
-// Enum for Session/Token/Authentication middleware
-typedef enum  {AFB_SESSION_NONE, AFB_SESSION_CREATE, AFB_SESSION_CLOSE, AFB_SESSION_RENEW, AFB_SESSION_CHECK} AFB_sessionE;
-
-// API definition
-typedef struct {
-  char *name;
-  AFB_sessionE session;
-  AFB_apiCB callback;
-  char *info;
-} AFB_restapi;
-
-// Plugin definition
-typedef struct {
-  AFB_pluginE type;  
-  char *info;
-  char *prefix;
-  size_t prefixlen;
-  json_object *jtype;
-  AFB_restapi *apis;
-  void *handle;
-  int  ctxCount;
-  AFB_freeCtxCB freeCtxCB;  // callback to free application context [null for standard free]
-} AFB_plugin;
-
-
 // User Client Session Context
 typedef struct {
   char uuid[37];        // long term authentication of remote client
@@ -175,11 +209,11 @@ typedef struct {
   time_t timeStamp;     // last time token was refresh
   int   restfull;       // client does not use cookie
   void **contexts;      // application specific context [one per plugin]]
-  AFB_plugin **plugins; // we need plugins reference to cleanup session outside of call context
 } AFB_clientCtx;
 
 // main config structure
-typedef struct {
+struct AFB_config
+{
   char *console;           // console device name (can be a file or a tty)
   int   httpdPort;
   char *ldpaths;           // list of plugins directories
@@ -191,10 +225,9 @@ typedef struct {
   int  cacheTimeout;
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
-  int  pluginCount;        // loaded plugins count
   AFB_Mode mode;           // mode of listening
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
-} AFB_config;
+};
 
 // MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
 typedef struct {
@@ -205,20 +238,18 @@ typedef struct {
   AFB_PostRequest *post;
   json_object *jresp;
   void *context;             // Hold Client Context when using session
-  void *handle;              // provide callback and easy access to plugin
   int  restfull;             // request is resfull [uuid token provided]
   int  errcode;              // http error code
   sigjmp_buf checkPluginCall; // context save for timeout set/longjmp
-  AFB_config *config;         // plugin may need access to config
+  struct AFB_config *config;         // plugin may need access to config
   struct MHD_Connection *connection;
-  AFB_plugin **plugins;
 } AFB_request;
 
 struct afb_hsrv_handler;
 struct MHD_Daemon;
 
-typedef struct {
-  AFB_config  *config;   // pointer to current config
+struct AFB_session {
+  struct AFB_config  *config;   // pointer to current config
   // List of commands to execute
   int  background;        // run in backround mode
   int  foreground;        // run in forground mode
@@ -226,12 +257,13 @@ typedef struct {
   struct MHD_Daemon *httpd;            // structure for httpd handler
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  readyfd;           // a #fd to signal when ready to serve
-  AFB_plugin **plugins;   // pointer to REST/API plugins 
   magic_t  magic;         // Mime type file magic lib
   struct afb_hsrv_handler *handlers;
-} AFB_session;
+};
 
 
+typedef struct AFB_config AFB_config;
+typedef struct AFB_session AFB_session;
 
 #include "proto-def.h"
 

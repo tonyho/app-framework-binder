@@ -3,8 +3,8 @@ ADD_LIBRARY(src OBJECT
 	main.c
 	session.c
 	http-svc.c
-	afb-api.c
-	afb-plugins.c
+	afb-rest-api.c
+	afb-apis.c
 	afb-method.c
 	afb-hreq.c
 	afb-websock.c

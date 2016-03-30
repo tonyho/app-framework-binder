@@ -24,6 +24,7 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <assert.h>
 #include <string.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -34,32 +35,76 @@
 
 #include "../include/local-def.h"
 
-#include "afb-plugins.h"
+#include "afb-apis.h"
+
+struct api_desc {
+	AFB_plugin *plugin;	/* descriptor */
+	size_t prefixlen;
+	const char *prefix;
+	void *handle;		/* context of dlopen */
+};
+
+static struct api_desc *apis_array = NULL;
+static int apis_count = 0;
 
 static const char plugin_register_function[] = "pluginRegister";
 
-AFB_plugin *afb_plugins_search(AFB_session *session, const char *prefix, size_t length)
+int afb_apis_count()
 {
-	int i, n;
-	AFB_plugin **plugins, *p;
+	return apis_count;
+}
+
+void afb_apis_free_context(int apiidx, void *context)
+{
+	void (*cb)(void*);
+
+	assert(0 <= apiidx && apiidx < apis_count);
+	cb = apis_array[apiidx].plugin->freeCtxCB;
+	if (cb)
+		cb(context);
+	else
+		free(context);
+}
+
+const struct AFB_restapi *afb_apis_get(int apiidx, int verbidx)
+{
+	assert(0 <= apiidx && apiidx < apis_count);
+	return &apis_array[apiidx].plugin->apis[verbidx];
+}
+
+int afb_apis_get_verbidx(int apiidx, const char *name)
+{
+	const struct AFB_restapi *apis;
+	int idx;
+
+	assert(0 <= apiidx && apiidx < apis_count);
+	apis = apis_array[apiidx].plugin->apis;
+	for (idx = 0 ; apis[idx].name ; idx++)
+		if (!strcasecmp(apis[idx].name, name))
+			return idx;
+	return -1;
+}
+
+int afb_apis_get_apiidx(const char *prefix, size_t length)
+{
+	int i;
+	const struct api_desc *a;
 
 	if (!length)
 		length = strlen(prefix);
 
-	n = session->config->pluginCount;
-	plugins = session->plugins;
-
-	for (i = 0 ; i < n ; i++) {
-		p = plugins[i];
-		if (p->prefixlen == length && !strcmp(p->prefix, prefix))
-			return p;
+	for (i = 0 ; i < apis_count ; i++) {
+		a = &apis_array[i];
+		if (a->prefixlen == length && !strcasecmp(a->prefix, prefix))
+			return i;
 	}
-	return NULL;
+	return -1;
 }
 
-int afb_plugins_add_plugin(AFB_session *session, const char *path)
+int afb_apis_add_plugin(const char *path)
 {
-	AFB_plugin *desc, *check, **plugins;
+	struct api_desc *apis;
+	AFB_plugin *plugin;
 	AFB_plugin *(*pluginRegisterFct) (void);
 	void *handle;
 	size_t len;
@@ -81,56 +126,54 @@ int afb_plugins_add_plugin(AFB_session *session, const char *path)
 		fprintf(stderr, "[%s] is a valid AFB plugin\n", path);
 
 	/* allocates enough memory */
-	plugins = realloc(session->plugins, ((unsigned)session->config->pluginCount + 2) * sizeof(AFB_plugin*));
-	if (plugins == NULL) {
+	apis = realloc(apis_array, ((unsigned)apis_count + 1) * sizeof * apis);
+	if (apis == NULL) {
 		fprintf(stderr, "ERROR: plugin [%s] memory missing. continuing...\n", path);
 		goto error2;
 	}
-	session->plugins = plugins;
+	apis_array = apis;
 
 	/* init the plugin */
-	desc = pluginRegisterFct();
-	if (desc == NULL) {
+	plugin = pluginRegisterFct();
+	if (plugin == NULL) {
 		fprintf(stderr, "ERROR: plugin [%s] register function failed. continuing...\n", path);
 		goto error2;
 	}
 
 	/* check the returned structure */
-	if (desc->type != AFB_PLUGIN_JSON) {
-		fprintf(stderr, "ERROR: plugin [%s] invalid type %d...\n", path, desc->type);
+	if (plugin->type != AFB_PLUGIN_JSON) {
+		fprintf(stderr, "ERROR: plugin [%s] invalid type %d...\n", path, plugin->type);
 		goto error2;
 	}
-	if (desc->prefix == NULL || *desc->prefix == 0) {
+	if (plugin->prefix == NULL || *plugin->prefix == 0) {
 		fprintf(stderr, "ERROR: plugin [%s] bad prefix...\n", path);
 		goto error2;
 	}
-	if (desc->info == NULL || *desc->info == 0) {
+	if (plugin->info == NULL || *plugin->info == 0) {
 		fprintf(stderr, "ERROR: plugin [%s] bad description...\n", path);
 		goto error2;
 	}
-	if (desc->apis == NULL) {
+	if (plugin->apis == NULL) {
 		fprintf(stderr, "ERROR: plugin [%s] no APIs...\n", path);
 		goto error2;
 	}
 
 	/* check previously existing plugin */
-	len = strlen(desc->prefix);
-	check = afb_plugins_search(session, desc->prefix, len);
-	if (check != NULL) {
-		fprintf(stderr, "ERROR: plugin [%s] prefix %s duplicated...\n", path, desc->prefix);
+	len = strlen(plugin->prefix);
+	if (afb_apis_get_apiidx(plugin->prefix, len) >= 0) {
+		fprintf(stderr, "ERROR: plugin [%s] prefix %s duplicated...\n", path, plugin->prefix);
 		goto error2;
 	}
 
-	/* Prebuild plugin jtype to boost API response */
-	desc->jtype = json_object_new_string(desc->prefix);
-	desc->prefixlen = len;
-
 	/* record the plugin */
-	session->plugins[session->config->pluginCount] = desc;
-	session->plugins[++session->config->pluginCount] = NULL;
-
 	if (verbose)
-		fprintf(stderr, "Loading plugin[%d] prefix=[%s] info=%s\n", session->config->pluginCount, desc->prefix, desc->info);
+		fprintf(stderr, "Loading plugin[%lu] prefix=[%s] info=%s\n", (unsigned long)apis_count, plugin->prefix, plugin->info);
+	apis = &apis_array[apis_count];
+	apis->plugin = plugin;
+	apis->prefixlen = len;
+	apis->prefix = plugin->prefix;
+	apis->handle = handle;
+	apis_count++;
 
 	return 0;
 
@@ -140,7 +183,7 @@ error:
 	return -1;
 }
 
-static int adddirs(AFB_session * session, char path[PATH_MAX], size_t end)
+static int adddirs(char path[PATH_MAX], size_t end)
 {
 	int rc;
 	DIR *dir;
@@ -178,19 +221,19 @@ static int adddirs(AFB_session * session, char path[PATH_MAX], size_t end)
 				if (ent.d_name[1] == '.' && len == 2)
 					continue;
 			}
-			rc = adddirs(session, path, end+len);;
+			rc = adddirs(path, end+len);;
 		} else if (ent.d_type == DT_REG) {
 			/* case of files */
 			if (!strstr(ent.d_name, ".so"))
 				continue;
-			rc = afb_plugins_add_plugin(session, path);
+			rc = afb_apis_add_plugin(path);
 		}
 	}
 	closedir(dir);
 	return 0;
 }
 
-int afb_plugins_add_directory(AFB_session * session, const char *path)
+int afb_apis_add_directory(const char *path)
 {
 	size_t length;
 	char buffer[PATH_MAX];
@@ -202,10 +245,10 @@ int afb_plugins_add_directory(AFB_session * session, const char *path)
 	}
 
 	memcpy(buffer, path, length + 1);
-	return adddirs(session, buffer, length);
+	return adddirs(buffer, length);
 }
 
-int afb_plugins_add_path(AFB_session * session, const char *path)
+int afb_apis_add_path(const char *path)
 {
 	struct stat st;
 	int rc;
@@ -214,13 +257,13 @@ int afb_plugins_add_path(AFB_session * session, const char *path)
 	if (rc < 0)
 		fprintf(stderr, "Invalid plugin path [%s]: %m\n", path);
 	else if (S_ISDIR(st.st_mode))
-		rc = afb_plugins_add_directory(session, path);
+		rc = afb_apis_add_directory(path);
 	else
-		rc = afb_plugins_add_plugin(session, path);
+		rc = afb_apis_add_plugin(path);
 	return rc;
 }
 
-int afb_plugins_add_pathset(AFB_session * session, const char *pathset)
+int afb_apis_add_pathset(const char *pathset)
 {
 	static char sep[] = ":";
 	char *ps, *p;
@@ -231,12 +274,7 @@ int afb_plugins_add_pathset(AFB_session * session, const char *pathset)
 		p = strsep(&ps, sep);
 		if (!p)
 			return 0;
-		rc = afb_plugins_add_path(session, p);
+		rc = afb_apis_add_path(p);
 	};
-}
-
-void initPlugins(AFB_session * session)
-{
-	int rc = afb_plugins_add_pathset(session, session->config->ldpaths);
 }
 

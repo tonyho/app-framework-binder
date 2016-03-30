@@ -56,7 +56,9 @@ typedef struct {
 } MyClientContextT;
 
 
-
+// Plugin handle should not be in stack (malloc or static)
+STATIC MyPluginHandleT global_handle;
+    
 // This function is call at session open time. Any client trying to 
 // call it with an already open session will be denied.
 // Ex: http://localhost:1234/api/context/create?token=123456789
@@ -64,7 +66,7 @@ STATIC json_object* myCreate (AFB_request *request) {
     json_object *jresp;
     
     MyClientContextT *ctx= malloc (sizeof (MyClientContextT));
-    MyPluginHandleT  *handle = (MyPluginHandleT*) request->handle;
+    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
 
     // store something in our plugin private client context
     ctx->count = 0;
@@ -82,7 +84,7 @@ STATIC json_object* myCreate (AFB_request *request) {
 // ex: http://localhost:1234/api/context/action?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
 STATIC json_object* myAction (AFB_request *request) {
     json_object* jresp;
-    MyPluginHandleT  *handle = (MyPluginHandleT*) request->handle;
+    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
     MyClientContextT *ctx= (MyClientContextT*) request->context;
     
     // store something in our plugin private client context
@@ -98,7 +100,7 @@ STATIC json_object* myAction (AFB_request *request) {
 // ex: http://localhost:1234/api/context/close?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
 STATIC json_object* myClose (AFB_request *request) {
     json_object* jresp;
-    MyPluginHandleT  *handle = (MyPluginHandleT*) request->handle;
+    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
     MyClientContextT *ctx= (MyClientContextT*) request->context;
     
     // store something in our plugin private client context
@@ -109,8 +111,9 @@ STATIC json_object* myClose (AFB_request *request) {
     return jresp;
 }
 
-STATIC void freeCtxCB (MyClientContextT *ctx, MyPluginHandleT *handle, char *uuid) {
-    fprintf (stderr, "FreeCtxCB uuid=[%s] Plugin=[%s]  count=[%d]", uuid, (char*)handle->anythingYouWant, ctx->count);
+STATIC void freeCtxCB (MyClientContextT *ctx) {
+    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
+    fprintf (stderr, "FreeCtxCB Plugin=[%s]  count=[%d]", (char*)handle->anythingYouWant, ctx->count);
     free (ctx);
     
     // Note: handle should be free it is a static resource attached to plugin and not to session
@@ -127,19 +130,15 @@ STATIC  AFB_restapi pluginApis[]= {
 
 PUBLIC AFB_plugin *pluginRegister () {
     
-    // Plugin handle should not be in stack (malloc or static)
-    STATIC MyPluginHandleT handle;
-    
     AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
     plugin->type     = AFB_PLUGIN_JSON;
     plugin->info     = "Sample of Client Context Usage";
     plugin->prefix   = "context";
     plugin->apis     = pluginApis;
-    plugin->handle   = &handle;
     plugin->freeCtxCB= (AFB_freeCtxCB) freeCtxCB;
     
     // feed plugin handle before returning from registration
-    handle.anythingYouWant = "My Plugin Handle";
+    global_handle.anythingYouWant = "My Plugin Handle";
     
     return (plugin);
 };

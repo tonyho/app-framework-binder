@@ -75,7 +75,7 @@ int afb_hreq_unprefix(struct afb_hreq *hreq, const char *prefix, size_t length)
 {
 	/* check the prefix ? */
 	if (length > hreq->lentail || (hreq->tail[length] && hreq->tail[length] != '/')
-	    || memcmp(prefix, hreq->tail, length))
+	    || strncasecmp(prefix, hreq->tail, length))
 		return 0;
 
 	/* removes successives / */

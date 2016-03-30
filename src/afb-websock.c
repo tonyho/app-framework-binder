@@ -152,13 +152,11 @@ int afb_websock_check(struct afb_hreq *hreq, int *later)
 
 	/* is an upgrade to websocket ? */
 	upgrade = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_UPGRADE);
-printf("upgrade %s\n", upgrade);
 	if (upgrade == NULL || strcasecmp(upgrade, websocket_s))
 		return 0;
 
 	/* is a connection for upgrade ? */
 	connection = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_CONNECTION);
-printf("connection %s\n", connection);
 	if (connection == NULL || !headerhas (connection, MHD_HTTP_HEADER_UPGRADE))
 		return 0;
 
@@ -169,8 +167,6 @@ printf("connection %s\n", connection);
 	/* has a key and a version ? */
 	key = afb_hreq_get_header(hreq, sec_websocket_key_s);
 	version = afb_hreq_get_header(hreq, sec_websocket_version_s);
-printf("key %s\n", key);
-printf("version %s\n", connection);
 	if (key == NULL || version == NULL)
 		return 0;
 

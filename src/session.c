@@ -30,6 +30,7 @@
 #include <pthread.h>
 #include <search.h>
 
+#include "afb-apis.h"
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
@@ -45,22 +46,16 @@ static const char key_token[] = "token";
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void ctxUuidFreeCB (AFB_clientCtx *client)
 {
-
-    AFB_plugin **plugins = client->plugins;
-    AFB_freeCtxCB freeCtxCB;
-    int idx;
+    int idx, cnt;
 
     // If application add a handle let's free it now
     if (client->contexts != NULL) {
 
+	cnt = afb_apis_count();
         // Free client handle with a standard Free function, with app callback or ignore it
-        for (idx=0; client->plugins[idx] != NULL; idx ++) {
+        for (idx=0; idx < cnt; idx ++) {
             if (client->contexts[idx] != NULL) {
-                freeCtxCB = client->plugins[idx]->freeCtxCB;
-                if (freeCtxCB == NULL)
-			free (client->contexts[idx]);
-                else if (freeCtxCB != (void*)-1)
-			freeCtxCB(client->contexts[idx], plugins[idx]->handle, client->uuid);
+		afb_apis_free_context(idx, client->contexts[idx]);
             }
         }
     }
@@ -150,7 +145,7 @@ static AFB_error ctxStoreAdd (AFB_clientCtx *client)
 }
 
 // Check if context timeout or not
-static int ctxStoreToOld (AFB_clientCtx *ctx, int timeout)
+static int ctxStoreTooOld (AFB_clientCtx *ctx, int timeout)
 {
     int res;
     time_t now =  time(NULL);
@@ -166,15 +161,15 @@ void ctxStoreGarbage (const int timeout)
 
     // Loop on Sessions Table and remove anything that is older than timeout
     for (idx=0; idx < sessions.max; idx++) {
-        ctx=sessions.store[idx];
-        if ((ctx != NULL) && (ctxStoreToOld(ctx, timeout))) {
+        ctx = sessions.store[idx];
+        if ((ctx != NULL) && (ctxStoreTooOld(ctx, timeout))) {
             ctxStoreDel (ctx);
         }
     }
 }
 
 // This function will return exiting client context or newly created client context
-AFB_clientCtx *ctxClientGet (AFB_request *request, int idx)
+AFB_clientCtx *ctxClientGet (AFB_request *request, int apiidx)
 {
   AFB_clientCtx *clientCtx=NULL;
   const char *uuid;
@@ -201,14 +196,13 @@ AFB_clientCtx *ctxClientGet (AFB_request *request, int idx)
         clientCtx = ctxStoreSearch (uuid);
 
 	if (clientCtx) {
-            if (ctxStoreToOld (clientCtx, request->config->cntxTimeout)) {
+            if (ctxStoreTooOld (clientCtx, request->config->cntxTimeout)) {
                  // this session is too old let's delete it
                 ctxStoreDel (clientCtx);
                 clientCtx = NULL;
             } else {
-                request->context=clientCtx->contexts[idx];
-                request->handle  = clientCtx->plugins[idx]->handle;
-                request->uuid= uuid;
+                request->context = clientCtx->contexts[apiidx];
+                request->uuid = uuid;
                 return clientCtx;
             }
         }
@@ -217,8 +211,7 @@ AFB_clientCtx *ctxClientGet (AFB_request *request, int idx)
     // we have no session let's create one otherwise let's clean any exiting values
     if (clientCtx == NULL) {
         clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
-        clientCtx->contexts = calloc (1, (unsigned)request->config->pluginCount * (sizeof (void*)));
-        clientCtx->plugins  = request->plugins;
+        clientCtx->contexts = calloc ((unsigned)afb_apis_count(), sizeof (void*));
     }
 
     uuid_generate(newuuid);         // create a new UUID
@@ -234,9 +227,8 @@ AFB_clientCtx *ctxClientGet (AFB_request *request, int idx)
     }
 
     // if (verbose) fprintf (stderr, "ctxClientGet New uuid=[%s] token=[%s] timestamp=%d\n", clientCtx->uuid, clientCtx->token, clientCtx->timeStamp);
-    request->context = clientCtx->contexts[idx];
-    request->handle  = clientCtx->plugins[idx]->handle;
-    request->uuid=clientCtx->uuid;
+    request->context = clientCtx->contexts[apiidx];
+    request->uuid = clientCtx->uuid;
     return clientCtx;
 }
 
@@ -256,7 +248,7 @@ AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request)
 	return AFB_FALSE;
 
     // compare current token with previous one
-    if ((0 == strcmp (token, clientCtx->token)) && (!ctxStoreToOld (clientCtx, request->config->cntxTimeout))) {
+    if ((0 == strcmp (token, clientCtx->token)) && (!ctxStoreTooOld (clientCtx, request->config->cntxTimeout))) {
        return AFB_SUCCESS;
     }
 

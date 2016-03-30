@@ -39,13 +39,6 @@ extern int doRestApi(struct MHD_Connection *connection, AFB_session *session, co
     , const char *upload_data, size_t *upload_data_size, void **con_cls);
 
 // Session handling
-#if defined(ALLOWS_SESSION_FILES)
-extern AFB_error sessionCheckdir     (AFB_session *session);
-extern json_object *sessionList      (AFB_session *session, AFB_request *request);
-extern json_object *sessionToDisk    (AFB_session *session, AFB_request *request, char *name,json_object *jsonSession);
-extern json_object *sessionFromDisk  (AFB_session *session, AFB_request *request, char *name);
-#endif
-
 extern AFB_error ctxTokenRefresh (AFB_clientCtx *clientCtx, AFB_request *request);
 extern AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request);
 extern AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request);

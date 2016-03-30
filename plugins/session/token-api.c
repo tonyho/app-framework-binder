@@ -91,8 +91,8 @@ STATIC json_object* clientGetPing (AFB_request *request) {
 
 // This function is call when Client Session Context is removed
 // Note: when freeCtxCB==NULL standard free/malloc is called
-STATIC void clientContextFree(void *context, char* uuid) {
-    fprintf (stderr,"Plugin[token] Closing Session uuid=[%s]\n", uuid);
+STATIC void clientContextFree(void *context) {
+    fprintf (stderr,"Plugin[token] Closing Session\n");
     free (context);
 }
 
@@ -111,7 +111,6 @@ PUBLIC AFB_plugin *pluginRegister () {
     plugin->info  = "Application Framework Binder Service";
     plugin->prefix= "token";  // url base
     plugin->apis  = pluginApis;
-    plugin->handle= (void*) "What ever you want";
     plugin->freeCtxCB= (void*) clientContextFree;
     
     return (plugin);

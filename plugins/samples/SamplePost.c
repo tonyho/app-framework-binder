@@ -123,7 +123,6 @@ PUBLIC AFB_plugin *pluginRegister () {
     plugin->info  = "Sample with Post Upload Files";
     plugin->prefix= "post";  // url base
     plugin->apis  = pluginApis;
-    plugin->handle= (void*) "What ever you want";
     
     return (plugin);
 };

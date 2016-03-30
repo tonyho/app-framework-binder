@@ -19,6 +19,9 @@
 struct afb_req_itf {
 	const char *(*get_cookie)(void *data, const char *name);
 	const char *(*get_argument)(void *data, const char *name);
+#if 0
+	int (*set_cookie)(void *data, const char *name, const char *value);
+#endif
 };
 
 struct afb_req {

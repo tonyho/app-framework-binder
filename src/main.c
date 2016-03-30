@@ -21,11 +21,12 @@
 #include <signal.h>
 #include <getopt.h>
 #include <pwd.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include "local-def.h"
-#include "afb-plugins.h"
+#include "afb-apis.h"
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"
@@ -416,6 +417,36 @@ void signalQuit (int signum) {
 
 
 /*----------------------------------------------------------
+ | Error signals
+ |
+ +--------------------------------------------------------- */
+__thread sigjmp_buf *error_handler;
+static void signalError(int signum)
+{
+	sigset_t sigset;
+
+	// unlock signal to allow a new signal to come
+	sigemptyset(&sigset);
+	sigaddset(&sigset, signum);
+	sigprocmask(SIG_UNBLOCK, &sigset, 0);
+	if (error_handler != NULL) {
+		longjmp(*error_handler, signum);
+	}
+}
+
+static void install_error_handlers()
+{
+	int i, signals[] = { SIGALRM, SIGSEGV, SIGFPE, 0 };
+
+	for (i = 0; signals[i] != 0; i++) {
+		if (signal(signals[i], signalError) == SIG_ERR) {
+			fprintf(stderr, "Signal handler error\n");
+			exit(1);
+		}
+	}
+}
+
+/*----------------------------------------------------------
  | listenLoop
  |   Main listening HTTP loop
  +--------------------------------------------------------- */
@@ -514,8 +545,12 @@ int main(int argc, char *argv[])  {
      exit (1);
   }
 
-  initPlugins(session);
+  if (session->config->ldpaths) 
+    afb_apis_add_pathset(session->config->ldpaths);
+
   ctxStoreInit(CTX_NBCLIENTS);
+
+  install_error_handlers();
 
   // ------------------ Some useful default values -------------------------
   if  ((session->background == 0) && (session->foreground == 0)) session->foreground=1;

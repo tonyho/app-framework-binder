@@ -30,7 +30,7 @@ STATIC json_object* pingSample (AFB_request *request) {
     if (len == 0) strcpy (query,"NoSearchQueryList");
     
     // check if we have some post data
-    if (request->post == NULL)  request->post->data="NoData";  
+    if (request->post != NULL)  request->post->data="NoData";  
         
     // return response to caller
     response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);

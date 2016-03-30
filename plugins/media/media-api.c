@@ -33,7 +33,7 @@ STATIC mediaCtxHandleT* initMediaCtx () {
 }
 
 /* called when client session dies [e.g. client quits for more than 15mns] */
-STATIC void freeMedia (void *context, void *handle) {
+STATIC void freeMedia (void *context) {
 
     free (context);
 }

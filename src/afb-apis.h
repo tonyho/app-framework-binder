@@ -16,15 +16,22 @@
  */
 
 
-AFB_plugin *afb_plugins_search(AFB_session *session, const char *prefix, size_t length);
+extern int afb_apis_count();
 
-int afb_plugins_add_plugin(AFB_session *session, const char *path);
+extern void afb_apis_free_context(int apiidx, void *context);
 
-int afb_plugins_add_directory(AFB_session * session, const char *path);
+extern const struct AFB_restapi *afb_apis_get(int apiidx, int verbidx);
 
-int afb_plugins_add_path(AFB_session * session, const char *path);
+extern int afb_apis_get_verbidx(int apiidx, const char *name);
 
-int afb_plugins_add_pathset(AFB_session * session, const char *pathset);
+extern int afb_apis_get_apiidx(const char *prefix, size_t length);
 
-void initPlugins(AFB_session * session);
+extern int afb_apis_add_plugin(const char *path);
+
+extern int afb_apis_add_directory(const char *path);
+
+extern int afb_apis_add_path(const char *path);
+
+extern int afb_apis_add_pathset(const char *pathset);
+
 
