@@ -549,7 +549,7 @@ int main(int argc, char *argv[])  {
   if (session->config->ldpaths) 
     afb_apis_add_pathset(session->config->ldpaths);
 
-  ctxStoreInit(CTX_NBCLIENTS);
+  ctxStoreInit(CTX_NBCLIENTS, session->config->cntxTimeout, afb_apis_count());
 
   install_error_handlers();
 

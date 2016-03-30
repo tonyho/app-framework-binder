@@ -39,6 +39,8 @@ static struct {
   AFB_clientCtx **store;          // sessions store
   int count;                      // current number of sessions
   int max;
+  int timeout;
+  int apicount;
 } sessions;
 
 static const char key_uuid[] = "uuid";
@@ -47,14 +49,13 @@ static const char key_token[] = "token";
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void ctxUuidFreeCB (AFB_clientCtx *client)
 {
-    int idx, cnt;
+    int idx;
 
     // If application add a handle let's free it now
     if (client->contexts != NULL) {
 
-	cnt = afb_apis_count();
         // Free client handle with a standard Free function, with app callback or ignore it
-        for (idx=0; idx < cnt; idx ++) {
+        for (idx=0; idx < sessions.apicount; idx ++) {
             if (client->contexts[idx] != NULL) {
 		afb_apis_free_context(idx, client->contexts[idx]);
             }
@@ -63,12 +64,14 @@ static void ctxUuidFreeCB (AFB_clientCtx *client)
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
-void ctxStoreInit (int nbSession)
+void ctxStoreInit (int nbSession, int timeout, int apicount)
 {
 
    // let's create as store as hashtable does not have any
    sessions.store = calloc (1 + (unsigned)nbSession, sizeof(AFB_clientCtx));
    sessions.max = nbSession;
+   sessions.timeout = timeout;
+   sessions.apicount = apicount;
 }
 
 static AFB_clientCtx *ctxStoreSearch (const char* uuid)
@@ -197,7 +200,7 @@ AFB_clientCtx *ctxClientGet (AFB_request *request)
         clientCtx = ctxStoreSearch (uuid);
 
 	if (clientCtx) {
-            if (ctxStoreTooOld (clientCtx, request->config->cntxTimeout)) {
+            if (ctxStoreTooOld (clientCtx, sessions.timeout)) {
                  // this session is too old let's delete it
                 ctxStoreDel (clientCtx);
                 clientCtx = NULL;
@@ -210,14 +213,14 @@ AFB_clientCtx *ctxClientGet (AFB_request *request)
     // we have no session let's create one otherwise let's clean any exiting values
     if (clientCtx == NULL) {
         clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
-        clientCtx->contexts = calloc ((unsigned)afb_apis_count(), sizeof (void*));
+        clientCtx->contexts = calloc ((unsigned)sessions.apicount, sizeof (void*));
     }
 
     uuid_generate(newuuid);         // create a new UUID
     uuid_unparse_lower(newuuid, clientCtx->uuid);
 
     // if table is full at 50% let's clean it up
-    if(sessions.count > (sessions.max / 2)) ctxStoreGarbage(request->config->cntxTimeout);
+    if(sessions.count > (sessions.max / 2)) ctxStoreGarbage(sessions.timeout);
 
     // finally add uuid into hashtable
     if (AFB_SUCCESS != ctxStoreAdd (clientCtx)) {
@@ -243,7 +246,7 @@ AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request)
 	return AFB_FALSE;
 
     // compare current token with previous one
-    if ((0 == strcmp (token, clientCtx->token)) && (!ctxStoreTooOld (clientCtx, request->config->cntxTimeout))) {
+    if ((0 == strcmp (token, clientCtx->token)) && (!ctxStoreTooOld (clientCtx, sessions.timeout))) {
        return AFB_SUCCESS;
     }
 

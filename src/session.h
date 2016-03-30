@@ -20,5 +20,5 @@ extern AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request)
 extern AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request);
 extern AFB_error ctxTokenReset (AFB_clientCtx *clientCtx, AFB_request *request);
 extern AFB_clientCtx *ctxClientGet (AFB_request *request);
-extern void ctxStoreInit (int);
+extern void ctxStoreInit (int nbSession, int timeout, int apicount);
 
