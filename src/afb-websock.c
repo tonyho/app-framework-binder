@@ -39,7 +39,7 @@ static const char sec_websocket_key_s[] = "Sec-WebSocket-Key";
 static const char sec_websocket_version_s[] = "Sec-WebSocket-Version";
 static const char sec_websocket_accept_s[] = "Sec-WebSocket-Accept";
 static const char sec_websocket_protocol_s[] = "Sec-WebSocket-Protocol";
-static const char websocket_uuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+static const char websocket_guid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 
 struct afb_websock
@@ -108,10 +108,10 @@ static void make_accept_value(const char *key, char result[29])
 {
 	unsigned char md[SHA_DIGEST_LENGTH+1];
 	size_t len = strlen(key);
-	char *buffer = alloca(len + sizeof websocket_uuid - 1);
+	char *buffer = alloca(len + sizeof websocket_guid - 1);
 	memcpy(buffer, key, len);
-	memcpy(buffer + len, websocket_uuid, sizeof websocket_uuid - 1);
-	SHA1((const unsigned char *)buffer, (unsigned long)(len + sizeof websocket_uuid - 1), md);
+	memcpy(buffer + len, websocket_guid, sizeof websocket_guid - 1);
+	SHA1((const unsigned char *)buffer, (unsigned long)(len + sizeof websocket_guid - 1), md);
 	assert(SHA_DIGEST_LENGTH == 20);
 	md[20] = 0;
 	enc64(&md[0], &result[0]);
