@@ -234,25 +234,6 @@ static void jsoninit()
 }
 
 
-
-// get JSON object from error level and increase its reference count
-struct json_object *jsonNewStatus (AFB_error level)
-{
-  jsoninit();
-  json_object *target =  AFBerr[level].json;
-  json_object_get (target);
-
-  return (target);
-}
-
-// get AFB object type with adequate usage count
-struct json_object *jsonNewjtype (void)
-{
-  jsoninit();
-  json_object_get (jTypeStatic); // increase reference count
-  return (jTypeStatic);
-}
-
 // build an ERROR message and return it as a valid json object
 struct json_object *jsonNewMessage (AFB_error level, char* format, ...) {
    static int count = 0;
@@ -270,7 +251,7 @@ struct json_object *jsonNewMessage (AFB_error level, char* format, ...) {
    }
 
    AFBResponse = json_object_new_object();
-   json_object_object_add (AFBResponse, "jtype", jsonNewjtype ());
+   json_object_object_add (AFBResponse, "jtype", json_object_get (jTypeStatic));
    json_object_object_add (AFBResponse, "status" , json_object_new_string (ERROR_LABEL[level]));
    if (format != NULL) {
         json_object_object_add (AFBResponse, "info"   , json_object_new_string (message));
@@ -286,13 +267,5 @@ struct json_object *jsonNewMessage (AFB_error level, char* format, ...) {
    }
 
    return (AFBResponse);
-}
-
-// Dump a message on stderr
-void jsonDumpObject (struct json_object * jObject) {
-
-   if (verbose) {
-        fprintf (stderr, "AFB:dump [%s]\n", json_object_to_json_string(jObject));
-   }
 }
 

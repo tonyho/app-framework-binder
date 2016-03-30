@@ -36,7 +36,7 @@
 #define AFB_MSG_JTYPE "AJB_reply"
 
 #define JSON_CONTENT  "application/json"
-#define FORM_CONTENT  "multipart/form-data"	/* TODO: replace with MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA */
+#define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
 
 static json_object *afbJsonType;
 
@@ -67,8 +67,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 
 	// Request was found and at least partially executed
 	jreqt = json_object_new_object();
-	json_object_get(afbJsonType);	// increate jsontype reference count
-	json_object_object_add(jreqt, "jtype", afbJsonType);
+	json_object_object_add(jreqt, "jtype", json_object_get(afbJsonType));
 
 	// prepare an object to store calling values
 	jcall = json_object_new_object();
@@ -157,6 +156,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 			break;
 		}
 	}
+
 	// Effectively CALL PLUGIN API with a subset of the context
 	jresp = afb_apis_get(apiidx, verbidx)->callback(request, context);
 
@@ -193,7 +193,7 @@ ExitOnDone:
 extern __thread sigjmp_buf *error_handler;
 static AFB_error callPluginApi(AFB_request * request, int apiidx, int verbidx, void *context)
 {
-	sigjmp_buf jmpbuf;
+	sigjmp_buf jmpbuf, *older;
 
 	json_object *jcall, *jreqt;
 	int status;
@@ -204,8 +204,7 @@ static AFB_error callPluginApi(AFB_request * request, int apiidx, int verbidx, v
 
 		// Request was found and at least partially executed
 		jreqt = json_object_new_object();
-		json_object_get(afbJsonType);	// increate jsontype reference count
-		json_object_object_add(jreqt, "jtype", afbJsonType);
+		json_object_object_add(jreqt, "jtype", json_object_get(afbJsonType));
 
 		// prepare an object to store calling values
 		jcall = json_object_new_object();
@@ -217,23 +216,20 @@ static AFB_error callPluginApi(AFB_request * request, int apiidx, int verbidx, v
 		json_object_object_add(jcall, "info", json_object_new_string("Plugin broke during execution"));
 		json_object_object_add(jreqt, "request", jcall);
 		request->jresp = jreqt;
-		goto ExitOnDone;
-
 	} else {
 
 		// Trigger a timer to protect from unacceptable long time execution
 		if (request->config->apiTimeout > 0)
 			alarm((unsigned)request->config->apiTimeout);
 
+		older = error_handler;
 		error_handler = &jmpbuf;
 		doCallPluginApi(request, apiidx, verbidx, context);
-		error_handler = NULL;
+		error_handler = older;
 
 		// cancel timeout and plugin signal handle before next call
 		alarm(0);
 	}
-
-ExitOnDone:
 	return AFB_DONE;
 }
 
@@ -411,6 +407,7 @@ static int doRestApiPost(struct MHD_Connection *connection, AFB_session * sessio
 			postHandle->type = AFB_POST_EMPTY;
 			return MHD_YES;
 		}
+
 		// Form post is handle through a PostProcessor and call API once per form key
 		if (strcasestr(encoding, FORM_CONTENT) != NULL) {
 			if (verbose)
@@ -449,11 +446,10 @@ static int doRestApiPost(struct MHD_Connection *connection, AFB_session * sessio
 			// if (verbose) fprintf(stderr, "Create PostJson[uid=%d] Size=%d\n", postHandle->uid, contentlen);
 			return MHD_YES;
 
-		} else {
-			// We only support Json and Form Post format
-			errMessage = jsonNewMessage(AFB_FATAL, "Post Date wrong type encoding=%s != %s", encoding, JSON_CONTENT);
-			goto ExitOnError;
 		}
+		// We only support Json and Form Post format
+		errMessage = jsonNewMessage(AFB_FATAL, "Post Date wrong type encoding=%s != %s", encoding, JSON_CONTENT);
+		goto ExitOnError;
 	}
 
 	// This time we receive partial/all Post data. Note that even if we get all POST data. We should nevertheless
@@ -475,41 +471,44 @@ static int doRestApiPost(struct MHD_Connection *connection, AFB_session * sessio
 		*upload_data_size = 0;
 		return MHD_YES;
 
-	} else {	// we have finish with Post reception let's finish the work
+	}
 
+	if (postHandle->type == AFB_POST_FORM)
+		request = postHandle->privatebuf;
+	else
 		// Create a request structure to finalise the request
 		request = createRequest(connection, session, url);
-		if (request->jresp != NULL) {
-			errMessage = request->jresp;
+
+	if (request->jresp != NULL) {
+		errMessage = request->jresp;
+		goto ExitOnError;
+	}
+	postRequest.type = postHandle->type;
+
+	// Postform add application context handle to request
+	if (postHandle->type == AFB_POST_FORM) {
+		postRequest.data = (char *)postHandle;
+		request->post = &postRequest;
+	}
+
+	if (postHandle->type == AFB_POST_JSON) {
+		// if (verbose) fprintf(stderr, "Processing PostJson[uid=%d]\n", postHandle->uid);
+
+		param = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_LENGTH);
+		if (param)
+			sscanf(param, "%i", &contentlen);
+
+		// At this level we're may verify that we got everything and process DATA
+		if (postHandle->len != contentlen) {
+			errMessage = jsonNewMessage(AFB_FATAL, "Post Data Incomplete UID=%d Len %d != %d", postHandle->uid, contentlen, postHandle->len);
 			goto ExitOnError;
 		}
-		postRequest.type = postHandle->type;
+		// Before processing data, make sure buffer string is properly ended
+		postHandle->privatebuf[postHandle->len] = '\0';
+		postRequest.data = postHandle->privatebuf;
+		request->post = &postRequest;
 
-		// Postform add application context handle to request
-		if (postHandle->type == AFB_POST_FORM) {
-			postRequest.data = (char *)postHandle;
-			request->post = &postRequest;
-		}
-
-		if (postHandle->type == AFB_POST_JSON) {
-			// if (verbose) fprintf(stderr, "Processing PostJson[uid=%d]\n", postHandle->uid);
-
-			param = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONTENT_LENGTH);
-			if (param)
-				sscanf(param, "%i", &contentlen);
-
-			// At this level we're may verify that we got everything and process DATA
-			if (postHandle->len != contentlen) {
-				errMessage = jsonNewMessage(AFB_FATAL, "Post Data Incomplete UID=%d Len %d != %d", postHandle->uid, contentlen, postHandle->len);
-				goto ExitOnError;
-			}
-			// Before processing data, make sure buffer string is properly ended
-			postHandle->privatebuf[postHandle->len] = '\0';
-			postRequest.data = postHandle->privatebuf;
-			request->post = &postRequest;
-
-			// if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);
-		}
+		// if (verbose) fprintf(stderr, "Close Post[%d] Buffer=%s\n", postHandle->uid, request->post->data);
 	}
 
  ProcessApiCall:

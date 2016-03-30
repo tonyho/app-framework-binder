@@ -136,7 +136,6 @@ static int headerhas(const char *header, const char *needle)
 		if (!*header)
 			return 0;
 		len = strcspn(header, sep);
-printf("!!!%.*s!!!\n",len,header);
 		if (n == len && 0 == strncasecmp(needle, header, n))
 			return 1;
 		header += len;

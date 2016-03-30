@@ -26,8 +26,42 @@
 #include "afb-req-itf.h"
 #include "afb-hreq.h"
 
-static char empty_string[1] = "";
+static char empty_string[] = "";
 
+struct hreq_data {
+	struct hreq_data *next;
+	char *key;
+	int file;
+	size_t length;
+	char *value;
+};
+
+
+static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
+{
+	struct hreq_data *data = hreq->data;
+	if (key == NULL)
+		key = empty_string;
+	while (data != NULL) {
+		if (!strcasecmp(data->key, key))
+			return data;
+		data = data->next;
+	}
+	if (create) {
+		data = calloc(1, sizeof *data);
+		if (data != NULL) {
+			data->key = strdup(key);
+			if (data->key == NULL) {
+				free(data);
+				data = NULL;
+			} else {
+				data->next = hreq->data;
+				hreq->data = data;
+			}
+		}
+	}
+	return data;
+}
 
 /* a valid subpath is a relative path not looking deeper than root using .. */
 static int validsubpath(const char *subpath)
@@ -237,7 +271,8 @@ const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name)
 
 const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name)
 {
-	return MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name);
+	struct hreq_data *data = get_data(hreq, name, 0);
+	return data ? data->value : MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name);
 }
 
 const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name)
@@ -245,8 +280,64 @@ const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name)
 	return MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, name);
 }
 
-struct afb_req_itf afb_hreq_itf = {
+const struct afb_req_itf afb_hreq_itf = {
 	.get_cookie = (void*)afb_hreq_get_cookie,
 	.get_argument = (void*)afb_hreq_get_argument
 };
+
+
+void afb_hreq_post_end(struct afb_hreq *hreq)
+{
+	struct hreq_data *data = hreq->data;
+	while(data) {
+		if (data->file > 0) {
+			close(data->file);
+			data->file = -1;
+		}
+		data = data->next;
+	}
+}
+
+int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, size_t size)
+{
+	void *p;
+	struct hreq_data *hdat = get_data(hreq, key, 1);
+	if (hdat->file) {
+		return 0;
+	}
+	p = realloc(hdat->value, hdat->length + size + 1);
+	if (p == NULL) {
+		return 0;
+	}
+	hdat->value = p;
+	memcpy(&hdat->value[hdat->length], data, size);
+	hdat->length += size;
+	hdat->value[hdat->length] = 0;
+	return 1;
+}
+
+int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *file, const char *data, size_t size)
+{
+	struct hreq_data *hdat = get_data(hreq, key, 1);
+
+	/* continuation with reopening */
+	if (hdat->file < 0) {
+		hdat->file = open(hdat->value, O_WRONLY|O_APPEND);
+		if (hdat->file == 0) {
+			hdat->file = dup(0);
+			close(0);
+		}
+		if (hdat->file <= 0)
+			return 0;
+	}
+	if (hdat->file > 0) {
+		write(hdat->file, data, size);
+		return 1;
+	}
+
+	/* creation */
+	/* TODO */
+	return 0;
+	
+}
 

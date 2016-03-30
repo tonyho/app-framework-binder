@@ -16,14 +16,6 @@
  */
 
 
-struct afb_req_itf;
-
-
-struct afb_hreq_post {
-	const char *upload_data;
-	size_t *upload_data_size;
-};
-
 struct afb_hreq {
 	AFB_session *session;
 	struct MHD_Connection *connection;
@@ -33,10 +25,8 @@ struct afb_hreq {
 	size_t lenurl;
 	const char *tail;
 	size_t lentail;
-	struct afb_hreq **recorder;
-	int (*post_handler) (struct afb_hreq *, struct afb_hreq_post *);
-	int (*post_completed) (struct afb_hreq *, struct afb_hreq_post *);
-	void *post_data;
+	struct MHD_PostProcessor *postform;
+	void *data;
 };
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
@@ -57,5 +47,12 @@ extern const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name
 
 extern const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name);
 
-extern struct afb_req_itf afb_hreq_itf;
+extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *file, const char *data, size_t size);
+
+extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, size_t size);
+
+extern void afb_hreq_post_end(struct afb_hreq *hreq);
+
+struct afb_req_itf;
+extern const struct afb_req_itf afb_hreq_itf;
 

@@ -26,12 +26,14 @@
 #include "afb-hreq.h"
 #include "afb-websock.h"
 
+#define JSON_CONTENT  "application/json"
+#define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
 
 struct afb_hsrv_handler {
 	struct afb_hsrv_handler *next;
 	const char *prefix;
 	size_t length;
-	int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *);
+	int (*handler) (struct afb_hreq *, void *);
 	void *data;
 	int priority;
 };
@@ -45,7 +47,6 @@ struct afb_diralias {
 
 int afb_hreq_one_page_api_redirect(
 		struct afb_hreq *hreq,
-		struct afb_hreq_post *post,
 		void *data)
 {
 	size_t plen;
@@ -71,10 +72,10 @@ int afb_hreq_one_page_api_redirect(
 	return afb_hreq_redirect_to(hreq, url);
 }
 
-struct afb_hsrv_handler *afb_hsrv_handler_new(
+static struct afb_hsrv_handler *new_handler(
 		struct afb_hsrv_handler *head,
 		const char *prefix,
-		int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *),
+		int (*handler) (struct afb_hreq *, void *),
 		void *data,
 		int priority)
 {
@@ -112,37 +113,40 @@ struct afb_hsrv_handler *afb_hsrv_handler_new(
 	return head;
 }
 
-int afb_req_add_handler(
+int afb_hsrv_add_handler(
 		AFB_session * session,
 		const char *prefix,
-		int (*handler) (struct afb_hreq *, struct afb_hreq_post *, void *),
+		int (*handler) (struct afb_hreq *, void *),
 		void *data,
 		int priority)
 {
 	struct afb_hsrv_handler *head;
 
-	head = afb_hsrv_handler_new(session->handlers, prefix, handler, data, priority);
+	head = new_handler(session->handlers, prefix, handler, data, priority);
 	if (head == NULL)
 		return 0;
 	session->handlers = head;
 	return 1;
 }
 
-static int relay_to_doRestApi(struct afb_hreq *hreq, struct afb_hreq_post *post, void *data)
+static int relay_to_doRestApi(struct afb_hreq *hreq, void *data)
 {
 	int later;
-	if (afb_websock_check(hreq, &later)) {
+	if (hreq->lentail == 0 && afb_websock_check(hreq, &later)) {
 		if (!later) {
 			struct afb_websock *ws = afb_websock_create(hreq->connection);
 		}
 		return 1;
 	}
 
+return 0;
+/*
 	return doRestApi(hreq->connection, hreq->session, &hreq->tail[1], get_method_name(hreq->method),
 			 post->upload_data, post->upload_data_size, (void **)hreq->recorder);
+*/
 }
 
-static int handle_alias(struct afb_hreq *hreq, struct afb_hreq_post *post, void *data)
+static int handle_alias(struct afb_hreq *hreq, void *data)
 {
 	struct afb_diralias *da = data;
 
@@ -159,7 +163,7 @@ static int handle_alias(struct afb_hreq *hreq, struct afb_hreq_post *post, void 
 	return afb_hreq_reply_file(hreq, da->dirfd, &hreq->tail[1]);
 }
 
-int afb_req_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
+int afb_hsrv_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
 {
 	struct afb_diralias *da;
 	int dirfd;
@@ -175,7 +179,7 @@ int afb_req_add_alias(AFB_session * session, const char *prefix, const char *ali
 		da->directory = alias;
 		da->lendir = strlen(da->directory);
 		da->dirfd = dirfd;
-		if (afb_req_add_handler(session, prefix, handle_alias, da, priority))
+		if (afb_hsrv_add_handler(session, prefix, handle_alias, da, priority))
 			return 1;
 		free(da);
 	}
@@ -183,25 +187,39 @@ int afb_req_add_alias(AFB_session * session, const char *prefix, const char *ali
 	return 0;
 }
 
-static int my_default_init(AFB_session * session)
+void afb_hsrv_reply_error(struct MHD_Connection *connection, unsigned int status)
 {
-	int idx;
+	char *buffer;
+	int length;
+	struct MHD_Response *response;
 
-	if (!afb_req_add_handler(session, session->config->rootapi, relay_to_doRestApi, NULL, 1))
-		return 0;
+	length = asprintf(&buffer, "<html><body>error %u</body></html>", status);
+	if (length > 0)
+		response = MHD_create_response_from_buffer((unsigned)length, buffer, MHD_RESPMEM_MUST_FREE);
+	else {
+		buffer = "<html><body>error</body></html>";
+		response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_PERSISTENT);
+	}
+	if (!MHD_queue_response(connection, status, response))
+		fprintf(stderr, "Failed to reply error code %u", status);
+	MHD_destroy_response(response);
+}
 
-	for (idx = 0; session->config->aliasdir[idx].url != NULL; idx++)
-		if (!afb_req_add_alias
-		    (session, session->config->aliasdir[idx].url, session->config->aliasdir[idx].path, 0))
-			return 0;
-
-	if (!afb_req_add_alias(session, "", session->config->rootdir, -10))
-		return 0;
-
-	if (!afb_req_add_handler(session, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
-		return 0;
-
-	return 1;
+static int postproc(void *cls,
+                    enum MHD_ValueKind kind,
+                    const char *key,
+                    const char *filename,
+                    const char *content_type,
+                    const char *transfer_encoding,
+                    const char *data,
+		    uint64_t off,
+		    size_t size)
+{
+	struct afb_hreq *hreq = cls;
+	if (filename != NULL)
+		return afb_hreq_post_add_file(hreq, key, filename, data, size);
+	else
+		return afb_hreq_post_add(hreq, key, data, size);
 }
 
 static int access_handler(
@@ -211,83 +229,108 @@ static int access_handler(
 		const char *methodstr,
 		const char *version,
 		const char *upload_data,
-		size_t * upload_data_size,
-		void **recorder)
+		size_t *upload_data_size,
+		void **recordreq)
 {
-	struct afb_hreq_post post;
-	struct afb_hreq hreq;
+	struct afb_hreq *hreq;
 	enum afb_method method;
 	AFB_session *session;
 	struct afb_hsrv_handler *iter;
+	const char *type;
 
 	session = cls;
-	post.upload_data = upload_data;
-	post.upload_data_size = upload_data_size;
+	hreq = *recordreq;
+	if (hreq == NULL) {
+		/* create the request */
+		hreq = calloc(1, sizeof *hreq);
+		if (hreq == NULL)
+			goto internal_error;
+		*recordreq = hreq;
 
-#if 0
-	struct afb_hreq *previous;
+		/* get the method */
+		method = get_method(methodstr);
+		method &= afb_method_get | afb_method_post;
+		if (method == afb_method_none) {
+			afb_hsrv_reply_error(connection, MHD_HTTP_BAD_REQUEST);
+			return MHD_YES;
+		}
 
-	previous = *recorder;
-	if (previous) {
-		assert((void **)previous->recorder == recorder);
-		assert(previous->session == session);
-		assert(previous->connection == connection);
-		assert(previous->method == get_method(methodstr));
-		assert(previous->url == url);
+		/* init the request */
+		hreq->session = cls;
+		hreq->connection = connection;
+		hreq->method = method;
+		hreq->version = version;
+		hreq->tail = hreq->url = url;
+		hreq->lentail = hreq->lenurl = strlen(url);
 
-		/* TODO */
-/*
-		assert(previous->post_handler != NULL);
-		previous->post_handler(previous, &post);
-		return MHD_NO;
-*/
+		/* init the post processing */
+		if (method == afb_method_post) {
+			type = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_CONTENT_TYPE);
+			if (type == NULL) {
+				/* an empty post, let's process it as a get */
+				hreq->method = afb_method_get;
+			} else if (strcasestr(type, FORM_CONTENT) != NULL) {
+				hreq->postform = MHD_create_post_processor (connection, 65500, postproc, hreq);
+				if (hreq->postform == NULL)
+					goto internal_error;
+			} else if (strcasestr(type, JSON_CONTENT) == NULL) {
+				afb_hsrv_reply_error(connection, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
+				return MHD_YES;
+			}
+		}
 	}
-#endif
 
-	method = get_method(methodstr);
-	if (method == afb_method_none) {
-		afb_hreq_reply_error(&hreq, MHD_HTTP_BAD_REQUEST);
-		return MHD_YES;
+	/* process further data */
+	if (*upload_data_size) {
+		if (hreq->postform != NULL) {
+			if (!MHD_post_process (hreq->postform, upload_data, *upload_data_size))
+				goto internal_error;
+		} else {
+			if (!afb_hreq_post_add(hreq, NULL, upload_data, *upload_data_size))
+				goto internal_error;
+		}
+		*upload_data_size = 0;
+		return MHD_YES;		
 	}
 
-	/* init the request */
-	hreq.session = cls;
-	hreq.connection = connection;
-	hreq.method = method;
-	hreq.version = version;
-	hreq.tail = hreq.url = url;
-	hreq.lentail = hreq.lenurl = strlen(url);
-	hreq.recorder = (struct afb_hreq **)recorder;
-	hreq.post_handler = NULL;
-	hreq.post_completed = NULL;
-	hreq.post_data = NULL;
+	/* flush the data */
+	afb_hreq_post_end(hreq);
 
 	/* search an handler for the request */
 	iter = session->handlers;
 	while (iter) {
-		if (afb_hreq_unprefix(&hreq, iter->prefix, iter->length)) {
-			if (iter->handler(&hreq, &post, iter->data))
+		if (afb_hreq_unprefix(hreq, iter->prefix, iter->length)) {
+			if (iter->handler(hreq, iter->data))
 				return MHD_YES;
-			hreq.tail = hreq.url;
-			hreq.lentail = hreq.lenurl;
+			hreq->tail = hreq->url;
+			hreq->lentail = hreq->lenurl;
 		}
 		iter = iter->next;
 	}
 
 	/* no handler */
-	afb_hreq_reply_error(&hreq, method != afb_method_get ? MHD_HTTP_BAD_REQUEST : MHD_HTTP_NOT_FOUND);
+	afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
+	return MHD_YES;
+
+internal_error:
+	afb_hsrv_reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	return MHD_YES;
 }
 
 /* Because of POST call multiple time requestApi we need to free POST handle here */
-static void end_handler(void *cls, struct MHD_Connection *connection, void **con_cls,
+static void end_handler(void *cls, struct MHD_Connection *connection, void **recordreq,
 			enum MHD_RequestTerminationCode toe)
 {
-	AFB_PostHandle *posthandle = *con_cls;
+	AFB_session *session;
+	struct afb_hreq *hreq;
 
-	/* if post handle was used let's free everything */
-	if (posthandle != NULL)
-		endPostRequest(posthandle);
+	session = cls;
+	hreq = *recordreq;
+
+	if (hreq != NULL) {
+		if (hreq->postform != NULL)
+			MHD_destroy_post_processor(hreq->postform);
+	}
 }
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
@@ -316,20 +359,37 @@ static int init_lib_magic (AFB_session *session)
 	/* Warning: should not use NULL for DB [libmagic bug wont pass efence check] */
 	if (magic_load(session->magic, MAGIC_DB) != 0) {
 		fprintf(stderr,"cannot load magic database - %s\n", magic_error(session->magic));
-/*
 		magic_close(session->magic);
 		session->magic = NULL;
 		return 0;
-*/
 	}
 
 	return 1;
 }
 #endif
 
+static int my_default_init(AFB_session * session)
+{
+	int idx;
+
+	if (!afb_hsrv_add_handler(session, session->config->rootapi, relay_to_doRestApi, NULL, 1))
+		return 0;
+
+	for (idx = 0; session->config->aliasdir[idx].url != NULL; idx++)
+		if (!afb_hsrv_add_alias (session, session->config->aliasdir[idx].url, session->config->aliasdir[idx].path, 0))
+			return 0;
+
+	if (!afb_hsrv_add_alias(session, "", session->config->rootdir, -10))
+		return 0;
+
+	if (!afb_hsrv_add_handler(session, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
+		return 0;
+
+	return 1;
+}
+
 AFB_error httpdStart(AFB_session * session)
 {
-
 	if (!my_default_init(session)) {
 		printf("Error: initialisation of httpd failed");
 		return AFB_FATAL;
