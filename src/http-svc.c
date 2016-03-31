@@ -175,11 +175,11 @@ static int afb_hreq_rest_api(struct afb_hreq *hreq, void *data)
 	const char *api, *verb;
 	size_t lenapi, lenverb;
 
-	api = hreq->tail;
-	lenapi = strspn(api, "/");
-	verb = &hreq->tail[lenapi];
-	verb = &verb[strcspn(verb, "/")];
-	lenverb = strspn(verb, "/");
+	api = &hreq->tail[strspn(hreq->tail, "/")];
+	lenapi = strcspn(api, "/");
+	verb = &api[lenapi];
+	verb = &verb[strspn(verb, "/")];
+	lenverb = strcspn(verb, "/");
 
 	if (!(*api && *verb && lenapi && lenverb))
 		return 0;

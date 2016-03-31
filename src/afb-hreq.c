@@ -36,10 +36,12 @@ struct hreq_data {
 	char *value;
 };
 
+static struct afb_arg getarg(struct afb_hreq *hreq, const char *name);
+static void iterargs(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
+
 static const struct afb_req_itf afb_hreq_itf = {
-	.argument = (void*)afb_hreq_get_argument,
-	.is_argument_file = (void*)afb_hreq_is_argument_a_file,
-	.iterate_arguments = (void*)afb_hreq_iterate_arguments
+	.get = (void*)getarg,
+	.iterate = (void*)iterargs
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
@@ -376,6 +378,60 @@ void afb_hreq_iterate_arguments(struct afb_hreq *hreq, int (*iterator)(void *clo
 		data = data->next;
 	}
 	MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)itargs, &id);
+}
+
+static struct afb_arg getarg(struct afb_hreq *hreq, const char *name)
+{
+	struct hreq_data *hdat = get_data(hreq, name, 0);
+	if (hdat)
+		return (struct afb_arg){
+			.name = hdat->key,
+			.value = hdat->value,
+			.size = hdat->length,
+			.is_file = (hdat->file != 0)
+		};
+		
+	return (struct afb_arg){
+		.name = name,
+		.value = MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name),
+		.size = 0,
+		.is_file = 0
+	};
+}
+
+struct iterdata
+{
+	struct afb_hreq *hreq;
+	int (*iterator)(void *closure, struct afb_arg arg);
+	void *closure;
+};
+
+static int _iterargs_(struct iterdata *id, enum MHD_ValueKind kind, const char *key, const char *value)
+{
+	if (get_data(id->hreq, key, 0))
+		return 1;
+	return id->iterator(id->closure, (struct afb_arg){
+		.name = key,
+		.value = value,
+		.size = 0,
+		.is_file = 0
+	});
+}
+
+static void iterargs(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
+{
+	struct iterdata id = { .hreq = hreq, .iterator = iterator, .closure = closure };
+	struct hreq_data *hdat = hreq->data;
+	while (hdat) {
+		if (!iterator(closure, (struct afb_arg){
+			.name = hdat->key,
+			.value = hdat->value,
+			.size = hdat->length,
+			.is_file = (hdat->file != 0)}))
+			return;
+		hdat = hdat->next;
+	}
+	MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)_iterargs_, &id);
 }
 
 void afb_hreq_drop_data(struct afb_hreq *hreq)

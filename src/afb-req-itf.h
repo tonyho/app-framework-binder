@@ -15,11 +15,16 @@
  * limitations under the License.
  */
 
+struct afb_arg {
+	const char *name;
+	const char *value;
+	size_t size;
+	int is_file;
+};
 
 struct afb_req_itf {
-	const char *(*argument)(void *data, const char *name);
-	int (*is_argument_file)(void *data, const char *name);
-	int (*iterate_arguments)(void *data, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure);
+	struct afb_arg (*get)(void *data, const char *name);
+	void (*iterate)(void *data, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
 };
 
 struct afb_req {
@@ -27,21 +32,23 @@ struct afb_req {
 	void *data;
 };
 
+static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
+{
+	return req.itf->get(req.data, name);
+}
+
 static inline const char *afb_req_argument(struct afb_req req, const char *name)
 {
-	return req.itf->argument(req.data, name);
+	return afb_req_get(req, name).value;
 }
 
-static inline int afb_req_argument_file(struct afb_req req, const char *name)
+static inline int afb_req_is_argument_file(struct afb_req req, const char *name)
 {
-	return req.itf->is_argument_file(req.data, name);
+	return afb_req_get(req, name).is_file;
 }
 
-static inline int afb_req_iterate_arguments(struct afb_req req, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure)
+static inline void afb_req_iterate(struct afb_req req, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
 {
-	return req.itf->iterate_arguments(req.data, iterator, closure);
+	req.itf->iterate(req.data, iterator, closure);
 }
-
-
-
 

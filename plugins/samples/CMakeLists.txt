@@ -6,11 +6,11 @@ TARGET_LINK_LIBRARIES(helloWorld-api ${link_libraries})
 INSTALL(TARGETS helloWorld-api
         LIBRARY DESTINATION ${plugin_install_dir})
 
-ADD_LIBRARY(samplePost-api MODULE SamplePost.c)
-SET_TARGET_PROPERTIES(samplePost-api PROPERTIES PREFIX "")
-TARGET_LINK_LIBRARIES(samplePost-api ${link_libraries})
-INSTALL(TARGETS samplePost-api
-        LIBRARY DESTINATION ${plugin_install_dir})
+#ADD_LIBRARY(samplePost-api MODULE SamplePost.c)
+#SET_TARGET_PROPERTIES(samplePost-api PROPERTIES PREFIX "")
+#TARGET_LINK_LIBRARIES(samplePost-api ${link_libraries})
+#INSTALL(TARGETS samplePost-api
+#        LIBRARY DESTINATION ${plugin_install_dir})
 
 ADD_LIBRARY(clientCtx-api MODULE ClientCtx.c)
 SET_TARGET_PROPERTIES(clientCtx-api PROPERTIES PREFIX "")

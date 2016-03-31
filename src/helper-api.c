@@ -53,10 +53,10 @@ const char* getQueryValue(const AFB_request * request, const char *name) {
     return afb_req_argument(*request->areq, name);
 }
 
-static int getQueryCB (queryHandleT *query, const char *key, const char *value, int isfile) {
+static int getQueryCB (queryHandleT *query, struct afb_arg arg) {
     if (query->idx >= query->len)
 	return 0;
-    query->idx += snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", key, isfile?"FILE=":"", value);
+    query->idx += snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", arg.name, arg.is_file?"FILE=":"", arg.value);
     return 1; /* continue to iterate */
 }
 
@@ -68,7 +68,7 @@ int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     query.len = len;
     query.idx = 0;
 
-    afb_req_iterate_arguments(*request->areq, getQueryCB, &query);
+    afb_req_iterate(*request->areq, getQueryCB, &query);
     buffer[len-1] = 0;
     return query.idx >= len ? len - 1 : query.idx;
 }

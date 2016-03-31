@@ -345,12 +345,15 @@ int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const ch
 	const struct api_desc *a;
 	const struct AFB_restapi *v;
 
+//fprintf(stderr,"afb_apis_handle prefix:%.*s verb:%.*s\n",(int)lenapi,api,(int)lenverb,verb);
 	a = apis_array;
 	for (i = 0 ; i < apis_count ; i++, a++) {
-		if (a->prefixlen == lenapi && !strcasecmp(a->prefix, api)) {
+		if (a->prefixlen == lenapi && !strncasecmp(a->prefix, api, lenapi)) {
+//fprintf(stderr,"afb_apis_handle found prefix:%.*s -> %s\n",(int)lenapi,api,a->prefix);
 			v = a->plugin->apis;
 			for (j = 0 ; v->name ; j++, v++) {
 				if (!strncasecmp(v->name, verb, lenverb) && !v->name[lenverb]) {
+//fprintf(stderr,"afb_apis_handle found prefix:%.*s verb:%.*s -> %s/%s\n",(int)lenapi,api,(int)lenverb,verb,a->prefix,v->name);
 					handle(req, a, v);
 					return 1;
 				}
