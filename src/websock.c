@@ -377,7 +377,7 @@ ssize_t websock_read(struct websock * ws, void *buffer, size_t size)
 			}
 			b32 = (uint32_t *) b8;
 			while (size >= sizeof(uint32_t)) {
-				*b32++ ^= m;
+				*b32++ ^= mask;
 				size -= sizeof(uint32_t);
 			}
 			b8 = (uint8_t *) b32;

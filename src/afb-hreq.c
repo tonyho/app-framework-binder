@@ -36,7 +36,6 @@ struct hreq_data {
 	char *value;
 };
 
-
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
 {
 	struct hreq_data *data = hreq->data;
