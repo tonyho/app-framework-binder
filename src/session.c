@@ -29,9 +29,12 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <search.h>
+#include <assert.h>
 
 #include "afb-apis.h"
 #include "session.h"
+
+#define NOW (time(NULL))
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
@@ -41,6 +44,7 @@ static struct {
   int max;
   int timeout;
   int apicount;
+  const char *initok;
 } sessions;
 
 static const char key_uuid[] = "uuid";
@@ -64,14 +68,18 @@ static void ctxUuidFreeCB (AFB_clientCtx *client)
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
-void ctxStoreInit (int nbSession, int timeout, int apicount)
+void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok)
 {
-
-   // let's create as store as hashtable does not have any
-   sessions.store = calloc (1 + (unsigned)nbSession, sizeof(AFB_clientCtx));
-   sessions.max = nbSession;
-   sessions.timeout = timeout;
-   sessions.apicount = apicount;
+	// let's create as store as hashtable does not have any
+	sessions.store = calloc (1 + (unsigned)nbSession, sizeof(AFB_clientCtx));
+	sessions.max = nbSession;
+	sessions.timeout = timeout;
+	sessions.apicount = apicount;
+	if (strlen(initok) >= 37) {
+		fprintf(stderr, "Error: initial token '%s' too long (max length 36)", initok);
+		exit(1);
+	}
+	sessions.initok = initok;
 }
 
 static AFB_clientCtx *ctxStoreSearch (const char* uuid)
@@ -79,19 +87,19 @@ static AFB_clientCtx *ctxStoreSearch (const char* uuid)
     int  idx;
     AFB_clientCtx *client;
 
-    if (uuid == NULL)
-	return NULL;
+    assert (uuid != NULL);
 
     pthread_mutex_lock(&sessions.mutex);
 
     for (idx=0; idx < sessions.max; idx++) {
-        if (sessions.store[idx] && (0 == strcmp (uuid, sessions.store[idx]->uuid))) break;
+	client = sessions.store[idx];
+        if (client && (0 == strcmp (uuid, client->uuid)))
+		goto found;
     }
+    client = NULL;
 
-    if (idx == sessions.max) client=NULL;
-    else client= sessions.store[idx];
+found:
     pthread_mutex_unlock(&sessions.mutex);
-
     return client;
 }
 
@@ -100,24 +108,21 @@ static AFB_error ctxStoreDel (AFB_clientCtx *client)
     int idx;
     int status;
 
-    if (client == NULL)
-	return AFB_FAIL;
+    assert (client != NULL);
 
     pthread_mutex_lock(&sessions.mutex);
 
     for (idx=0; idx < sessions.max; idx++) {
-        if (sessions.store[idx] && (0 == strcmp (client->uuid, sessions.store[idx]->uuid))) break;
+        if (sessions.store[idx] == client) {
+	        sessions.store[idx]=NULL;
+        	sessions.count--;
+	        ctxUuidFreeCB (client);
+	        status = AFB_SUCCESS;
+		goto deleted;
+	}
     }
-
-    if (idx == sessions.max)
-	status = AFB_FAIL;
-    else {
-        sessions.count--;
-        ctxUuidFreeCB (sessions.store[idx]);
-        sessions.store[idx]=NULL;
-        status = AFB_SUCCESS;
-    }
-
+    status = AFB_FAIL;
+deleted:
     pthread_mutex_unlock(&sessions.mutex);
     return status;
 }
@@ -134,39 +139,37 @@ static AFB_error ctxStoreAdd (AFB_clientCtx *client)
     pthread_mutex_lock(&sessions.mutex);
 
     for (idx=0; idx < sessions.max; idx++) {
-        if (NULL == sessions.store[idx]) break;
+        if (NULL == sessions.store[idx]) {
+        	sessions.store[idx]= client;
+	        sessions.count++;
+        	status = AFB_SUCCESS;
+		goto added;
+	}
     }
+    status = AFB_FAIL;
 
-    if (idx == sessions.max) status=AFB_FAIL;
-    else {
-        status=AFB_SUCCESS;
-        sessions.count ++;
-        sessions.store[idx]= client;
-    }
-
+added:
     pthread_mutex_unlock(&sessions.mutex);
     return status;
 }
 
 // Check if context timeout or not
-static int ctxStoreTooOld (AFB_clientCtx *ctx, int timeout)
+static int ctxStoreTooOld (AFB_clientCtx *ctx, time_t now)
 {
-    int res;
-    time_t now =  time(NULL);
-    res = (ctx->timeStamp + timeout) <= now;
-    return res;
+    return ctx->timeStamp <= now;
 }
 
 // Loop on every entry and remove old context sessions.hash
-void ctxStoreGarbage (const int timeout)
+void ctxStoreGarbage ()
 {
     AFB_clientCtx *ctx;
     long idx;
+    time_t now = NOW;
 
     // Loop on Sessions Table and remove anything that is older than timeout
     for (idx=0; idx < sessions.max; idx++) {
         ctx = sessions.store[idx];
-        if ((ctx != NULL) && (ctxStoreTooOld(ctx, timeout))) {
+        if ((ctx != NULL) && (ctxStoreTooOld(ctx, now))) {
             ctxStoreDel (ctx);
         }
     }
@@ -182,7 +185,7 @@ AFB_clientCtx *ctxClientGet (AFB_request *request)
     if (request->config->token == NULL) return NULL;
 
     // Check if client as a context or not inside the URL
-    uuid  = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, key_uuid);
+    uuid  = NULL; //MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, key_uuid);
 
     // if UUID in query we're restfull with no cookies otherwise check for cookie
     if (uuid != NULL)
@@ -191,7 +194,7 @@ AFB_clientCtx *ctxClientGet (AFB_request *request)
         char cookie[64];
         request->restfull = FALSE;
         snprintf(cookie, sizeof cookie, "%s-%d", COOKIE_NAME, request->config->httpdPort);
-        uuid = MHD_lookup_connection_value (request->connection, MHD_COOKIE_KIND, cookie);
+        uuid = NULL; //MHD_lookup_connection_value (request->connection, MHD_COOKIE_KIND, cookie);
     };
 
     // Warning when no cookie defined MHD_lookup_connection_value may return something !!!
@@ -200,7 +203,7 @@ AFB_clientCtx *ctxClientGet (AFB_request *request)
         clientCtx = ctxStoreSearch (uuid);
 
 	if (clientCtx) {
-            if (ctxStoreTooOld (clientCtx, sessions.timeout)) {
+            if (ctxStoreTooOld (clientCtx, NOW)) {
                  // this session is too old let's delete it
                 ctxStoreDel (clientCtx);
                 clientCtx = NULL;
@@ -220,7 +223,7 @@ AFB_clientCtx *ctxClientGet (AFB_request *request)
     uuid_unparse_lower(newuuid, clientCtx->uuid);
 
     // if table is full at 50% let's clean it up
-    if(sessions.count > (sessions.max / 2)) ctxStoreGarbage(sessions.timeout);
+    if(sessions.count > (sessions.max / 2)) ctxStoreGarbage();
 
     // finally add uuid into hashtable
     if (AFB_SUCCESS != ctxStoreAdd (clientCtx)) {
@@ -239,14 +242,14 @@ AFB_error ctxTokenCheck (AFB_clientCtx *clientCtx, AFB_request *request)
 	return AFB_EMPTY;
 
     // this time have to extract token from query list
-    token = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, key_token);
+    token = NULL; //MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, key_token);
 
     // if not token is providing we refuse the exchange
     if ((token == NULL) || (clientCtx->token == NULL))
 	return AFB_FALSE;
 
     // compare current token with previous one
-    if ((0 == strcmp (token, clientCtx->token)) && (!ctxStoreTooOld (clientCtx, sessions.timeout))) {
+    if ((0 == strcmp (token, clientCtx->token)) && (!ctxStoreTooOld (clientCtx, NOW))) {
        return AFB_SUCCESS;
     }
 
@@ -285,7 +288,7 @@ AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request)
     if (request->config->token[0] != '\0') {
 
         // check for initial token secret and return if not presented
-        token = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, key_token);
+        token = NULL; //MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, key_token);
         if (token == NULL)
            return AFB_UNAUTH;
 
@@ -299,7 +302,7 @@ AFB_error ctxTokenCreate (AFB_clientCtx *clientCtx, AFB_request *request)
     uuid_unparse_lower(newuuid, clientCtx->token);
 
     // keep track of time for session timeout and further clean up
-    clientCtx->timeStamp=time(NULL);
+    clientCtx->timeStamp = time(NULL) + sessions.timeout;
 
     // Token is also store in context but it might be convenient for plugin to access it directly
     return AFB_SUCCESS;
@@ -323,8 +326,162 @@ AFB_error ctxTokenRefresh (AFB_clientCtx *clientCtx, AFB_request *request)
     uuid_unparse_lower(newuuid, clientCtx->token);
 
     // keep track of time for session timeout and further clean up
-    clientCtx->timeStamp=time(NULL);
+    clientCtx->timeStamp = time(NULL) + sessions.timeout;
 
     return AFB_SUCCESS;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// This function will return exiting client context or newly created client context
+AFB_clientCtx *_ctxClientGet (const char *uuid)
+{
+	uuid_t newuuid;
+	AFB_clientCtx *clientCtx;
+
+	/* search for an existing one not too old */
+	clientCtx = uuid != NULL ? ctxStoreSearch (uuid) : NULL;
+	if (clientCtx) {
+            if (!ctxStoreTooOld (clientCtx, NOW))
+		return clientCtx;
+            ctxStoreDel (clientCtx);
+        }
+
+	/* mimic old behaviour */
+	if (sessions.initok == NULL)
+		return NULL;
+
+    	/* cleanup before creating */
+	if(2 * sessions.count >= sessions.max)
+		ctxStoreGarbage();
+
+	/* returns a new one */
+        clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
+	if (clientCtx != NULL) {
+	        clientCtx->contexts = calloc ((unsigned)sessions.apicount, sizeof (void*));
+		if (clientCtx->contexts != NULL) {
+			/* generate the uuid */
+			uuid_generate(newuuid);
+			uuid_unparse_lower(newuuid, clientCtx->uuid);
+    			clientCtx->timeStamp = time(NULL) + sessions.timeout;
+			strcpy(clientCtx->token, sessions.initok);
+			if (AFB_SUCCESS == ctxStoreAdd (clientCtx))
+				return clientCtx;
+			free(clientCtx->contexts);
+		}
+		free(clientCtx);
+	}
+	return NULL;
+}
+
+// Free Client Session Context
+AFB_error _ctxClientDel (AFB_clientCtx *clientCtx)
+{
+	assert(clientCtx != NULL);
+	return ctxStoreDel (clientCtx);
+}
+
+// Sample Generic Ping Debug API
+AFB_error _ctxTokenCheck (AFB_clientCtx *clientCtx, const char *token)
+{
+	assert(clientCtx != NULL);
+	assert(token != NULL);
+
+	// compare current token with previous one
+	if (ctxStoreTooOld (clientCtx, NOW))
+		return AFB_FAIL;
+	if (!clientCtx->token[0] || 0 == strcmp (token, clientCtx->token)) {
+		clientCtx->timeStamp = time(NULL) + sessions.timeout;
+		return AFB_SUCCESS;
+	}
+
+	// Token is not valid let move level of assurance to zero and free attached client handle
+	return AFB_FAIL;
+}
+
+// generate a new token and update client context
+AFB_error _ctxTokenNew (AFB_clientCtx *clientCtx)
+{
+	uuid_t newuuid;
+
+	assert(clientCtx != NULL);
+
+	// Old token was valid let's regenerate a new one
+	uuid_generate(newuuid);         // create a new UUID
+	uuid_unparse_lower(newuuid, clientCtx->token);
+
+	// keep track of time for session timeout and further clean up
+	clientCtx->timeStamp = time(NULL) + sessions.timeout;
+
+	return AFB_SUCCESS;
 }
 

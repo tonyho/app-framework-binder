@@ -35,6 +35,7 @@
 
 #include "../include/local-def.h"
 
+#include "afb-req-itf.h"
 #include "afb-apis.h"
 
 struct api_desc {
@@ -276,5 +277,87 @@ int afb_apis_add_pathset(const char *pathset)
 			return 0;
 		rc = afb_apis_add_path(p);
 	};
+}
+
+/*
+// Check of apiurl is declare in this plugin and call it
+extern __thread sigjmp_buf *error_handler;
+static int callPluginApi(AFB_request * request)
+{
+	sigjmp_buf jmpbuf, *older;
+
+	// save context before calling the API
+	status = setjmp(jmpbuf);
+	if (status != 0) {
+		return 0;
+	}
+
+	// Trigger a timer to protect from unacceptable long time execution
+	if (request->config->apiTimeout > 0)
+		alarm((unsigned)request->config->apiTimeout);
+
+	older = error_handler;
+	error_handler = &jmpbuf;
+	doCallPluginApi(request, apiidx, verbidx, context);
+	error_handler = older;
+
+	// cancel timeout and plugin signal handle before next call
+	alarm(0);
+	return 1;
+}
+*/
+
+static void handle(struct afb_req req, const struct api_desc *api, const struct AFB_restapi *verb)
+{
+	AFB_request request;
+
+	request.uuid = request.url = "fake";
+	request.prefix = api->prefix;
+	request.method = verb->name;
+	request.context = NULL;
+	request.restfull = 0;
+	request.errcode = 0;
+	request.config = NULL;
+	request.areq = &req;
+
+	switch(verb->session) {
+	case AFB_SESSION_CREATE:
+	case AFB_SESSION_RENEW:
+		/*if (check) new*/
+		break;
+	case AFB_SESSION_CLOSE:
+	case AFB_SESSION_CHECK:
+		/*check*/
+		break;
+	case AFB_SESSION_NONE:
+	default:
+		break;
+	}
+	verb->callback(&request, NULL);
+
+	if (verb->session == AFB_SESSION_CLOSE)
+		/*del*/;
+}
+
+int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+{
+	int i, j;
+	const struct api_desc *a;
+	const struct AFB_restapi *v;
+
+	a = apis_array;
+	for (i = 0 ; i < apis_count ; i++, a++) {
+		if (a->prefixlen == lenapi && !strcasecmp(a->prefix, api)) {
+			v = a->plugin->apis;
+			for (j = 0 ; v->name ; j++, v++) {
+				if (!strncasecmp(v->name, verb, lenverb) && !v->name[lenverb]) {
+					handle(req, a, v);
+					return 1;
+				}
+			}
+			break;
+		}
+	}
+	return 0;
 }
 

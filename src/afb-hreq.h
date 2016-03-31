@@ -26,7 +26,8 @@ struct afb_hreq {
 	const char *tail;
 	size_t lentail;
 	struct MHD_PostProcessor *postform;
-	void *data;
+	struct AFB_clientCtx *context;
+	struct hreq_data *data;
 };
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
@@ -43,16 +44,21 @@ extern int afb_hreq_redirect_to(struct afb_hreq *request, const char *url);
 
 extern const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name);
 
-extern const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name);
-
 extern const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name);
 
-extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *file, const char *data, size_t size);
+extern const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name);
 
-extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, size_t size);
+extern int afb_hreq_is_argument_a_file(struct afb_hreq *hreq, const char *name);
+
+extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *name, const char *file, const char *data, size_t size);
+
+extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char *data, size_t size);
 
 extern void afb_hreq_post_end(struct afb_hreq *hreq);
 
-struct afb_req_itf;
-extern const struct afb_req_itf afb_hreq_itf;
+extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
+
+extern void afb_hreq_drop_data(struct afb_hreq *hreq);
+
+extern void afb_hreq_iterate_arguments(struct afb_hreq *hreq, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure);
 

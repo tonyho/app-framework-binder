@@ -22,10 +22,10 @@
 // helper-api
 extern const char* getQueryValue (const AFB_request * request, const char *name);
 extern int getQueryAll(AFB_request * request, char *query, size_t len);
-extern AFB_PostHandle* getPostHandle (AFB_request *request);
+/*
 extern json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) ;
-extern AFB_PostCtx* getPostContext (AFB_request *request);
 extern char* getPostPath (AFB_request *request);
+*/
 
 extern json_object *jsonNewMessage (AFB_error level, char* format, ...);
 

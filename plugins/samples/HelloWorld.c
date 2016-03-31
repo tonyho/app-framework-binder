@@ -29,11 +29,8 @@ STATIC json_object* pingSample (AFB_request *request) {
     len = getQueryAll (request, query, sizeof(query));
     if (len == 0) strcpy (query,"NoSearchQueryList");
     
-    // check if we have some post data
-    if (request->post != NULL)  request->post->data="NoData";  
-        
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s} PostData: \'%s\' ", pingcount++, query, request->post);
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s}", pingcount++, query);
     
     if (verbose) fprintf(stderr, "%d: \n", pingcount);
     return (response);

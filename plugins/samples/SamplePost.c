@@ -23,38 +23,31 @@
 static json_object* getPingTest(AFB_request *request) {
     static int pingcount = 0;
     json_object *response;
-    char query  [256];
-    char session[256];
+    char query  [8000];
     int len;
     
     // request all query key/value
     len = getQueryAll (request, query, sizeof(query));
     if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
     
-    // check if we have some post data
-    if (request->post == NULL)  request->post->data="NoData"; 
-          
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d uuid=%s query={%s} session={0x%x} PostData: [%s] "
-               , pingcount++, request->uuid, query, session, request->post->data);
+    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d uuid=%s query={%s}"
+               , pingcount++, request->uuid, query);
     return (response);
 }
 
 // With content-type=json data are directly avaliable in request->post->data
 STATIC json_object* GetJsonByPost (AFB_request *request) {
     json_object* jresp;
-    char query [256];
+    char query [8000];
     int  len;
-    
-    // check if we have some post data
-    if (request->post == NULL)  request->post->data="NoData"; 
     
     // Get all query string [Note real app should probably use value=getQueryValue(request,"key")]
     len = getQueryAll (request, query, sizeof(query));
     if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
     
     // for debug/test return response to caller
-    jresp = jsonNewMessage(AFB_SUCCESS, "GetJsonByPost query={%s} PostData: [%s]", query, request->post->data);
+    jresp = jsonNewMessage(AFB_SUCCESS, "GetJsonByPost query={%s}", query);
     
     return (jresp);    
 }

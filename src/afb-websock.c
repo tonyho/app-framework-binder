@@ -172,7 +172,7 @@ int afb_websock_check(struct afb_hreq *hreq, int *later)
 	/* is a supported version ? */
 	vernum = atoi(version);
 	if (vernum != 13) {
-		response = MHD_create_response_from_data(0,NULL,0,0);
+		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 		MHD_add_response_header (response, sec_websocket_version_s, "13");
 		MHD_queue_response (hreq->connection, MHD_HTTP_BAD_REQUEST, response);
 		MHD_destroy_response (response);
@@ -185,7 +185,7 @@ int afb_websock_check(struct afb_hreq *hreq, int *later)
 
 	/* send the accept connection */
 	make_accept_value(key, acceptval);
-	response = MHD_create_response_from_data(0,NULL,0,0);
+	response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 	MHD_add_response_header (response, sec_websocket_accept_s, acceptval);
 	MHD_add_response_header (response, MHD_HTTP_HEADER_CONNECTION, MHD_HTTP_HEADER_UPGRADE);
 	MHD_add_response_header (response, MHD_HTTP_HEADER_UPGRADE, websocket_s);

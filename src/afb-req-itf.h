@@ -17,26 +17,29 @@
 
 
 struct afb_req_itf {
-	const char *(*get_cookie)(void *data, const char *name);
-	const char *(*get_argument)(void *data, const char *name);
-#if 0
-	int (*set_cookie)(void *data, const char *name, const char *value);
-#endif
+	const char *(*argument)(void *data, const char *name);
+	int (*is_argument_file)(void *data, const char *name);
+	int (*iterate_arguments)(void *data, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure);
 };
 
 struct afb_req {
-	struct afb_req_itf *itf;
+	const struct afb_req_itf *itf;
 	void *data;
 };
 
-inline const char *afb_get_cookie(struct afb_req req, const char *name)
+static inline const char *afb_req_argument(struct afb_req req, const char *name)
 {
-	return req.itf->get_cookie(req.data, name);
+	return req.itf->argument(req.data, name);
 }
 
-inline const char *afb_get_argument(struct afb_req req, const char *name)
+static inline int afb_req_argument_file(struct afb_req req, const char *name)
 {
-	return req.itf->get_argument(req.data, name);
+	return req.itf->is_argument_file(req.data, name);
+}
+
+static inline int afb_req_iterate_arguments(struct afb_req req, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure)
+{
+	return req.itf->iterate_arguments(req.data, iterator, closure);
 }
 
 

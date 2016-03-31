@@ -329,6 +329,6 @@ PUBLIC AFB_plugin* pluginRegister () {
 
     plugin->freeCtxCB = (AFB_freeCtxCB)freeRadio;
 
-    radio = initRadioPlugin();
+    the_radio = initRadioPlugin();
     return plugin;
 };

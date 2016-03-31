@@ -315,8 +315,8 @@ STATIC int doPostIterate(void *cls, enum MHD_ValueKind kind, const char *key, co
 STATIC void freeRequest(AFB_request * request)
 {
 
-	free(request->prefix);
-	free(request->method);
+	free((void*)request->prefix);
+	free((void*)request->method);
 	free(request);
 }
 
@@ -346,7 +346,7 @@ STATIC AFB_request *createRequest(struct MHD_Connection *connection, AFB_session
 		goto Done;
 	}
 	// build request structure
-	request->connection = connection;
+//	request->connection = connection;
 	request->config = session->config;
 	request->url = url;
 	request->prefix = strdup(baseurl);

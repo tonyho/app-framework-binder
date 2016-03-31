@@ -23,11 +23,12 @@
 #include <sys/types.h>
 #include <stdarg.h>
 
+#include "afb-req-itf.h"
 
 // handle to hold queryAll values
 typedef struct {
      char    *msg;
-     int     idx;
+     size_t  idx;
      size_t  len;
 } queryHandleT;
 
@@ -49,17 +50,14 @@ static const char *ERROR_LABEL[] = {"false", "true", "fatal", "fail", "warning",
 
 // Helper to retrieve argument from  connection
 const char* getQueryValue(const AFB_request * request, const char *name) {
-    const char *value;
-
-    value = MHD_lookup_connection_value(request->connection, MHD_GET_ARGUMENT_KIND, name);
-    return (value);
+    return afb_req_argument(*request->areq, name);
 }
 
-static int getQueryCB (void*handle, enum MHD_ValueKind kind, const char *key, const char *value) {
-    queryHandleT *query = (queryHandleT*)handle;
-        
-    query->idx += snprintf (&query->msg[query->idx],query->len," %s: \'%s\',", key, value);
-    return MHD_YES; /* continue to iterate */
+static int getQueryCB (queryHandleT *query, const char *key, const char *value, int isfile) {
+    if (query->idx >= query->len)
+	return 0;
+    query->idx += snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", key, isfile?"FILE=":"", value);
+    return 1; /* continue to iterate */
 }
 
 // Helper to retrieve argument from  connection
@@ -70,27 +68,12 @@ int getQueryAll(AFB_request * request, char *buffer, size_t len) {
     query.len = len;
     query.idx = 0;
 
-    MHD_get_connection_values (request->connection, MHD_GET_ARGUMENT_KIND, getQueryCB, &query);
-    return (len);
+    afb_req_iterate_arguments(*request->areq, getQueryCB, &query);
+    buffer[len-1] = 0;
+    return query.idx >= len ? len - 1 : query.idx;
 }
 
-// Helper to retrieve POST handle
-AFB_PostHandle* getPostHandle (AFB_request *request) {
-    if (request->post == NULL) return (NULL);
-    return ((AFB_PostHandle*) request->post->data);
-}
-
-// Helper to retrieve POST file context
-AFB_PostCtx* getPostContext (AFB_request *request) {
-    AFB_PostHandle* postHandle;
-    if (request->post == NULL) return (NULL);
-    
-    postHandle = (AFB_PostHandle*) request->post->data;
-    if (postHandle == NULL) return NULL;
-       
-    return ((AFB_PostCtx*) postHandle->ctx);
-}
-
+#if 0
 char* getPostPath (AFB_request *request) {
     AFB_PostHandle *postHandle = getPostHandle(request);
     AFB_PostCtx *postFileCtx;
@@ -212,7 +195,7 @@ ExitOnError:
     return NULL;
 }
 
-
+#endif
 
 static void jsoninit()
 {

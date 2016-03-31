@@ -36,6 +36,12 @@ struct hreq_data {
 	char *value;
 };
 
+static const struct afb_req_itf afb_hreq_itf = {
+	.argument = (void*)afb_hreq_get_argument,
+	.is_argument_file = (void*)afb_hreq_is_argument_a_file,
+	.iterate_arguments = (void*)afb_hreq_iterate_arguments
+};
+
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
 {
 	struct hreq_data *data = hreq->data;
@@ -279,12 +285,6 @@ const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name)
 	return MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, name);
 }
 
-const struct afb_req_itf afb_hreq_itf = {
-	.get_cookie = (void*)afb_hreq_get_cookie,
-	.get_argument = (void*)afb_hreq_get_argument
-};
-
-
 void afb_hreq_post_end(struct afb_hreq *hreq)
 {
 	struct hreq_data *data = hreq->data;
@@ -338,5 +338,55 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 	/* TODO */
 	return 0;
 	
+}
+
+int afb_hreq_is_argument_a_file(struct afb_hreq *hreq, const char *key)
+{
+	struct hreq_data *hdat = get_data(hreq, key, 0);
+	return hdat != NULL && hdat->file != 0;
+}
+
+
+struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
+{
+	return (struct afb_req){ .itf = &afb_hreq_itf, .data = hreq };
+}
+
+struct iterator_data
+{
+	struct afb_hreq *hreq;
+	int (*iterator)(void *closure, const char *key, const char *value, int isfile);
+	void *closure;
+};
+
+static int itargs(struct iterator_data *id, enum MHD_ValueKind kind, const char *key, const char *value)
+{
+	if (get_data(id->hreq, key, 0))
+		return 1;
+	return id->iterator(id->closure, key, value, 0);
+}
+
+void afb_hreq_iterate_arguments(struct afb_hreq *hreq, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure)
+{
+	struct iterator_data id = { .hreq = hreq, .iterator = iterator, .closure = closure };
+	struct hreq_data *data = hreq->data;
+	while (data) {
+		if (!iterator(closure, data->key, data->value, !!data->file))
+			return;
+		data = data->next;
+	}
+	MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)itargs, &id);
+}
+
+void afb_hreq_drop_data(struct afb_hreq *hreq)
+{
+	struct hreq_data *data = hreq->data;
+	while (data) {
+		hreq->data = data->next;
+		free(data->key);
+		free(data->value);
+		free(data);
+		data = hreq->data;
+	}
 }
 

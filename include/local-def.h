@@ -202,15 +202,6 @@ typedef struct {
      size_t  len;
 } AFB_redirect_msg;
 
-// User Client Session Context
-typedef struct {
-  char uuid[37];        // long term authentication of remote client
-  char token[37];       // short term authentication of remote client
-  time_t timeStamp;     // last time token was refresh
-  int   restfull;       // client does not use cookie
-  void **contexts;      // application specific context [one per plugin]]
-} AFB_clientCtx;
-
 // main config structure
 struct AFB_config
 {
@@ -233,15 +224,17 @@ struct AFB_config
 typedef struct {
   const char *uuid;
   const char *url;
-  char *prefix;              // plugin convivial name
-  char *method;
+  const char *prefix;              // plugin convivial name
+  const char *method;
+/*
   AFB_PostRequest *post;
+*/
   json_object *jresp;
   void *context;             // Hold Client Context when using session
   int  restfull;             // request is resfull [uuid token provided]
   int  errcode;              // http error code
   struct AFB_config *config;         // plugin may need access to config
-  struct MHD_Connection *connection;
+  struct afb_req *areq;
 } AFB_request;
 
 struct afb_hsrv_handler;

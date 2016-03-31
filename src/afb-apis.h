@@ -34,4 +34,6 @@ extern int afb_apis_add_path(const char *path);
 
 extern int afb_apis_add_pathset(const char *pathset);
 
+struct afb_req;
+extern int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 

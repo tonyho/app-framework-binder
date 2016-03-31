@@ -25,6 +25,9 @@
 #include "afb-method.h"
 #include "afb-hreq.h"
 #include "afb-websock.h"
+#include "afb-apis.h"
+#include "session.h"
+#include "afb-req-itf.h"
 
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
@@ -129,21 +132,59 @@ int afb_hsrv_add_handler(
 	return 1;
 }
 
-static int relay_to_doRestApi(struct afb_hreq *hreq, void *data)
+static const char uuid_header[] = "x-afb-uuid";
+static const char uuid_arg[] = "uuid";
+static const char uuid_cookie[] = "uuid";
+
+static struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
+{
+	const char *uuid;
+
+	if (hreq->context == NULL) {
+		uuid = afb_hreq_get_header(hreq, uuid_header);
+		if (uuid == NULL)
+			uuid = afb_hreq_get_argument(hreq, uuid_arg);
+		if (uuid == NULL)
+			uuid = afb_hreq_get_cookie(hreq, uuid_cookie);
+		hreq->context = _ctxClientGet(uuid);
+	}
+	return hreq->context;
+}
+
+static int afb_hreq_websocket_switch(struct afb_hreq *hreq, void *data)
 {
 	int later;
-	if (hreq->lentail == 0 && afb_websock_check(hreq, &later)) {
-		if (!later) {
-			struct afb_websock *ws = afb_websock_create(hreq->connection);
-		}
-		return 1;
-	}
 
-return 0;
-/*
-	return doRestApi(hreq->connection, hreq->session, &hreq->tail[1], get_method_name(hreq->method),
-			 post->upload_data, post->upload_data_size, (void **)hreq->recorder);
-*/
+	afb_hreq_context(hreq);
+	if (hreq->lentail != 0 || !afb_websock_check(hreq, &later))
+		return 0;
+
+	if (!later) {
+		struct afb_websock *ws = afb_websock_create(hreq->connection);
+		if (ws == NULL) {
+			/* TODO */
+		} else {
+			/* TODO */
+		}
+	}
+	return 1;
+}
+
+static int afb_hreq_rest_api(struct afb_hreq *hreq, void *data)
+{
+	const char *api, *verb;
+	size_t lenapi, lenverb;
+
+	api = hreq->tail;
+	lenapi = strspn(api, "/");
+	verb = &hreq->tail[lenapi];
+	verb = &verb[strcspn(verb, "/")];
+	lenverb = strspn(verb, "/");
+
+	if (!(*api && *verb && lenapi && lenverb))
+		return 0;
+
+	return afb_apis_handle(afb_hreq_to_req(hreq), api, lenapi, verb, lenverb);
 }
 
 static int handle_alias(struct afb_hreq *hreq, void *data)
@@ -232,6 +273,7 @@ static int access_handler(
 		size_t *upload_data_size,
 		void **recordreq)
 {
+	int rc;
 	struct afb_hreq *hreq;
 	enum afb_method method;
 	AFB_session *session;
@@ -250,10 +292,8 @@ static int access_handler(
 		/* get the method */
 		method = get_method(methodstr);
 		method &= afb_method_get | afb_method_post;
-		if (method == afb_method_none) {
-			afb_hsrv_reply_error(connection, MHD_HTTP_BAD_REQUEST);
-			return MHD_YES;
-		}
+		if (method == afb_method_none)
+			goto bad_request;
 
 		/* init the request */
 		hreq->session = cls;
@@ -295,6 +335,12 @@ static int access_handler(
 
 	/* flush the data */
 	afb_hreq_post_end(hreq);
+	if (hreq->postform != NULL) {
+		rc = MHD_destroy_post_processor(hreq->postform);
+		hreq->postform = NULL;
+		if (rc == MHD_NO)
+			goto bad_request;
+	}
 
 	/* search an handler for the request */
 	iter = session->handlers;
@@ -310,6 +356,10 @@ static int access_handler(
 
 	/* no handler */
 	afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
+	return MHD_YES;
+
+bad_request:
+	afb_hsrv_reply_error(connection, MHD_HTTP_BAD_REQUEST);
 	return MHD_YES;
 
 internal_error:
@@ -330,6 +380,8 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	if (hreq != NULL) {
 		if (hreq->postform != NULL)
 			MHD_destroy_post_processor(hreq->postform);
+		afb_hreq_drop_data(hreq);
+		free(hreq);
 	}
 }
 
@@ -372,7 +424,10 @@ static int my_default_init(AFB_session * session)
 {
 	int idx;
 
-	if (!afb_hsrv_add_handler(session, session->config->rootapi, relay_to_doRestApi, NULL, 1))
+	if (!afb_hsrv_add_handler(session, session->config->rootapi, afb_hreq_websocket_switch, NULL, 20))
+		return 0;
+
+	if (!afb_hsrv_add_handler(session, session->config->rootapi, afb_hreq_rest_api, NULL, 10))
 		return 0;
 
 	for (idx = 0; session->config->aliasdir[idx].url != NULL; idx++)
