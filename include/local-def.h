@@ -124,60 +124,6 @@ typedef struct AFB_plugin AFB_plugin;
 typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
 
 
-#if 0
-
-typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
-
-
-
-// Post Upload File Handle
-typedef struct {
-   int   fd; 
-   char *path; 
-   int  errcode;
-   struct json_object* jresp;
-} AFB_PostCtx;
-
-typedef  struct {
-    int  len;   // post element size
-    char *data; // post data in raw format
-    AFB_PostType type; // Json type
-} AFB_PostRequest;
-  
-// Post handler
-typedef struct {
-  void*  ctx;               // Application context
-  int    len;               // current len for post
-  int    uid;               // post uid for debug
-  AFB_PostType type;        // JSON or FORM
-  AFB_apiCB  completeCB;    // callback when post is completed
-  char   *privatebuf;       // use internally to keep track or partial buffer
-  struct MHD_PostProcessor *pp; // iterator handle
-} AFB_PostHandle;
-
-typedef struct {
-    enum MHD_ValueKind kind; // kind type of the value
-    const char *key;         // key 0-terminated key for the value
-    const char *filename;    // filename of the uploaded file, NULL if not known
-    const char *mimetype;    // content_type mime-type of the data, NULL if not known
-    const char *encoding;    // transfer_encoding encoding of the data, NULL if not known
-    const char *data;        // data pointer to size bytes of data at the specified offset
-    uint64_t   offset;       // offset of data in the overall value
-    size_t     len;          // number of bytes in data available
-} AFB_PostItem;
-
-typedef struct {
-  char  path[512];
-  int   fd;
-} AFB_staticfile;
-
-typedef struct {
-     char    *msg;
-     size_t  len;
-} AFB_redirect_msg;
-
-#endif
-
 typedef struct {
   char  *url;
   char  *path;

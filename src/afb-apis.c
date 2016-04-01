@@ -37,7 +37,7 @@
 #include <sys/syscall.h>
 #include <setjmp.h>
 
-#include "../include/local-def.h"
+#include "local-def.h"
 
 #include "afb-req-itf.h"
 #include "afb-apis.h"
@@ -49,6 +49,7 @@ struct api_desc {
 	void *handle;		/* context of dlopen */
 };
 
+static int api_timeout = 15;
 static struct api_desc *apis_array = NULL;
 static int apis_count = 0;
 
@@ -285,9 +286,9 @@ int afb_apis_add_pathset(const char *pathset)
 
 // Check of apiurl is declare in this plugin and call it
 extern __thread sigjmp_buf *error_handler;
-static int callPluginApi(AFB_request * request)
+static void trapping_handle(AFB_request * request, struct json_object *(*cb)(AFB_request *,void*))
 {
-	volatile int status, timerset;
+	volatile int signum, timerset;
 	timer_t timerid;
 	sigjmp_buf jmpbuf, *older;
 	struct sigevent sevp;
@@ -296,43 +297,38 @@ static int callPluginApi(AFB_request * request)
 	// save context before calling the API
 	timerset = 0;
 	older = error_handler;
-	status = setjmp(jmpbuf);
-	if (status != 0) {
-		status = 0;
+	signum = setjmp(jmpbuf);
+	if (signum != 0) {
+		afb_req_fail_f(*request->areq, "aborted", "signal %d caught", signum);
 	}
 	else {
 		error_handler = &jmpbuf;
-		if (request->config->apiTimeout > 0) {
+		if (api_timeout > 0) {
 			timerset = 1; /* TODO: check statuses */
 			sevp.sigev_notify = SIGEV_THREAD_ID;
 			sevp.sigev_signo = SIGALRM;
 #if defined(sigev_notify_thread_id)
-			sevp.sigev_notify_thread_id = syscall(SYS_gettid);
+			sevp.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
 #else
-			sevp._sigev_un._tid = syscall(SYS_gettid);
+			sevp._sigev_un._tid = (pid_t)syscall(SYS_gettid);
 #endif
 			timer_create(CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid);
 			its.it_interval.tv_sec = 0;
 			its.it_interval.tv_nsec = 0;
-			its.it_value.tv_sec = 15;
+			its.it_value.tv_sec = api_timeout;
 			its.it_value.tv_nsec = 0;
 			timer_settime(timerid, 0, &its, NULL);
 		}
 
-		//doCallPluginApi(request, apiidx, verbidx, context);
-		status = 1;
+		cb(request, NULL);
 	}
 	if (timerset)
 		timer_delete(timerid);
 	error_handler = older;
-
-	return status;
 }
 
 static void handle(struct afb_req req, const struct api_desc *api, const struct AFB_restapi *verb)
 {
-	json_object *jresp, *jcall, *jreqt;
-
 	AFB_request request;
 
 	request.uuid = request.url = "fake";
@@ -357,7 +353,7 @@ static void handle(struct afb_req req, const struct api_desc *api, const struct 
 	default:
 		break;
 	}
-	verb->callback(&request, NULL);
+	trapping_handle(&request, verb->callback);
 
 	if (verb->session == AFB_SESSION_CLOSE)
 		/*close*/;
@@ -369,20 +365,18 @@ int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const ch
 	const struct api_desc *a;
 	const struct AFB_restapi *v;
 
-//fprintf(stderr,"afb_apis_handle prefix:%.*s verb:%.*s\n",(int)lenapi,api,(int)lenverb,verb);
 	a = apis_array;
 	for (i = 0 ; i < apis_count ; i++, a++) {
 		if (a->prefixlen == lenapi && !strncasecmp(a->prefix, api, lenapi)) {
-//fprintf(stderr,"afb_apis_handle found prefix:%.*s -> %s\n",(int)lenapi,api,a->prefix);
 			v = a->plugin->apis;
 			for (j = 0 ; v->name ; j++, v++) {
 				if (!strncasecmp(v->name, verb, lenverb) && !v->name[lenverb]) {
-//fprintf(stderr,"afb_apis_handle found prefix:%.*s verb:%.*s -> %s/%s\n",(int)lenapi,api,(int)lenverb,verb,a->prefix,v->name);
 					handle(req, a, v);
 					return 1;
 				}
 			}
-			break;
+			afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, a->prefix);
+			return 1;
 		}
 	}
 	return 0;

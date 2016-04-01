@@ -32,6 +32,8 @@
 #include "afb-req-itf.h"
 #include "afb-hreq.h"
 
+#define SIZE_RESPONSE_BUFFER   8000
+
 static char empty_string[] = "";
 
 struct hreq_data {
@@ -460,7 +462,7 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 	if (resp)
 		json_object_object_add(root, "response", resp);
 
-	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 65500, (void*)send_json_cb, root, (void*)json_object_put);
+	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, SIZE_RESPONSE_BUFFER, (void*)send_json_cb, root, (void*)json_object_put);
 	MHD_queue_response(hreq->connection, retcode, response);
 	MHD_destroy_response(response);
 }

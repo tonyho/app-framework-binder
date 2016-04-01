@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <string.h>
@@ -22,9 +23,8 @@
 #include "local-def.h"
 #include "afb-req-itf.h"
 
-static json_object* pingSample (AFB_request *request) {
+static json_object* ping (AFB_request *request, json_object *jresp) {
     static int pingcount = 0;
-    json_object *response;
     char query [512];
     size_t len;
 
@@ -34,14 +34,18 @@ static json_object* pingSample (AFB_request *request) {
     
     // return response to caller
 //    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s}", pingcount++, query);
-    afb_req_success_f(*request->areq, NULL, "Ping Binder Daemon %d query={%s}", pingcount++, query);
+    afb_req_success_f(*request->areq, jresp, "Ping Binder Daemon %d query={%s}", pingcount++, query);
     
     if (verbose) fprintf(stderr, "%d: \n", pingcount);
-    return NULL; //(response);
+    return jresp;
+}
+
+static json_object* pingSample (AFB_request *request) {
+	return ping(request, json_object_new_string ("Some String"));
 }
 
 static json_object* pingFail (AFB_request *request) {
-    return NULL;
+	return ping(request, NULL);
 }
 
 static json_object* pingBug (AFB_request *request) {
@@ -70,8 +74,8 @@ static json_object* pingJson (AFB_request *request) {
     json_object_object_add(embed, "subObjInt", json_object_new_int (5678));
     
     json_object_object_add(jresp,"eobj", embed);
-    
-    return jresp;
+
+    return ping(request, jresp);
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible

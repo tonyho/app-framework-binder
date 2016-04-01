@@ -54,7 +54,6 @@ PUBLIC int verbose;
 static const char *ERROR_LABEL[] = {"false", "true", "fatal", "fail", "warning", "empty", "success", "done", "unauth"};
 
 
-
 // Helper to retrieve argument from  connection
 const char* getQueryValue(const AFB_request * request, const char *name) {
     return afb_req_argument(*request->areq, name);
