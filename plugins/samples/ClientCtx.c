@@ -16,9 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <json.h>
 
-#include "local-def.h"
+#include "afb-plugin.h"
+#include "afb-req-itf.h"
 
 typedef struct {
   /* 
@@ -58,61 +61,53 @@ typedef struct {
 
 
 // Plugin handle should not be in stack (malloc or static)
-STATIC MyPluginHandleT global_handle;
+static MyPluginHandleT global_handle;
     
 // This function is call at session open time. Any client trying to 
 // call it with an already open session will be denied.
 // Ex: http://localhost:1234/api/context/create?token=123456789
-STATIC json_object* myCreate (AFB_request *request) {
-    json_object *jresp;
-    
-    MyClientContextT *ctx= malloc (sizeof (MyClientContextT));
+static void myCreate (struct afb_req request)
+{
+    MyClientContextT *ctx = malloc (sizeof (MyClientContextT));
     MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
 
     // store something in our plugin private client context
     ctx->count = 0;
     ctx->abcd  = "SomeThingUseful";        
 
-    request->context = ctx;
-    jresp =  jsonNewMessage(AFB_SUCCESS, "SUCCESS: create client context for plugin [%s]", handle->anythingYouWant);
-           
-    return jresp;
+    *request.context = ctx;
+    afb_req_success_f(request, NULL, "SUCCESS: create client context for plugin [%s]", handle->anythingYouWant);
 }
 
 // This function can only be called with a valid token. Token should be renew before
 // session timeout a standard renew api is avaliable at /api/token/renew this API
 // can be called automatically with <token-renew> HTML5 widget.
 // ex: http://localhost:1234/api/context/action?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
-STATIC json_object* myAction (AFB_request *request) {
-    json_object* jresp;
+static void myAction (struct afb_req request)
+{
     MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    MyClientContextT *ctx= (MyClientContextT*) request->context;
+    MyClientContextT *ctx = (MyClientContextT*) *request.context;
     
     // store something in our plugin private client context
     ctx->count++;
-    jresp =  jsonNewMessage(AFB_SUCCESS, "SUCCESS: plugin [%s] Check=[%d]\n", handle->anythingYouWant, ctx->count);
-         
-    return jresp;
+    afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Check=[%d]\n", handle->anythingYouWant, ctx->count);
 }
 
 // After execution of this function, client session will be close and if they
 // created a context [request->context != NULL] every plugins will be notified
 // that they should free context resources.
 // ex: http://localhost:1234/api/context/close?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
-STATIC json_object* myClose (AFB_request *request) {
-    json_object* jresp;
+static void myClose (struct afb_req request)
+{
     MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    MyClientContextT *ctx= (MyClientContextT*) request->context;
+    MyClientContextT *ctx = (MyClientContextT*) *request.context;
     
     // store something in our plugin private client context
     ctx->count++;
-    jresp =  jsonNewMessage(AFB_SUCCESS, "SUCCESS: plugin [%s] Close=[%d]\n", handle->anythingYouWant, ctx->count);
-    
-    // Note Context resource should be free in FreeCtxCB and not here in case session timeout.
-    return jresp;
+    afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Close=[%d]\n", handle->anythingYouWant, ctx->count);
 }
 
-STATIC void freeCtxCB (MyClientContextT *ctx) {
+static void freeCtxCB (MyClientContextT *ctx) {
     MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
     fprintf (stderr, "FreeCtxCB Plugin=[%s]  count=[%d]", (char*)handle->anythingYouWant, ctx->count);
     free (ctx);
@@ -122,24 +117,23 @@ STATIC void freeCtxCB (MyClientContextT *ctx) {
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-STATIC  AFB_restapi pluginApis[]= {
-  {"create", AFB_SESSION_CREATE, (AFB_apiCB)myCreate  , "Create a new session"},
-  {"action", AFB_SESSION_CHECK , (AFB_apiCB)myAction   , "Use Session Context"},
-  {"close" , AFB_SESSION_CLOSE , (AFB_apiCB)myClose   , "Free Context"},
+static const struct AFB_restapi pluginApis[]= {
+  {"create", AFB_SESSION_CREATE, myCreate  , "Create a new session"},
+  {"action", AFB_SESSION_CHECK , myAction  , "Use Session Context"},
+  {"close" , AFB_SESSION_CLOSE , myClose   , "Free Context"},
   {NULL}
 };
 
-PUBLIC AFB_plugin *pluginRegister () {
-    
-    AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type     = AFB_PLUGIN_JSON;
-    plugin->info     = "Sample of Client Context Usage";
-    plugin->prefix   = "context";
-    plugin->apis     = pluginApis;
-    plugin->freeCtxCB= (AFB_freeCtxCB) freeCtxCB;
-    
-    // feed plugin handle before returning from registration
-    global_handle.anythingYouWant = "My Plugin Handle";
-    
-    return (plugin);
+static const struct AFB_plugin plugin_desc = {
+	.type = AFB_PLUGIN_JSON,
+	.info = "Sample of Client Context Usage",
+	.prefix = "context",
+	.apis = pluginApis,
+	.freeCtxCB = (void*)freeCtxCB
 };
+
+const struct AFB_plugin *pluginRegister ()
+{
+	return &plugin_desc;
+}
+

@@ -16,14 +16,41 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #define _GNU_SOURCE
-
 #include <stdio.h>
 #include <string.h>
+#include <json.h>
 
-#include "local-def.h"
+#include "afb-plugin.h"
 #include "afb-req-itf.h"
 
-static json_object* ping (AFB_request *request, json_object *jresp) {
+typedef struct queryHandleT {
+     char    *msg;
+     size_t  idx;
+     size_t  len;
+} queryHandleT;
+
+static int getQueryCB (queryHandleT *query, struct afb_arg arg) {
+    if (query->idx >= query->len)
+	return 0;
+    query->idx += (unsigned)snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", arg.name, arg.is_file?"FILE=":"", arg.value);
+    return 1; /* continue to iterate */
+}
+
+// Helper to retrieve argument from  connection
+static size_t getQueryAll(struct afb_req request, char *buffer, size_t len) {
+    queryHandleT query;
+    buffer[0] = '\0'; // start with an empty string
+    query.msg = buffer;
+    query.len = len;
+    query.idx = 0;
+
+    afb_req_iterate(request, (void*)getQueryCB, &query);
+    buffer[len-1] = 0;
+    return query.idx >= len ? len - 1 : query.idx;
+}
+
+static void ping (struct afb_req request, json_object *jresp)
+{
     static int pingcount = 0;
     char query [512];
     size_t len;
@@ -34,21 +61,28 @@ static json_object* ping (AFB_request *request, json_object *jresp) {
     
     // return response to caller
 //    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s}", pingcount++, query);
-    afb_req_success_f(*request->areq, jresp, "Ping Binder Daemon %d query={%s}", pingcount++, query);
+    afb_req_success_f(request, jresp, "Ping Binder Daemon %d query={%s}", pingcount++, query);
     
-    if (verbose) fprintf(stderr, "%d: \n", pingcount);
-    return jresp;
+    fprintf(stderr, "%d: \n", pingcount);
 }
 
-static json_object* pingSample (AFB_request *request) {
-	return ping(request, json_object_new_string ("Some String"));
+static void pingSample (struct afb_req request)
+{
+	ping(request, json_object_new_string ("Some String"));
 }
 
-static json_object* pingFail (AFB_request *request) {
-	return ping(request, NULL);
+static void pingFail (struct afb_req request)
+{
+	afb_req_fail(request, "failed", "Ping Binder Daemon fails");
 }
 
-static json_object* pingBug (AFB_request *request) {
+static void pingNull (struct afb_req request)
+{
+	ping(request, NULL);
+}
+
+static void pingBug (struct afb_req request)
+{
     int a,b,c;
     
     fprintf (stderr, "Use --timeout=10 to trap error\n");
@@ -56,13 +90,11 @@ static json_object* pingBug (AFB_request *request) {
     c=0;
     a=b/c;
     
-    // should never return
-    return NULL;
 }
 
 
 // For samples https://linuxprograms.wordpress.com/2010/05/20/json-c-libjson-tutorial/
-static json_object* pingJson (AFB_request *request) {
+static void pingJson (struct afb_req request) {
     json_object *jresp, *embed;    
     
     jresp = json_object_new_object();
@@ -75,26 +107,28 @@ static json_object* pingJson (AFB_request *request) {
     
     json_object_object_add(jresp,"eobj", embed);
 
-    return ping(request, jresp);
+    ping(request, jresp);
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static  AFB_restapi pluginApis[]= {
-  {"ping"     , AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Ping Application Framework"},
-  {"pingnull" , AFB_SESSION_NONE, (AFB_apiCB)pingFail    , "Return NULL"},
-  {"pingbug"  , AFB_SESSION_NONE, (AFB_apiCB)pingBug     , "Do a Memory Violation"},
-  {"pingJson" , AFB_SESSION_NONE, (AFB_apiCB)pingJson    , "Return a JSON object"},
+static const struct AFB_restapi pluginApis[]= {
+  {"ping"     , AFB_SESSION_NONE, pingSample  , "Ping Application Framework"},
+  {"pingfail" , AFB_SESSION_NONE, pingFail    , "Fails"},
+  {"pingnull" , AFB_SESSION_NONE, pingNull    , "Return NULL"},
+  {"pingbug"  , AFB_SESSION_NONE, pingBug     , "Do a Memory Violation"},
+  {"pingJson" , AFB_SESSION_NONE, pingJson    , "Return a JSON object"},
   {NULL}
 };
 
-static const AFB_plugin plugin = {
+static const struct AFB_plugin plugin_desc = {
 	.type = AFB_PLUGIN_JSON,
 	.info = "Minimal Hello World Sample",
 	.prefix = "hello",
 	.apis = pluginApis
 };
 
-const AFB_plugin *pluginRegister () {
-    return &plugin;
-};
+const struct AFB_plugin *pluginRegister ()
+{
+	return &plugin_desc;
+}

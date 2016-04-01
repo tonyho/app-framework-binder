@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+struct json_object;
+
 struct afb_arg {
 	const char *name;
 	const char *value;
@@ -26,12 +28,13 @@ struct afb_req_itf {
 	struct afb_arg (*get)(void *data, const char *name);
 	void (*iterate)(void *data, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
 	void (*fail)(void *data, const char *status, const char *info);
-	void (*success)(void *data, json_object *obj, const char *info);
+	void (*success)(void *data, struct json_object *obj, const char *info);
 };
 
 struct afb_req {
 	const struct afb_req_itf *itf;
 	void *data;
+	void **context;
 };
 
 static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
@@ -54,14 +57,23 @@ static inline void afb_req_iterate(struct afb_req req, int (*iterator)(void *clo
 	req.itf->iterate(req.data, iterator, closure);
 }
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
 {
 	req.itf->fail(req.data, status, info);
 }
+
+static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
+{
+	req.itf->success(req.data, obj, info);
+}
+
+#if !defined(_GNU_SOURCE)
+# error "_GNU_SOURCE must be defined for using vasprintf"
+#endif
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 static inline void afb_req_fail_v(struct afb_req req, const char *status, const char *info, va_list args)
 {
@@ -80,12 +92,7 @@ static inline void afb_req_fail_f(struct afb_req req, const char *status, const 
 	va_end(args);
 }
 
-static inline void afb_req_success(struct afb_req req, json_object *obj, const char *info)
-{
-	req.itf->success(req.data, obj, info);
-}
-
-static inline void afb_req_success_v(struct afb_req req, json_object *obj, const char *info, va_list args)
+static inline void afb_req_success_v(struct afb_req req, struct json_object *obj, const char *info, va_list args)
 {
 	char *message;
 	if (info == NULL || vasprintf(&message, info, args) < 0)
@@ -94,7 +101,7 @@ static inline void afb_req_success_v(struct afb_req req, json_object *obj, const
 	free(message);
 }
 
-static inline void afb_req_success_f(struct afb_req req, json_object *obj, const char *info, ...)
+static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...)
 {
 	va_list args;
 	va_start(args, info);

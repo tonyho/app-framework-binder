@@ -286,7 +286,7 @@ int afb_apis_add_pathset(const char *pathset)
 
 // Check of apiurl is declare in this plugin and call it
 extern __thread sigjmp_buf *error_handler;
-static void trapping_handle(AFB_request * request, struct json_object *(*cb)(AFB_request *,void*))
+static void trapping_handle(struct afb_req req, void(*cb)(struct afb_req))
 {
 	volatile int signum, timerset;
 	timer_t timerid;
@@ -299,7 +299,7 @@ static void trapping_handle(AFB_request * request, struct json_object *(*cb)(AFB
 	older = error_handler;
 	signum = setjmp(jmpbuf);
 	if (signum != 0) {
-		afb_req_fail_f(*request->areq, "aborted", "signal %d caught", signum);
+		afb_req_fail_f(req, "aborted", "signal %d caught", signum);
 	}
 	else {
 		error_handler = &jmpbuf;
@@ -320,7 +320,7 @@ static void trapping_handle(AFB_request * request, struct json_object *(*cb)(AFB
 			timer_settime(timerid, 0, &its, NULL);
 		}
 
-		cb(request, NULL);
+		cb(req);
 	}
 	if (timerset)
 		timer_delete(timerid);
@@ -329,17 +329,6 @@ static void trapping_handle(AFB_request * request, struct json_object *(*cb)(AFB
 
 static void handle(struct afb_req req, const struct api_desc *api, const struct AFB_restapi *verb)
 {
-	AFB_request request;
-
-	request.uuid = request.url = "fake";
-	request.prefix = api->prefix;
-	request.method = verb->name;
-	request.context = NULL;
-	request.restfull = 0;
-	request.errcode = 0;
-	request.config = NULL;
-	request.areq = &req;
-
 	switch(verb->session) {
 	case AFB_SESSION_CREATE:
 	case AFB_SESSION_RENEW:
@@ -351,9 +340,10 @@ static void handle(struct afb_req req, const struct api_desc *api, const struct 
 		break;
 	case AFB_SESSION_NONE:
 	default:
+		req.context = NULL;
 		break;
 	}
-	trapping_handle(&request, verb->callback);
+	trapping_handle(req, verb->callback);
 
 	if (verb->session == AFB_SESSION_CLOSE)
 		/*close*/;
