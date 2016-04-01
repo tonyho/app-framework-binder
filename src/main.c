@@ -16,14 +16,21 @@
  * limitations under the License.
  */
 
-#include <syslog.h>
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+#include <getopt.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <getopt.h>
-#include <pwd.h>
-#include <pthread.h>
+#include <syslog.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+/*
+#include <pwd.h>
+#include <pthread.h>
+*/
 
 #include "local-def.h"
 #include "afb-apis.h"
@@ -427,10 +434,10 @@ static void signalError(int signum)
 	sigset_t sigset;
 
 	// unlock signal to allow a new signal to come
-	sigemptyset(&sigset);
-	sigaddset(&sigset, signum);
-	sigprocmask(SIG_UNBLOCK, &sigset, 0);
 	if (error_handler != NULL) {
+		sigemptyset(&sigset);
+		sigaddset(&sigset, signum);
+		sigprocmask(SIG_UNBLOCK, &sigset, 0);
 		longjmp(*error_handler, signum);
 	}
 }

@@ -17,12 +17,19 @@
  * 
  */
 
-#include "../include/local-def.h"
+#define _GNU_SOURCE
+
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+
+/*
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <stdarg.h>
+*/
 
+#include "local-def.h"
 #include "afb-req-itf.h"
 
 // handle to hold queryAll values
@@ -56,19 +63,19 @@ const char* getQueryValue(const AFB_request * request, const char *name) {
 static int getQueryCB (queryHandleT *query, struct afb_arg arg) {
     if (query->idx >= query->len)
 	return 0;
-    query->idx += snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", arg.name, arg.is_file?"FILE=":"", arg.value);
+    query->idx += (unsigned)snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", arg.name, arg.is_file?"FILE=":"", arg.value);
     return 1; /* continue to iterate */
 }
 
 // Helper to retrieve argument from  connection
-int getQueryAll(AFB_request * request, char *buffer, size_t len) {
+size_t getQueryAll(AFB_request * request, char *buffer, size_t len) {
     queryHandleT query;
     buffer[0] = '\0'; // start with an empty string
     query.msg = buffer;
     query.len = len;
     query.idx = 0;
 
-    afb_req_iterate(*request->areq, getQueryCB, &query);
+    afb_req_iterate(*request->areq, (void*)getQueryCB, &query);
     buffer[len-1] = 0;
     return query.idx >= len ? len - 1 : query.idx;
 }
@@ -218,6 +225,41 @@ static void jsoninit()
 
 
 // build an ERROR message and return it as a valid json object
+json_object *json_add_status (json_object *obj, const char *status, const char *info)
+{
+	if (obj == NULL)
+		obj = json_object_new_object();
+	json_object_object_add(obj, "status", json_object_new_string(status));
+	if (info)
+		json_object_object_add(obj, "info", json_object_new_string(info));
+	return obj;
+}
+
+// build an ERROR message and return it as a valid json object
+json_object *json_add_status_v (json_object *obj, const char *status, const char *info, va_list args)
+{
+	char *message;
+	if (info == NULL || vasprintf(&message, info, args) < 0)
+		message = NULL;
+	obj = json_add_status(obj, status, message);
+	free(message);
+	return obj;
+}
+
+
+// build an ERROR message and return it as a valid json object
+json_object *json_add_status_f (json_object *obj, const char *status, const char *info, ...)
+{
+	va_list args;
+	va_start(args, info);
+	obj = json_add_status_v(obj, status, info, args);
+	va_end(args);
+	return obj;
+}
+
+
+
+// build an ERROR message and return it as a valid json object
 struct json_object *jsonNewMessage (AFB_error level, char* format, ...) {
    static int count = 0;
    json_object * AFBResponse;
@@ -251,4 +293,21 @@ struct json_object *jsonNewMessage (AFB_error level, char* format, ...) {
 
    return (AFBResponse);
 }
+
+#if 0
+{
+  jtype: "AFB_message"
+  request:
+    {
+      prefix: "",
+      api: "",
+      status: "", /* exist, fail, empty, null, processed */
+      info: "",
+      uuid: "",
+      token: "",
+      timeout: ""
+    }
+  response: ...
+}
+#endif
 

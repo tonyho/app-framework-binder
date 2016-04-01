@@ -21,19 +21,13 @@
 
 // helper-api
 extern const char* getQueryValue (const AFB_request * request, const char *name);
-extern int getQueryAll(AFB_request * request, char *query, size_t len);
+extern size_t getQueryAll(AFB_request * request, char *query, size_t len);
 /*
 extern json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) ;
 extern char* getPostPath (AFB_request *request);
 */
 
 extern json_object *jsonNewMessage (AFB_error level, char* format, ...);
-
-// rest-api
-extern void endPostRequest(AFB_PostHandle *posthandle); 
-extern int doRestApi(struct MHD_Connection *connection, AFB_session *session, const char* url, const char *method
-    , const char *upload_data, size_t *upload_data_size, void **con_cls);
-
 
 
 // Httpd server

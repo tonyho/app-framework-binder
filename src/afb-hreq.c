@@ -16,12 +16,18 @@
  */
 
 #define _GNU_SOURCE
-#include <microhttpd.h>
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <assert.h>
-#include <poll.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
-#include "../include/local-def.h"
+#include <microhttpd.h>
+
+#include "local-def.h"
 #include "afb-method.h"
 #include "afb-req-itf.h"
 #include "afb-hreq.h"
@@ -36,13 +42,19 @@ struct hreq_data {
 	char *value;
 };
 
-static struct afb_arg getarg(struct afb_hreq *hreq, const char *name);
-static void iterargs(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
+static struct afb_arg req_get(struct afb_hreq *hreq, const char *name);
+static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
+static void req_fail(struct afb_hreq *hreq, const char *status, const char *info);
+static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
 
 static const struct afb_req_itf afb_hreq_itf = {
-	.get = (void*)getarg,
-	.iterate = (void*)iterargs
+	.get = (void*)req_get,
+	.iterate = (void*)req_iterate,
+	.fail = (void*)req_fail,
+	.success = (void*)req_success
 };
+	void (*fail)(void *data, const char *status, const char *info);
+	void (*success)(void *data, json_object *obj, const char *info);
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
 {
@@ -163,12 +175,20 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	struct MHD_Response *response;
 
 	/* Opens the file or directory */
-	fd = openat(dirfd, filename, O_RDONLY);
-	if (fd < 0) {
-		if (errno == ENOENT)
-			return 0;
-		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
-		return 1;
+	if (filename[0]) {
+		fd = openat(dirfd, filename, O_RDONLY);
+		if (fd < 0) {
+			if (errno == ENOENT)
+				return 0;
+			afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
+			return 1;
+		}
+	} else {
+		fd = dup(dirfd);
+		if (fd < 0) {
+			afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+			return 1;
+		}
 	}
 
 	/* Retrieves file's status */
@@ -354,33 +374,7 @@ struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
 	return (struct afb_req){ .itf = &afb_hreq_itf, .data = hreq };
 }
 
-struct iterator_data
-{
-	struct afb_hreq *hreq;
-	int (*iterator)(void *closure, const char *key, const char *value, int isfile);
-	void *closure;
-};
-
-static int itargs(struct iterator_data *id, enum MHD_ValueKind kind, const char *key, const char *value)
-{
-	if (get_data(id->hreq, key, 0))
-		return 1;
-	return id->iterator(id->closure, key, value, 0);
-}
-
-void afb_hreq_iterate_arguments(struct afb_hreq *hreq, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure)
-{
-	struct iterator_data id = { .hreq = hreq, .iterator = iterator, .closure = closure };
-	struct hreq_data *data = hreq->data;
-	while (data) {
-		if (!iterator(closure, data->key, data->value, !!data->file))
-			return;
-		data = data->next;
-	}
-	MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)itargs, &id);
-}
-
-static struct afb_arg getarg(struct afb_hreq *hreq, const char *name)
+static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
 {
 	struct hreq_data *hdat = get_data(hreq, name, 0);
 	if (hdat)
@@ -418,7 +412,7 @@ static int _iterargs_(struct iterdata *id, enum MHD_ValueKind kind, const char *
 	});
 }
 
-static void iterargs(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
+static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
 {
 	struct iterdata id = { .hreq = hreq, .iterator = iterator, .closure = closure };
 	struct hreq_data *hdat = hreq->data;
@@ -444,5 +438,40 @@ void afb_hreq_drop_data(struct afb_hreq *hreq)
 		free(data);
 		data = hreq->data;
 	}
+}
+static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
+{
+	ssize_t len = stpncpy(buf, json_object_to_json_string(obj)+pos, max) - buf;
+	return len ? : -1;
+}
+
+static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
+{
+	json_object *root, *request;
+	struct MHD_Response *response;
+
+	root = json_object_new_object();
+	json_object_object_add(root, "jtype", json_object_new_string("afb-reply"));
+	request = json_object_new_object();
+	json_object_object_add(root, "request", request);
+	json_object_object_add(request, "status", json_object_new_string(status));
+	if (info)
+		json_object_object_add(request, "info", json_object_new_string(info));
+	if (resp)
+		json_object_object_add(root, "response", resp);
+
+	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 65500, (void*)send_json_cb, root, (void*)json_object_put);
+	MHD_queue_response(hreq->connection, retcode, response);
+	MHD_destroy_response(response);
+}
+
+static void req_fail(struct afb_hreq *hreq, const char *status, const char *info)
+{
+	req_reply(hreq, MHD_HTTP_OK, status, info, NULL);
+}
+
+static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info)
+{
+	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
 }
 

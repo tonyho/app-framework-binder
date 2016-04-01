@@ -21,29 +21,9 @@
 #ifndef LOCAL_DEF_H
 #define LOCAL_DEF_H
 
-#ifndef _GNU_SOURCE
-  #define _GNU_SOURCE
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/signal.h>
-#include <sys/types.h>
-#include <time.h>
 #include <json.h>
-#include <microhttpd.h>
 #include <magic.h>
-#include <setjmp.h>
-#include <signal.h>
-#include <uuid/uuid.h>
-
-
+#include <microhttpd.h>
 
 /* other definitions --------------------------------------------------- */
 
@@ -111,7 +91,7 @@ struct AFB_restapi
 {
 	const char *name;
 	enum AFB_sessionE session;
-	json_object* (*callback)();
+	struct json_object* (*callback)();
 	const char *info;
 };
 
@@ -127,7 +107,7 @@ struct AFB_plugin
 
 typedef enum AFB_pluginE AFB_pluginE;
 typedef enum AFB_sessionE AFB_sessionE;
-typedef json_object* (*AFB_apiCB)();
+typedef struct json_object* (*AFB_apiCB)();
 typedef void (*AFB_freeCtxCB)(void*);
 typedef struct AFB_restapi AFB_restapi;
 typedef struct AFB_plugin AFB_plugin;
@@ -141,12 +121,12 @@ typedef struct AFB_plugin AFB_plugin;
 
 
 
+typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
 
 
-
+#if 0
 
 typedef enum  {AFB_POST_NONE=0, AFB_POST_JSON, AFB_POST_FORM, AFB_POST_EMPTY} AFB_PostType;
-typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
 
 
 
@@ -155,7 +135,7 @@ typedef struct {
    int   fd; 
    char *path; 
    int  errcode;
-   json_object* jresp;
+   struct json_object* jresp;
 } AFB_PostCtx;
 
 typedef  struct {
@@ -192,15 +172,17 @@ typedef struct {
 } AFB_staticfile;
 
 typedef struct {
+     char    *msg;
+     size_t  len;
+} AFB_redirect_msg;
+
+#endif
+
+typedef struct {
   char  *url;
   char  *path;
   size_t len;
 } AFB_aliasdir;
-
-typedef struct {
-     char    *msg;
-     size_t  len;
-} AFB_redirect_msg;
 
 // main config structure
 struct AFB_config
@@ -229,7 +211,7 @@ typedef struct {
 /*
   AFB_PostRequest *post;
 */
-  json_object *jresp;
+  struct json_object *jresp;
   void *context;             // Hold Client Context when using session
   int  restfull;             // request is resfull [uuid token provided]
   int  errcode;              // http error code
@@ -240,7 +222,8 @@ typedef struct {
 struct afb_hsrv_handler;
 struct MHD_Daemon;
 
-struct AFB_session {
+struct AFB_session
+{
   struct AFB_config  *config;   // pointer to current config
   // List of commands to execute
   int  background;        // run in backround mode

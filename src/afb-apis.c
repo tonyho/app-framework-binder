@@ -32,6 +32,10 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
+#include <time.h>
+#include <sys/syscall.h>
+#include <setjmp.h>
 
 #include "../include/local-def.h"
 
@@ -279,36 +283,56 @@ int afb_apis_add_pathset(const char *pathset)
 	};
 }
 
-/*
 // Check of apiurl is declare in this plugin and call it
 extern __thread sigjmp_buf *error_handler;
 static int callPluginApi(AFB_request * request)
 {
+	volatile int status, timerset;
+	timer_t timerid;
 	sigjmp_buf jmpbuf, *older;
+	struct sigevent sevp;
+	struct itimerspec its;
 
 	// save context before calling the API
+	timerset = 0;
+	older = error_handler;
 	status = setjmp(jmpbuf);
 	if (status != 0) {
-		return 0;
+		status = 0;
 	}
+	else {
+		error_handler = &jmpbuf;
+		if (request->config->apiTimeout > 0) {
+			timerset = 1; /* TODO: check statuses */
+			sevp.sigev_notify = SIGEV_THREAD_ID;
+			sevp.sigev_signo = SIGALRM;
+#if defined(sigev_notify_thread_id)
+			sevp.sigev_notify_thread_id = syscall(SYS_gettid);
+#else
+			sevp._sigev_un._tid = syscall(SYS_gettid);
+#endif
+			timer_create(CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid);
+			its.it_interval.tv_sec = 0;
+			its.it_interval.tv_nsec = 0;
+			its.it_value.tv_sec = 15;
+			its.it_value.tv_nsec = 0;
+			timer_settime(timerid, 0, &its, NULL);
+		}
 
-	// Trigger a timer to protect from unacceptable long time execution
-	if (request->config->apiTimeout > 0)
-		alarm((unsigned)request->config->apiTimeout);
-
-	older = error_handler;
-	error_handler = &jmpbuf;
-	doCallPluginApi(request, apiidx, verbidx, context);
+		//doCallPluginApi(request, apiidx, verbidx, context);
+		status = 1;
+	}
+	if (timerset)
+		timer_delete(timerid);
 	error_handler = older;
 
-	// cancel timeout and plugin signal handle before next call
-	alarm(0);
-	return 1;
+	return status;
 }
-*/
 
 static void handle(struct afb_req req, const struct api_desc *api, const struct AFB_restapi *verb)
 {
+	json_object *jresp, *jcall, *jreqt;
+
 	AFB_request request;
 
 	request.uuid = request.url = "fake";
@@ -336,7 +360,7 @@ static void handle(struct afb_req req, const struct api_desc *api, const struct 
 	verb->callback(&request, NULL);
 
 	if (verb->session == AFB_SESSION_CLOSE)
-		/*del*/;
+		/*close*/;
 }
 
 int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const char *verb, size_t lenverb)

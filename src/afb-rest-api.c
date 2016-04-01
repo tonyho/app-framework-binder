@@ -82,8 +82,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 		clientCtx = ctxClientGet(request);
 		if (clientCtx == NULL) {
 			request->errcode = MHD_HTTP_INSUFFICIENT_STORAGE;
-			json_object_object_add(jcall, "status", json_object_new_string("fail"));
-			json_object_object_add(jcall, "info", json_object_new_string("Client Session Context Full !!!"));
+			json_add_status(jcall, "fail", "Client Session Context Full !!!");
 			json_object_object_add(jreqt, "request", jcall);
 			goto ExitOnDone;
 		}
@@ -98,16 +97,14 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 		case AFB_SESSION_CREATE:
 			if (clientCtx->token[0] != '\0' && request->config->token[0] != '\0') {
 				request->errcode = MHD_HTTP_UNAUTHORIZED;
-				json_object_object_add(jcall, "status", json_object_new_string("exist"));
-				json_object_object_add(jcall, "info", json_object_new_string("AFB_SESSION_CREATE Session already exist"));
+				json_add_status(jcall, "exist", "AFB_SESSION_CREATE Session already exist");
 				json_object_object_add(jreqt, "request", jcall);
 				goto ExitOnDone;
 			}
 
 			if (AFB_SUCCESS != ctxTokenCreate(clientCtx, request)) {
 				request->errcode = MHD_HTTP_UNAUTHORIZED;
-				json_object_object_add(jcall, "status", json_object_new_string("fail"));
-				json_object_object_add(jcall, "info", json_object_new_string("AFB_SESSION_CREATE Invalid Initial Token"));
+				json_add_status(jcall, "fail", "AFB_SESSION_CREATE Invalid Initial Token");
 				json_object_object_add(jreqt, "request", jcall);
 				goto ExitOnDone;
 			} else {
@@ -120,8 +117,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 		case AFB_SESSION_RENEW:
 			if (AFB_SUCCESS != ctxTokenRefresh(clientCtx, request)) {
 				request->errcode = MHD_HTTP_UNAUTHORIZED;
-				json_object_object_add(jcall, "status", json_object_new_string("fail"));
-				json_object_object_add(jcall, "info", json_object_new_string("AFB_SESSION_REFRESH Broken Exchange Token Chain"));
+				json_add_status(jcall, "fail", "AFB_SESSION_REFRESH Broken Exchange Token Chain");
 				json_object_object_add(jreqt, "request", jcall);
 				goto ExitOnDone;
 			} else {
@@ -134,8 +130,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 		case AFB_SESSION_CLOSE:
 			if (AFB_SUCCESS != ctxTokenCheck(clientCtx, request)) {
 				request->errcode = MHD_HTTP_UNAUTHORIZED;
-				json_object_object_add(jcall, "status", json_object_new_string("empty"));
-				json_object_object_add(jcall, "info", json_object_new_string("AFB_SESSION_CLOSE Not a Valid Access Token"));
+				json_add_status(jcall, "fail", "AFB_SESSION_CLOSE Not a Valid Access Token"));
 				json_object_object_add(jreqt, "request", jcall);
 				goto ExitOnDone;
 			} else {
@@ -148,8 +143,7 @@ static AFB_error doCallPluginApi(AFB_request * request, int apiidx, int verbidx,
 			// default action is check
 			if (AFB_SUCCESS != ctxTokenCheck(clientCtx, request)) {
 				request->errcode = MHD_HTTP_UNAUTHORIZED;
-				json_object_object_add(jcall, "status", json_object_new_string("fail"));
-				json_object_object_add(jcall, "info", json_object_new_string("AFB_SESSION_CHECK Invalid Active Token"));
+				json_add_status(jcall, "fail", "AFB_SESSION_CHECK Invalid Active Token"));
 				json_object_object_add(jreqt, "request", jcall);
 				goto ExitOnDone;
 			}

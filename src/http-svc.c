@@ -16,12 +16,17 @@
  */
 
 #define _GNU_SOURCE
-#include <microhttpd.h>
+
+#include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include <poll.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
-#include "../include/local-def.h"
+#include <microhttpd.h>
+
+#include "local-def.h"
 #include "afb-method.h"
 #include "afb-hreq.h"
 #include "afb-websock.h"
@@ -146,7 +151,7 @@ static struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
 			uuid = afb_hreq_get_argument(hreq, uuid_arg);
 		if (uuid == NULL)
 			uuid = afb_hreq_get_cookie(hreq, uuid_cookie);
-		hreq->context = _ctxClientGet(uuid);
+		hreq->context = ctxClientGet(uuid);
 	}
 	return hreq->context;
 }

@@ -25,6 +25,8 @@ struct afb_arg {
 struct afb_req_itf {
 	struct afb_arg (*get)(void *data, const char *name);
 	void (*iterate)(void *data, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
+	void (*fail)(void *data, const char *status, const char *info);
+	void (*success)(void *data, json_object *obj, const char *info);
 };
 
 struct afb_req {
@@ -50,5 +52,53 @@ static inline int afb_req_is_argument_file(struct afb_req req, const char *name)
 static inline void afb_req_iterate(struct afb_req req, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
 {
 	req.itf->iterate(req.data, iterator, closure);
+}
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
+{
+	req.itf->fail(req.data, status, info);
+}
+
+static inline void afb_req_fail_v(struct afb_req req, const char *status, const char *info, va_list args)
+{
+	char *message;
+	if (info == NULL || vasprintf(&message, info, args) < 0)
+		message = NULL;
+	afb_req_fail(req, status, message);
+	free(message);
+}
+
+static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...)
+{
+	va_list args;
+	va_start(args, info);
+	afb_req_fail_v(req, status, info, args);
+	va_end(args);
+}
+
+static inline void afb_req_success(struct afb_req req, json_object *obj, const char *info)
+{
+	req.itf->success(req.data, obj, info);
+}
+
+static inline void afb_req_success_v(struct afb_req req, json_object *obj, const char *info, va_list args)
+{
+	char *message;
+	if (info == NULL || vasprintf(&message, info, args) < 0)
+		message = NULL;
+	afb_req_success(req, obj, message);
+	free(message);
+}
+
+static inline void afb_req_success_f(struct afb_req req, json_object *obj, const char *info, ...)
+{
+	va_list args;
+	va_start(args, info);
+	afb_req_success_v(req, obj, info, args);
+	va_end(args);
 }
 

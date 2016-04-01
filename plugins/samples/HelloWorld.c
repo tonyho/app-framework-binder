@@ -16,31 +16,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+#include <string.h>
 
 #include "local-def.h"
+#include "afb-req-itf.h"
 
-STATIC json_object* pingSample (AFB_request *request) {
+static json_object* pingSample (AFB_request *request) {
     static int pingcount = 0;
     json_object *response;
     char query [512];
-    int len;
+    size_t len;
 
     // request all query key/value
     len = getQueryAll (request, query, sizeof(query));
     if (len == 0) strcpy (query,"NoSearchQueryList");
     
     // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s}", pingcount++, query);
+//    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s}", pingcount++, query);
+    afb_req_success_f(*request->areq, NULL, "Ping Binder Daemon %d query={%s}", pingcount++, query);
     
     if (verbose) fprintf(stderr, "%d: \n", pingcount);
-    return (response);
+    return NULL; //(response);
 }
 
-STATIC json_object* pingFail (AFB_request *request) {
+static json_object* pingFail (AFB_request *request) {
     return NULL;
 }
 
-STATIC json_object* pingBug (AFB_request *request) {
+static json_object* pingBug (AFB_request *request) {
     int a,b,c;
     
     fprintf (stderr, "Use --timeout=10 to trap error\n");
@@ -54,7 +58,7 @@ STATIC json_object* pingBug (AFB_request *request) {
 
 
 // For samples https://linuxprograms.wordpress.com/2010/05/20/json-c-libjson-tutorial/
-STATIC json_object* pingJson (AFB_request *request) {
+static json_object* pingJson (AFB_request *request) {
     json_object *jresp, *embed;    
     
     jresp = json_object_new_object();
@@ -72,7 +76,7 @@ STATIC json_object* pingJson (AFB_request *request) {
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-STATIC  AFB_restapi pluginApis[]= {
+static  AFB_restapi pluginApis[]= {
   {"ping"     , AFB_SESSION_NONE, (AFB_apiCB)pingSample  , "Ping Application Framework"},
   {"pingnull" , AFB_SESSION_NONE, (AFB_apiCB)pingFail    , "Return NULL"},
   {"pingbug"  , AFB_SESSION_NONE, (AFB_apiCB)pingBug     , "Do a Memory Violation"},
@@ -80,12 +84,13 @@ STATIC  AFB_restapi pluginApis[]= {
   {NULL}
 };
 
+static const AFB_plugin plugin = {
+	.type = AFB_PLUGIN_JSON,
+	.info = "Minimal Hello World Sample",
+	.prefix = "hello",
+	.apis = pluginApis
+};
 
-PUBLIC AFB_plugin *pluginRegister () {
-    AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN_JSON;
-    plugin->info  = "Minimal Hello World Sample";
-    plugin->prefix= "hello";
-    plugin->apis  = pluginApis;
-    return (plugin);
+const AFB_plugin *pluginRegister () {
+    return &plugin;
 };

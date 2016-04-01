@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <sys/uio.h>
+#include <string.h>
 
 #include <openssl/sha.h>
 #include <openssl/bio.h>
@@ -29,7 +30,7 @@
 
 #include "websock.h"
 
-#include "../include/local-def.h"
+#include "local-def.h"
 
 #include "afb-method.h"
 #include "afb-hreq.h"

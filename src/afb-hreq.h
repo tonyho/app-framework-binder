@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
+struct AFB_session;
 
 struct afb_hreq {
-	AFB_session *session;
+	struct AFB_session *session;
 	struct MHD_Connection *connection;
 	enum afb_method method;
 	const char *version;
@@ -59,6 +60,4 @@ extern void afb_hreq_post_end(struct afb_hreq *hreq);
 extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
 
 extern void afb_hreq_drop_data(struct afb_hreq *hreq);
-
-extern void afb_hreq_iterate_arguments(struct afb_hreq *hreq, int (*iterator)(void *closure, const char *key, const char *value, int isfile), void *closure);
 
