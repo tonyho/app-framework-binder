@@ -39,6 +39,7 @@
 
 #include "local-def.h"
 
+#include "afb-plugin.h"
 #include "afb-req-itf.h"
 #include "afb-apis.h"
 
@@ -72,6 +73,7 @@ void afb_apis_free_context(int apiidx, void *context)
 		free(context);
 }
 
+/*
 const struct AFB_restapi *afb_apis_get(int apiidx, int verbidx)
 {
 	assert(0 <= apiidx && apiidx < apis_count);
@@ -90,6 +92,7 @@ int afb_apis_get_verbidx(int apiidx, const char *name)
 			return idx;
 	return -1;
 }
+*/
 
 int afb_apis_get_apiidx(const char *prefix, size_t length)
 {
@@ -327,16 +330,30 @@ static void trapping_handle(struct afb_req req, void(*cb)(struct afb_req))
 	error_handler = older;
 }
 
-static void handle(struct afb_req req, const struct api_desc *api, const struct AFB_restapi *verb)
+static void handle(struct afb_req req, int idxapi, const struct AFB_restapi *verb)
 {
 	switch(verb->session) {
 	case AFB_SESSION_CREATE:
+		/*
+		req.context = afb_req_session_create(req, idxapi);
+		if (req.context == NULL)
+			return;
+		break;
+		*/
 	case AFB_SESSION_RENEW:
-		/*if (check) new*/
+		/*
+		req.context = afb_req_session_check(req, idxapi, 1);
+		if (req.context == NULL)
+			return;
+		*/
 		break;
 	case AFB_SESSION_CLOSE:
 	case AFB_SESSION_CHECK:
-		/*check*/
+		/*
+		req.context = afb_req_session_check(req, idxapi, 1);
+		if (req.context == NULL)
+			return;
+		*/
 		break;
 	case AFB_SESSION_NONE:
 	default:
@@ -345,8 +362,11 @@ static void handle(struct afb_req req, const struct api_desc *api, const struct 
 	}
 	trapping_handle(req, verb->callback);
 
-	if (verb->session == AFB_SESSION_CLOSE)
-		/*close*/;
+	if (verb->session == AFB_SESSION_CLOSE) {
+		/*
+		afb_req_session_close(req);
+		*/
+	}
 }
 
 int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const char *verb, size_t lenverb)
@@ -361,7 +381,7 @@ int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const ch
 			v = a->plugin->apis;
 			for (j = 0 ; v->name ; j++, v++) {
 				if (!strncasecmp(v->name, verb, lenverb) && !v->name[lenverb]) {
-					handle(req, a, v);
+					handle(req, i, v);
 					return 1;
 				}
 			}

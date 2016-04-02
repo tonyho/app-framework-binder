@@ -66,7 +66,7 @@ typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY
 
 
 
-
+#if 0
 
 // Plugin Type
 enum  AFB_pluginE
@@ -113,7 +113,7 @@ typedef struct AFB_restapi AFB_restapi;
 typedef struct AFB_plugin AFB_plugin;
 
 
-
+#endif
 
 
 
