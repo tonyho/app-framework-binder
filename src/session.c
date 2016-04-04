@@ -29,16 +29,6 @@
 #include <uuid/uuid.h>
 #include <assert.h>
 
-
-/*
-#include <dirent.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <search.h>
-#include <assert.h>
-*/
-
 #include "afb-apis.h"
 #include "session.h"
 
@@ -47,7 +37,7 @@
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
   pthread_mutex_t mutex;          // declare a mutex to protect hash table
-  AFB_clientCtx **store;          // sessions store
+  struct AFB_clientCtx **store;          // sessions store
   int count;                      // current number of sessions
   int max;
   int timeout;
@@ -55,31 +45,28 @@ static struct {
   const char *initok;
 } sessions;
 
-static const char key_uuid[] = "uuid";
-static const char key_token[] = "token";
-
 // Free context [XXXX Should be protected again memory abort XXXX]
-static void ctxUuidFreeCB (AFB_clientCtx *client)
+static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 {
-    int idx;
+	int idx;
 
-    // If application add a handle let's free it now
-    if (client->contexts != NULL) {
+	// If application add a handle let's free it now
+	assert (client->contexts != NULL);
 
-        // Free client handle with a standard Free function, with app callback or ignore it
-        for (idx=0; idx < sessions.apicount; idx ++) {
-            if (client->contexts[idx] != NULL) {
-		afb_apis_free_context(idx, client->contexts[idx]);
-            }
-        }
-    }
+	// Free client handle with a standard Free function, with app callback or ignore it
+	for (idx=0; idx < sessions.apicount; idx ++) {
+		if (client->contexts[idx] != NULL) {
+			afb_apis_free_context(idx, client->contexts[idx]);
+			client->contexts[idx] = NULL;
+		}
+	}
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
 void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok)
 {
 	// let's create as store as hashtable does not have any
-	sessions.store = calloc (1 + (unsigned)nbSession, sizeof(AFB_clientCtx));
+	sessions.store = calloc (1 + (unsigned)nbSession, sizeof(struct AFB_clientCtx));
 	sessions.max = nbSession;
 	sessions.timeout = timeout;
 	sessions.apicount = apicount;
@@ -90,10 +77,10 @@ void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok)
 	sessions.initok = initok;
 }
 
-static AFB_clientCtx *ctxStoreSearch (const char* uuid)
+static struct AFB_clientCtx *ctxStoreSearch (const char* uuid)
 {
     int  idx;
-    AFB_clientCtx *client;
+    struct AFB_clientCtx *client;
 
     assert (uuid != NULL);
 
@@ -111,7 +98,7 @@ found:
     return client;
 }
 
-static int ctxStoreDel (AFB_clientCtx *client)
+static int ctxStoreDel (struct AFB_clientCtx *client)
 {
     int idx;
     int status;
@@ -124,7 +111,6 @@ static int ctxStoreDel (AFB_clientCtx *client)
         if (sessions.store[idx] == client) {
 	        sessions.store[idx]=NULL;
         	sessions.count--;
-	        ctxUuidFreeCB (client);
 	        status = 1;
 		goto deleted;
 	}
@@ -135,7 +121,7 @@ deleted:
     return status;
 }
 
-static int ctxStoreAdd (AFB_clientCtx *client)
+static int ctxStoreAdd (struct AFB_clientCtx *client)
 {
     int idx;
     int status;
@@ -161,59 +147,65 @@ added:
 }
 
 // Check if context timeout or not
-static int ctxStoreTooOld (AFB_clientCtx *ctx, time_t now)
+static int ctxStoreTooOld (struct AFB_clientCtx *ctx, time_t now)
 {
-    return ctx->timeStamp <= now;
+    return ctx->expiration <= now;
 }
 
 // Loop on every entry and remove old context sessions.hash
-void ctxStoreGarbage ()
+static void ctxStoreCleanUp (time_t now)
 {
-    AFB_clientCtx *ctx;
-    long idx;
-    time_t now = NOW;
+	struct AFB_clientCtx *ctx;
+	long idx;
 
-    // Loop on Sessions Table and remove anything that is older than timeout
-    for (idx=0; idx < sessions.max; idx++) {
-        ctx = sessions.store[idx];
-        if (ctx != NULL && ctxStoreTooOld(ctx, now)) {
-            ctxStoreDel (ctx);
-        }
-    }
+	// Loop on Sessions Table and remove anything that is older than timeout
+	for (idx=0; idx < sessions.max; idx++) {
+		ctx = sessions.store[idx];
+		if (ctx != NULL && ctxStoreTooOld(ctx, now)) {
+			ctxClientClose (ctx);
+		}
+	}
 }
 
 // This function will return exiting client context or newly created client context
-AFB_clientCtx *ctxClientGet (const char *uuid)
+struct AFB_clientCtx *ctxClientGet (const char *uuid)
 {
 	uuid_t newuuid;
-	AFB_clientCtx *clientCtx;
+	struct AFB_clientCtx *clientCtx;
+	time_t now;
 
 	/* search for an existing one not too old */
+	now = NOW;
+	ctxStoreCleanUp (now);
 	clientCtx = uuid != NULL ? ctxStoreSearch (uuid) : NULL;
 	if (clientCtx) {
-            if (!ctxStoreTooOld (clientCtx, NOW))
+		clientCtx->refcount++;
 		return clientCtx;
-            ctxStoreDel (clientCtx);
         }
 
 	/* mimic old behaviour */
 	if (sessions.initok == NULL)
 		return NULL;
 
-    	/* cleanup before creating */
-	if(2 * sessions.count >= sessions.max)
-		ctxStoreGarbage();
+	/* check the uuid if given */
+	if (uuid != NULL && 1 + strlen(uuid) >= sizeof clientCtx->uuid)
+		return NULL;
 
 	/* returns a new one */
-        clientCtx = calloc(1, sizeof(AFB_clientCtx)); // init NULL clientContext
+        clientCtx = calloc(1, sizeof(struct AFB_clientCtx)); // init NULL clientContext
 	if (clientCtx != NULL) {
 	        clientCtx->contexts = calloc ((unsigned)sessions.apicount, sizeof (void*));
 		if (clientCtx->contexts != NULL) {
 			/* generate the uuid */
-			uuid_generate(newuuid);
-			uuid_unparse_lower(newuuid, clientCtx->uuid);
-    			clientCtx->timeStamp = time(NULL) + sessions.timeout;
+			if (uuid == NULL) {
+				uuid_generate(newuuid);
+				uuid_unparse_lower(newuuid, clientCtx->uuid);
+			} else {
+				strcpy(clientCtx->uuid, uuid);
+			}
 			strcpy(clientCtx->token, sessions.initok);
+    			clientCtx->expiration = now + sessions.timeout;
+			clientCtx->refcount = 1;
 			if (ctxStoreAdd (clientCtx))
 				return clientCtx;
 			free(clientCtx->contexts);
@@ -223,15 +215,28 @@ AFB_clientCtx *ctxClientGet (const char *uuid)
 	return NULL;
 }
 
+void ctxClientPut(struct AFB_clientCtx *clientCtx)
+{
+	if (clientCtx != NULL) {
+		assert(clientCtx->refcount != 0);
+		--clientCtx->refcount;
+	}
+}
+
 // Free Client Session Context
-int ctxClientClose (AFB_clientCtx *clientCtx)
+void ctxClientClose (struct AFB_clientCtx *clientCtx)
 {
 	assert(clientCtx != NULL);
-	return ctxStoreDel (clientCtx);
+	if (clientCtx->created) {
+		clientCtx->created = 0;
+	        ctxUuidFreeCB (clientCtx);
+	}
+       	if (clientCtx->refcount == 0)
+		ctxStoreDel (clientCtx);
 }
 
 // Sample Generic Ping Debug API
-int ctxTokenCheck (AFB_clientCtx *clientCtx, const char *token)
+int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
 {
 	assert(clientCtx != NULL);
 	assert(token != NULL);
@@ -239,8 +244,9 @@ int ctxTokenCheck (AFB_clientCtx *clientCtx, const char *token)
 	// compare current token with previous one
 	if (ctxStoreTooOld (clientCtx, NOW))
 		return 0;
+
 	if (!clientCtx->token[0] || 0 == strcmp (token, clientCtx->token)) {
-		clientCtx->timeStamp = time(NULL) + sessions.timeout;
+		clientCtx->created = 1; /* creates by default */
 		return 1;
 	}
 
@@ -249,7 +255,7 @@ int ctxTokenCheck (AFB_clientCtx *clientCtx, const char *token)
 }
 
 // generate a new token and update client context
-int ctxTokenNew (AFB_clientCtx *clientCtx)
+void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 {
 	uuid_t newuuid;
 
@@ -260,8 +266,6 @@ int ctxTokenNew (AFB_clientCtx *clientCtx)
 	uuid_unparse_lower(newuuid, clientCtx->token);
 
 	// keep track of time for session timeout and further clean up
-	clientCtx->timeStamp = time(NULL) + sessions.timeout;
-
-	return 1;
+	clientCtx->expiration = NOW + sessions.timeout;
 }
 

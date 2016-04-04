@@ -66,62 +66,11 @@ typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY
 
 
 
-#if 0
-
-// Plugin Type
-enum  AFB_pluginE
-{
-	AFB_PLUGIN_JSON = 123456789,
-	AFB_PLUGIN_JSCRIPT = 987654321,
-	AFB_PLUGIN_RAW = 987123546
-};
-
-// Enum for Session/Token/Authentication middleware
-enum AFB_sessionE
-{
-	AFB_SESSION_NONE,
-	AFB_SESSION_CREATE,
-	AFB_SESSION_CLOSE,
-	AFB_SESSION_RENEW,
-	AFB_SESSION_CHECK
-};
-
-// API definition
-struct AFB_restapi
-{
-	const char *name;
-	enum AFB_sessionE session;
-	struct json_object* (*callback)();
-	const char *info;
-};
-
-// Plugin definition
-struct AFB_plugin
-{
-	enum AFB_pluginE type;  
-	const char *info;
-	const char *prefix;
-	const struct AFB_restapi *apis;
-	void (*freeCtxCB)(void*);  // callback to free application context [null for standard free]
-};
-
-typedef enum AFB_pluginE AFB_pluginE;
-typedef enum AFB_sessionE AFB_sessionE;
-typedef struct json_object* (*AFB_apiCB)();
-typedef void (*AFB_freeCtxCB)(void*);
-typedef struct AFB_restapi AFB_restapi;
-typedef struct AFB_plugin AFB_plugin;
-
-
-#endif
 
 
 
 
-
-
-
-typedef enum  {AFB_MODE_LOCAL=0, AFB_MODE_REMOTE, AFB_MODE_GLOBAL} AFB_Mode;
+enum AFB_Mode;
 
 
 typedef struct {
@@ -144,7 +93,7 @@ struct AFB_config
   int  cacheTimeout;
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
-  AFB_Mode mode;           // mode of listening
+  int mode;           // mode of listening
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 };
 

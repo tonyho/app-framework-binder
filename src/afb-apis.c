@@ -41,13 +41,15 @@
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
+#include "session.h"
 #include "afb-apis.h"
 
 struct api_desc {
-	AFB_plugin *plugin;	/* descriptor */
+	struct AFB_plugin *plugin;	/* descriptor */
 	size_t prefixlen;
 	const char *prefix;
 	void *handle;		/* context of dlopen */
+	struct AFB_interface *interface;
 };
 
 static int api_timeout = 15;
@@ -73,50 +75,14 @@ void afb_apis_free_context(int apiidx, void *context)
 		free(context);
 }
 
-/*
-const struct AFB_restapi *afb_apis_get(int apiidx, int verbidx)
-{
-	assert(0 <= apiidx && apiidx < apis_count);
-	return &apis_array[apiidx].plugin->apis[verbidx];
-}
-
-int afb_apis_get_verbidx(int apiidx, const char *name)
-{
-	const struct AFB_restapi *apis;
-	int idx;
-
-	assert(0 <= apiidx && apiidx < apis_count);
-	apis = apis_array[apiidx].plugin->apis;
-	for (idx = 0 ; apis[idx].name ; idx++)
-		if (!strcasecmp(apis[idx].name, name))
-			return idx;
-	return -1;
-}
-*/
-
-int afb_apis_get_apiidx(const char *prefix, size_t length)
-{
-	int i;
-	const struct api_desc *a;
-
-	if (!length)
-		length = strlen(prefix);
-
-	for (i = 0 ; i < apis_count ; i++) {
-		a = &apis_array[i];
-		if (a->prefixlen == length && !strcasecmp(a->prefix, prefix))
-			return i;
-	}
-	return -1;
-}
-
 int afb_apis_add_plugin(const char *path)
 {
 	struct api_desc *apis;
-	AFB_plugin *plugin;
-	AFB_plugin *(*pluginRegisterFct) (void);
+	struct AFB_plugin *plugin;
+	struct AFB_plugin *(*pluginRegisterFct) (const struct AFB_interface *interface);
+	struct AFB_interface *interface;
 	void *handle;
-	size_t len;
+	int i;
 
 	// This is a loadable library let's check if it's a plugin
 	handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
@@ -142,36 +108,46 @@ int afb_apis_add_plugin(const char *path)
 	}
 	apis_array = apis;
 
+	/* allocates the interface */
+	interface = calloc(1, sizeof *interface);
+	if (interface == NULL) {
+		fprintf(stderr, "ERROR: plugin [%s] memory missing. continuing...\n", path);
+		goto error2;
+	}
+	interface->verbose = 0;
+	interface->mode = AFB_MODE_LOCAL;
+
 	/* init the plugin */
-	plugin = pluginRegisterFct();
+	plugin = pluginRegisterFct(interface);
 	if (plugin == NULL) {
 		fprintf(stderr, "ERROR: plugin [%s] register function failed. continuing...\n", path);
-		goto error2;
+		goto error3;
 	}
 
 	/* check the returned structure */
 	if (plugin->type != AFB_PLUGIN_JSON) {
 		fprintf(stderr, "ERROR: plugin [%s] invalid type %d...\n", path, plugin->type);
-		goto error2;
+		goto error3;
 	}
 	if (plugin->prefix == NULL || *plugin->prefix == 0) {
 		fprintf(stderr, "ERROR: plugin [%s] bad prefix...\n", path);
-		goto error2;
+		goto error3;
 	}
 	if (plugin->info == NULL || *plugin->info == 0) {
 		fprintf(stderr, "ERROR: plugin [%s] bad description...\n", path);
-		goto error2;
+		goto error3;
 	}
 	if (plugin->apis == NULL) {
 		fprintf(stderr, "ERROR: plugin [%s] no APIs...\n", path);
-		goto error2;
+		goto error3;
 	}
 
 	/* check previously existing plugin */
-	len = strlen(plugin->prefix);
-	if (afb_apis_get_apiidx(plugin->prefix, len) >= 0) {
-		fprintf(stderr, "ERROR: plugin [%s] prefix %s duplicated...\n", path, plugin->prefix);
-		goto error2;
+	for (i = 0 ; i < apis_count ; i++) {
+		if (!strcasecmp(apis_array[i].prefix, plugin->prefix)) {
+			fprintf(stderr, "ERROR: plugin [%s] prefix %s duplicated...\n", path, plugin->prefix);
+			goto error2;
+		}
 	}
 
 	/* record the plugin */
@@ -179,13 +155,16 @@ int afb_apis_add_plugin(const char *path)
 		fprintf(stderr, "Loading plugin[%lu] prefix=[%s] info=%s\n", (unsigned long)apis_count, plugin->prefix, plugin->info);
 	apis = &apis_array[apis_count];
 	apis->plugin = plugin;
-	apis->prefixlen = len;
+	apis->prefixlen = strlen(plugin->prefix);
 	apis->prefix = plugin->prefix;
 	apis->handle = handle;
+	apis->interface = interface;
 	apis_count++;
 
 	return 0;
 
+error3:
+	free(interface);
 error2:
 	dlclose(handle);
 error:
@@ -330,46 +309,33 @@ static void trapping_handle(struct afb_req req, void(*cb)(struct afb_req))
 	error_handler = older;
 }
 
-static void handle(struct afb_req req, int idxapi, const struct AFB_restapi *verb)
+static void handle(struct afb_req req, const struct AFB_restapi *verb)
 {
 	switch(verb->session) {
 	case AFB_SESSION_CREATE:
-		/*
-		req.context = afb_req_session_create(req, idxapi);
-		if (req.context == NULL)
+		if (!afb_req_session_create(req))
 			return;
 		break;
-		*/
 	case AFB_SESSION_RENEW:
-		/*
-		req.context = afb_req_session_check(req, idxapi, 1);
-		if (req.context == NULL)
+		if (!afb_req_session_check(req, 1))
 			return;
-		*/
 		break;
 	case AFB_SESSION_CLOSE:
 	case AFB_SESSION_CHECK:
-		/*
-		req.context = afb_req_session_check(req, idxapi, 1);
-		if (req.context == NULL)
+		if (!afb_req_session_check(req, 0))
 			return;
-		*/
 		break;
 	case AFB_SESSION_NONE:
 	default:
-		req.context = NULL;
 		break;
 	}
 	trapping_handle(req, verb->callback);
 
-	if (verb->session == AFB_SESSION_CLOSE) {
-		/*
+	if (verb->session == AFB_SESSION_CLOSE)
 		afb_req_session_close(req);
-		*/
-	}
 }
 
-int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+int afb_apis_handle(struct afb_req req, struct AFB_clientCtx *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
 	int i, j;
 	const struct api_desc *a;
@@ -381,7 +347,9 @@ int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const ch
 			v = a->plugin->apis;
 			for (j = 0 ; v->name ; j++, v++) {
 				if (!strncasecmp(v->name, verb, lenverb) && !v->name[lenverb]) {
-					handle(req, i, v);
+					req.context = context->contexts[i];
+					handle(req, v);
+					context->contexts[i] = req.context;
 					return 1;
 				}
 			}

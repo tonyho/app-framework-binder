@@ -27,10 +27,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/*
-#include <pwd.h>
-#include <pthread.h>
-*/
+#include "afb-plugin.h"
 
 #include "local-def.h"
 #include "afb-apis.h"

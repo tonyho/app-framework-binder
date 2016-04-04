@@ -18,19 +18,19 @@
 
 struct AFB_clientCtx
 {
-  time_t timeStamp;     // last time token was refresh
-  void **contexts;      // application specific context [one per plugin]]
-  char uuid[37];        // long term authentication of remote client
-  char token[37];       // short term authentication of remote client
+	time_t expiration;    // expiration time of the token
+	int created;
+	unsigned refcount;
+	void **contexts;      // application specific context [one per plugin]
+	char uuid[37];        // long term authentication of remote client
+	char token[37];       // short term authentication of remote client
 };
-typedef struct AFB_clientCtx AFB_clientCtx;
-
-extern void ctxStoreGarbage ();
 
 extern void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok);
 
-extern AFB_clientCtx *ctxClientGet (const char *uuid);
-extern int ctxClientClose (AFB_clientCtx *clientCtx);
-extern int ctxTokenCheck (AFB_clientCtx *clientCtx, const char *token);
-extern int ctxTokenNew (AFB_clientCtx *clientCtx);
+extern struct AFB_clientCtx *ctxClientGet (const char *uuid);
+extern void ctxClientPut(struct AFB_clientCtx *clientCtx);
+extern void ctxClientClose (struct AFB_clientCtx *clientCtx);
+extern int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token);
+extern void ctxTokenNew (struct AFB_clientCtx *clientCtx);
 

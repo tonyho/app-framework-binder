@@ -36,7 +36,7 @@ static void clientContextCreate (struct afb_req request)
     json_object *jresp;
 
     // add an application specific client context to session
-    *request.context = malloc (sizeof (MyClientApplicationHandle));
+    request.context = malloc (sizeof (MyClientApplicationHandle));
     
     // Send response to UI
     jresp = json_object_new_object();               
@@ -118,7 +118,7 @@ static const struct AFB_plugin plugin_desc = {
 	.freeCtxCB = clientContextFree
 };
 
-const struct AFB_plugin *pluginRegister ()
+const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
 {
 	return &plugin_desc;
 }

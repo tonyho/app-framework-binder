@@ -29,12 +29,15 @@ struct afb_req_itf {
 	void (*iterate)(void *data, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
 	void (*fail)(void *data, const char *status, const char *info);
 	void (*success)(void *data, struct json_object *obj, const char *info);
+	int (*session_create)(void *data);
+	int (*session_check)(void *data, int refresh);
+	void (*session_close)(void *data);
 };
 
 struct afb_req {
 	const struct afb_req_itf *itf;
 	void *data;
-	void **context;
+	void *context;
 };
 
 static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
@@ -65,6 +68,27 @@ static inline void afb_req_fail(struct afb_req req, const char *status, const ch
 static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
 {
 	req.itf->success(req.data, obj, info);
+}
+
+static inline int afb_req_session_create(struct afb_req req)
+{
+	int result = req.itf->session_create(req.data);
+	if (!result)
+		afb_req_fail(req, "fail", "Can't create the session");
+	return result;
+}
+
+static inline int afb_req_session_check(struct afb_req req, int refresh)
+{
+	int result = req.itf->session_check(req.data, refresh);
+	if (!result)
+		afb_req_fail(req, "fail", "Token chek failed for the session");
+	return result;
+}
+
+static inline void afb_req_session_close(struct afb_req req)
+{
+	req.itf->session_close(req.data);
 }
 
 #if !defined(_GNU_SOURCE)

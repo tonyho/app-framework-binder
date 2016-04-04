@@ -20,12 +20,6 @@ extern int afb_apis_count();
 
 extern void afb_apis_free_context(int apiidx, void *context);
 
-extern const struct AFB_restapi *afb_apis_get(int apiidx, int verbidx);
-
-extern int afb_apis_get_verbidx(int apiidx, const char *name);
-
-extern int afb_apis_get_apiidx(const char *prefix, size_t length);
-
 extern int afb_apis_add_plugin(const char *path);
 
 extern int afb_apis_add_directory(const char *path);
@@ -35,5 +29,6 @@ extern int afb_apis_add_path(const char *path);
 extern int afb_apis_add_pathset(const char *pathset);
 
 struct afb_req;
-extern int afb_apis_handle(struct afb_req req, const char *api, size_t lenapi, const char *verb, size_t lenverb);
+struct AFB_clientCtx;
+extern int afb_apis_handle(struct afb_req req, struct AFB_clientCtx *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 

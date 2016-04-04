@@ -16,6 +16,7 @@
  */
 
 struct AFB_session;
+struct AFB_clientCtx;
 
 struct afb_hreq {
 	struct AFB_session *session;
@@ -30,6 +31,8 @@ struct afb_hreq {
 	struct AFB_clientCtx *context;
 	struct hreq_data *data;
 };
+
+extern void afb_hreq_free(struct afb_hreq *request);
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
 
@@ -59,5 +62,4 @@ extern void afb_hreq_post_end(struct afb_hreq *hreq);
 
 extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
 
-extern void afb_hreq_drop_data(struct afb_hreq *hreq);
-
+extern struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq);

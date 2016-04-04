@@ -31,10 +31,20 @@
 #include "afb-method.h"
 #include "afb-req-itf.h"
 #include "afb-hreq.h"
+#include "session.h"
 
 #define SIZE_RESPONSE_BUFFER   8000
 
 static char empty_string[] = "";
+
+static const char uuid_header[] = "x-afb-uuid";
+static const char uuid_arg[] = "uuid";
+static const char uuid_cookie[] = "uuid";
+
+static const char token_header[] = "x-afb-token";
+static const char token_arg[] = "token";
+static const char token_cookie[] = "token";
+
 
 struct hreq_data {
 	struct hreq_data *next;
@@ -48,15 +58,19 @@ static struct afb_arg req_get(struct afb_hreq *hreq, const char *name);
 static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
 static void req_fail(struct afb_hreq *hreq, const char *status, const char *info);
 static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
+static int req_session_create(struct afb_hreq *hreq);
+static int req_session_check(struct afb_hreq *hreq, int refresh);
+static void req_session_close(struct afb_hreq *hreq);
 
 static const struct afb_req_itf afb_hreq_itf = {
 	.get = (void*)req_get,
 	.iterate = (void*)req_iterate,
 	.fail = (void*)req_fail,
-	.success = (void*)req_success
+	.success = (void*)req_success,
+	.session_create = (void*)req_session_create,
+	.session_check = (void*)req_session_check,
+	.session_close = (void*)req_session_close
 };
-	void (*fail)(void *data, const char *status, const char *info);
-	void (*success)(void *data, json_object *obj, const char *info);
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
 {
@@ -121,8 +135,25 @@ static int validsubpath(const char *subpath)
 	return 1;
 }
 
+void afb_hreq_free(struct afb_hreq *hreq)
+{
+	struct hreq_data *data;
+	if (hreq != NULL) {
+		if (hreq->postform != NULL)
+			MHD_destroy_post_processor(hreq->postform);
+		for (data = hreq->data; data; data = hreq->data) {
+			hreq->data = data->next;
+			free(data->key);
+			free(data->value);
+			free(data);
+		}
+		ctxClientPut(hreq->context);
+		free(hreq);
+	}
+}
+
 /*
- * Removes the 'prefix' of 'length' frome the tail of 'hreq'
+ * Removes the 'prefix' of 'length' from the tail of 'hreq'
  * if and only if the prefix exists and is terminated by a leading
  * slash
  */
@@ -430,17 +461,6 @@ static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, st
 	MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)_iterargs_, &id);
 }
 
-void afb_hreq_drop_data(struct afb_hreq *hreq)
-{
-	struct hreq_data *data = hreq->data;
-	while (data) {
-		hreq->data = data->next;
-		free(data->key);
-		free(data->value);
-		free(data);
-		data = hreq->data;
-	}
-}
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
 {
 	ssize_t len = stpncpy(buf, json_object_to_json_string(obj)+pos, max) - buf;
@@ -461,6 +481,10 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 		json_object_object_add(request, "info", json_object_new_string(info));
 	if (resp)
 		json_object_object_add(root, "response", resp);
+	if (hreq->context) {
+		json_object_object_add(request, uuid_arg, json_object_new_string(hreq->context->uuid));
+		json_object_object_add(request, token_arg, json_object_new_string(hreq->context->token));
+	}
 
 	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, SIZE_RESPONSE_BUFFER, (void*)send_json_cb, root, (void*)json_object_put);
 	MHD_queue_response(hreq->connection, retcode, response);
@@ -476,4 +500,65 @@ static void req_success(struct afb_hreq *hreq, json_object *obj, const char *inf
 {
 	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
 }
+
+struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
+{
+	const char *uuid;
+
+	if (hreq->context == NULL) {
+		uuid = afb_hreq_get_header(hreq, uuid_header);
+		if (uuid == NULL)
+			uuid = afb_hreq_get_argument(hreq, uuid_arg);
+		if (uuid == NULL)
+			uuid = afb_hreq_get_cookie(hreq, uuid_cookie);
+		hreq->context = ctxClientGet(uuid);
+	}
+	return hreq->context;
+}
+
+static int req_session_create(struct afb_hreq *hreq)
+{
+	struct AFB_clientCtx *context = afb_hreq_context(hreq);
+	if (context == NULL)
+		return 0;
+	if (context->created)
+		return 0;
+	return req_session_check(hreq, 1);
+}
+
+static int req_session_check(struct afb_hreq *hreq, int refresh)
+{
+	const char *token;
+
+	struct AFB_clientCtx *context = afb_hreq_context(hreq);
+
+	if (context == NULL)
+		return 0;
+
+	token = afb_hreq_get_header(hreq, token_header);
+	if (token == NULL)
+		token = afb_hreq_get_argument(hreq, token_arg);
+	if (token == NULL)
+		token = afb_hreq_get_cookie(hreq, token_cookie);
+	if (token == NULL)
+		return 0;
+
+	if (!ctxTokenCheck (context, token))
+		return 0;
+
+	if (refresh) {
+		ctxTokenNew (context);
+	}
+
+	return 1;
+}
+
+static void req_session_close(struct afb_hreq *hreq)
+{
+	struct AFB_clientCtx *context = afb_hreq_context(hreq);
+	if (context != NULL)
+		ctxClientClose(context);
+}
+
+
 

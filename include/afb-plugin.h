@@ -54,12 +54,27 @@ struct AFB_plugin
 	void (*freeCtxCB)(void*);  // callback to free application context [null for standard free]
 };
 
+/* config mode */
+enum AFB_Mode {
+	AFB_MODE_LOCAL = 0,
+	AFB_MODE_REMOTE,
+	AFB_MODE_GLOBAL
+};
+
+/*
 typedef enum AFB_pluginE AFB_pluginE;
 typedef enum AFB_sessionE AFB_sessionE;
 typedef void (*AFB_apiCB)(struct afb_req);
 typedef void (*AFB_freeCtxCB)(void*);
 typedef struct AFB_restapi AFB_restapi;
 typedef struct AFB_plugin AFB_plugin;
+*/
 
-extern const struct AFB_plugin *pluginRegister ();
+struct AFB_interface
+{
+	int verbose;
+	enum AFB_Mode mode;
+};
+
+extern const struct AFB_plugin *pluginRegister (const struct AFB_interface *interface);
 

@@ -75,7 +75,7 @@ static void myCreate (struct afb_req request)
     ctx->count = 0;
     ctx->abcd  = "SomeThingUseful";        
 
-    *request.context = ctx;
+    request.context = ctx;
     afb_req_success_f(request, NULL, "SUCCESS: create client context for plugin [%s]", handle->anythingYouWant);
 }
 
@@ -86,7 +86,7 @@ static void myCreate (struct afb_req request)
 static void myAction (struct afb_req request)
 {
     MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    MyClientContextT *ctx = (MyClientContextT*) *request.context;
+    MyClientContextT *ctx = (MyClientContextT*) request.context;
     
     // store something in our plugin private client context
     ctx->count++;
@@ -100,7 +100,7 @@ static void myAction (struct afb_req request)
 static void myClose (struct afb_req request)
 {
     MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    MyClientContextT *ctx = (MyClientContextT*) *request.context;
+    MyClientContextT *ctx = (MyClientContextT*) request.context;
     
     // store something in our plugin private client context
     ctx->count++;
@@ -132,8 +132,9 @@ static const struct AFB_plugin plugin_desc = {
 	.freeCtxCB = (void*)freeCtxCB
 };
 
-const struct AFB_plugin *pluginRegister ()
+const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
 {
+	global_handle.anythingYouWant = "anythingYouWant";
 	return &plugin_desc;
 }
 

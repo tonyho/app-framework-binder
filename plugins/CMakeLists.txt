@@ -1,4 +1,4 @@
-#ADD_SUBDIRECTORY(afm-main-plugin)
+ADD_SUBDIRECTORY(afm-main-plugin)
 ADD_SUBDIRECTORY(session)
 ADD_SUBDIRECTORY(samples)
 #ADD_SUBDIRECTORY(audio)

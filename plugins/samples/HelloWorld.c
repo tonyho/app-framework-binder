@@ -85,7 +85,6 @@ static void pingBug (struct afb_req request)
 {
     int a,b,c;
     
-    fprintf (stderr, "Use --timeout=10 to trap error\n");
     b=4;
     c=0;
     a=b/c;
@@ -128,7 +127,7 @@ static const struct AFB_plugin plugin_desc = {
 	.apis = pluginApis
 };
 
-const struct AFB_plugin *pluginRegister ()
+const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
 {
 	return &plugin_desc;
 }

@@ -31,11 +31,11 @@
 #include "afb-hreq.h"
 #include "afb-websock.h"
 #include "afb-apis.h"
-#include "session.h"
 #include "afb-req-itf.h"
 
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
+
 
 struct afb_hsrv_handler {
 	struct afb_hsrv_handler *next;
@@ -137,25 +137,6 @@ int afb_hsrv_add_handler(
 	return 1;
 }
 
-static const char uuid_header[] = "x-afb-uuid";
-static const char uuid_arg[] = "uuid";
-static const char uuid_cookie[] = "uuid";
-
-static struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
-{
-	const char *uuid;
-
-	if (hreq->context == NULL) {
-		uuid = afb_hreq_get_header(hreq, uuid_header);
-		if (uuid == NULL)
-			uuid = afb_hreq_get_argument(hreq, uuid_arg);
-		if (uuid == NULL)
-			uuid = afb_hreq_get_cookie(hreq, uuid_cookie);
-		hreq->context = ctxClientGet(uuid);
-	}
-	return hreq->context;
-}
-
 static int afb_hreq_websocket_switch(struct afb_hreq *hreq, void *data)
 {
 	int later;
@@ -179,6 +160,7 @@ static int afb_hreq_rest_api(struct afb_hreq *hreq, void *data)
 {
 	const char *api, *verb;
 	size_t lenapi, lenverb;
+	struct AFB_clientCtx *context;
 
 	api = &hreq->tail[strspn(hreq->tail, "/")];
 	lenapi = strcspn(api, "/");
@@ -189,7 +171,8 @@ static int afb_hreq_rest_api(struct afb_hreq *hreq, void *data)
 	if (!(*api && *verb && lenapi && lenverb))
 		return 0;
 
-	return afb_apis_handle(afb_hreq_to_req(hreq), api, lenapi, verb, lenverb);
+	context = afb_hreq_context(hreq);
+	return afb_apis_handle(afb_hreq_to_req(hreq), context, api, lenapi, verb, lenverb);
 }
 
 static int handle_alias(struct afb_hreq *hreq, void *data)
@@ -376,18 +359,11 @@ internal_error:
 static void end_handler(void *cls, struct MHD_Connection *connection, void **recordreq,
 			enum MHD_RequestTerminationCode toe)
 {
-	AFB_session *session;
 	struct afb_hreq *hreq;
 
-	session = cls;
 	hreq = *recordreq;
 
-	if (hreq != NULL) {
-		if (hreq->postform != NULL)
-			MHD_destroy_post_processor(hreq->postform);
-		afb_hreq_drop_data(hreq);
-		free(hreq);
-	}
+	afb_hreq_free(hreq);
 }
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
