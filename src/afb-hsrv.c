@@ -33,6 +33,7 @@
 #include "afb-apis.h"
 #include "afb-req-itf.h"
 #include "verbose.h"
+#include "utils-upoll.h"
 
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
@@ -53,6 +54,8 @@ struct afb_diralias {
 	size_t lendir;
 	int dirfd;
 };
+
+static struct upoll *upoll = NULL;
 
 int afb_hreq_one_page_api_redirect(
 		struct afb_hreq *hreq,
@@ -422,27 +425,36 @@ static int my_default_init(AFB_session * session)
 	if (!afb_hsrv_add_handler(session, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
 		return 0;
 
-	return 1;
-}
-
-AFB_error httpdStart(AFB_session * session)
-{
-	if (!my_default_init(session)) {
-		printf("Error: initialisation of httpd failed");
-		return AFB_FATAL;
-	}
-
 #if defined(USE_MAGIC_MIME_TYPE)
 	/*TBD open libmagic cache [fail to pass EFENCE check (allocating 0 bytes)] */
 	init_lib_magic (session);
 #endif
+
+	return 1;
+}
+
+/* infinite loop */
+static void hsrv_handle_event(struct MHD_Daemon *httpd)
+{
+	MHD_run(httpd);
+}
+
+int afb_hsrv_start(AFB_session * session)
+{
+	struct MHD_Daemon *httpd;
+	const union MHD_DaemonInfo *info;
+
+	if (!my_default_init(session)) {
+		printf("Error: initialisation of httpd failed");
+		return 0;
+	}
 
 	if (verbosity) {
 		printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
 		printf("AFB:notice Browser URL= http:/*localhost:%d\n", session->config->httpdPort);
 	}
 
-	session->httpd = MHD_start_daemon(
+	httpd = MHD_start_daemon(
 		MHD_USE_EPOLL_LINUX_ONLY | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
 		(uint16_t) session->config->httpdPort,	/* port */
 		new_client_handler, NULL,	/* Tcp Accept call back + extra attribute */
@@ -451,48 +463,37 @@ AFB_error httpdStart(AFB_session * session)
 		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)15,	/* 15 seconds */
 		MHD_OPTION_END);	/* options-end */
 
-	if (session->httpd == NULL) {
+	if (httpd == NULL) {
 		printf("Error: httpStart invalid httpd port: %d", session->config->httpdPort);
-		return AFB_FATAL;
+		return 0;
 	}
-	return AFB_SUCCESS;
-}
 
-/* infinite loop */
-AFB_error httpdLoop(AFB_session * session)
-{
-	int count = 0;
-	const union MHD_DaemonInfo *info;
-	struct pollfd pfd;
-
-	info = MHD_get_daemon_info(session->httpd, MHD_DAEMON_INFO_EPOLL_FD_LINUX_ONLY);
+	info = MHD_get_daemon_info(httpd, MHD_DAEMON_INFO_EPOLL_FD_LINUX_ONLY);
 	if (info == NULL) {
-		printf("Error: httpLoop no pollfd");
-		goto error;
-	}
-	pfd.fd = info->listen_fd;
-	pfd.events = POLLIN;
-
-	if (verbosity)
-		fprintf(stderr, "AFB:notice entering httpd waiting loop\n");
-	while (TRUE) {
-		if (verbosity)
-			fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
-		poll(&pfd, 1, 15000);	/* 15 seconds (as above timeout when starting) */
-		MHD_run(session->httpd);
+		MHD_stop_daemon(httpd);
+		fprintf(stderr, "Error: httpStart no pollfd");
+		return 0;
 	}
 
- error:
-	/* should never return from here */
-	return AFB_FATAL;
+	upoll = upoll_open(info->listen_fd, httpd);
+	if (upoll == NULL) {
+		MHD_stop_daemon(httpd);
+		fprintf(stderr, "Error: connection to upoll of httpd failed");
+		return 0;
+	}
+	upoll_on_readable(upoll, (void*)hsrv_handle_event);
+
+	session->httpd = httpd;
+	return 1;
 }
 
-int httpdStatus(AFB_session * session)
+void afb_hsrv_stop(AFB_session * session)
 {
-	return MHD_run(session->httpd);
+	if (upoll)
+		upoll_close(upoll);
+	upoll = NULL;
+	if (session->httpd != NULL)
+		MHD_stop_daemon(session->httpd);
+	session->httpd = NULL;
 }
 
-void httpdStop(AFB_session * session)
-{
-	MHD_stop_daemon(session->httpd);
-}

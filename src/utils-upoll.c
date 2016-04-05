@@ -28,7 +28,9 @@
 struct upoll
 {
 	int fd;
-	void (*process)(void *closure, int fd, uint32_t events);
+	void (*read)(void *);
+	void (*write)(void *);
+	void (*hangup)(void *);
 	void *closure;
 	struct upoll *next;
 };
@@ -48,7 +50,7 @@ int upoll_is_valid(struct upoll *upoll)
 	return 0;
 }
 
-struct upoll *upoll_open(int fd, uint32_t events, void (*process)(void *closure, int fd, uint32_t events), void *closure)
+struct upoll *upoll_open(int fd, void *closure)
 {
 	struct epoll_event e;
 	struct upoll *result;
@@ -68,13 +70,12 @@ struct upoll *upoll_open(int fd, uint32_t events, void (*process)(void *closure,
 	}
 
 	/* allocates */
-	result = malloc(sizeof *result);
+	result = calloc(1, sizeof *result);
 	if (result == NULL)
 		return NULL;
 
 	/* init */
 	result->fd = fd;
-	result->process = process;
 	result->closure = closure;
 	pthread_mutex_lock(&mutex);
 	result->next = head;
@@ -82,7 +83,7 @@ struct upoll *upoll_open(int fd, uint32_t events, void (*process)(void *closure,
 	pthread_mutex_unlock(&mutex);
 
 	/* records */
-	e.events = events;
+	e.events = 0;
 	e.data.ptr = result;
 	rc = epoll_ctl(pollfd, EPOLL_CTL_ADD, fd, &e);
 	if (rc == 0)
@@ -95,16 +96,39 @@ struct upoll *upoll_open(int fd, uint32_t events, void (*process)(void *closure,
 	return NULL;
 }
 
-int upoll_update(struct upoll *upoll, uint32_t events)
+static int update(struct upoll *upoll)
 {
 	struct epoll_event e;
+	e.events = (upoll->read != NULL ? EPOLLIN : 0 )
+		 | (upoll->write != NULL ? EPOLLOUT : 0);
+	e.data.ptr = upoll;
+	return epoll_ctl(pollfd, EPOLL_CTL_MOD, upoll->fd, &e);
+}
 
+int upoll_on_readable(struct upoll *upoll, void (*process)(void *))
+{
 	assert(pollfd != 0);
 	assert(upoll_is_valid(upoll));
 
-	e.events = events;
-	e.data.ptr = upoll;
-	return epoll_ctl(pollfd, EPOLL_CTL_MOD, upoll->fd, &e);
+	upoll->read = process;
+	return update(upoll);
+}
+
+int upoll_on_writable(struct upoll *upoll, void (*process)(void *))
+{
+	assert(pollfd != 0);
+	assert(upoll_is_valid(upoll));
+
+	upoll->write = process;
+	return update(upoll);
+}
+
+void upoll_on_hangup(struct upoll *upoll, void (*process)(void *))
+{
+	assert(pollfd != 0);
+	assert(upoll_is_valid(upoll));
+
+	upoll->hangup = process;
 }
 
 void upoll_close(struct upoll *upoll)
@@ -136,7 +160,12 @@ void upoll_wait(int timeout)
 	rc = epoll_wait(pollfd, &e, 1, timeout);
 	if (rc == 1) {
 		upoll = e.data.ptr;
-		upoll->process(upoll->closure, upoll->fd, e.events);
+		if ((e.events & EPOLLIN) && upoll->read)
+			upoll->read(upoll->closure);
+		if ((e.events & EPOLLOUT) && upoll->write)
+			upoll->write(upoll->closure);
+		if ((e.events & EPOLLHUP) && upoll->hangup)
+			upoll->hangup(upoll->closure);
 	}
 }
 

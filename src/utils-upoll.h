@@ -19,9 +19,12 @@ struct upoll;
 
 extern int upoll_is_valid(struct upoll *upoll);
 
-extern struct upoll *upoll_open(int fd, uint32_t events, void (*process)(void *closure, int fd, uint32_t events), void *closure);
+extern struct upoll *upoll_open(int fd, void *closure);
 
-extern int upoll_update(struct upoll *upoll, uint32_t events);
+extern int upoll_on_readable(struct upoll *upoll, void (*process)(void *closure));
+extern int upoll_on_writable(struct upoll *upoll, void (*process)(void *closure));
+
+extern void upoll_on_hangup(struct upoll *upoll, void (*process)(void *closure));
 
 extern void upoll_close(struct upoll *upoll);
 

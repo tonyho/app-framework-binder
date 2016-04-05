@@ -63,7 +63,9 @@ static int apis_count = 0;
 static const char plugin_register_function[] = "pluginRegister";
 
 static const struct afb_poll_itf upoll_itf = {
-	.update = (void*)upoll_update,
+	.on_readable = (void*)upoll_on_readable,
+	.on_writable = (void*)upoll_on_writable,
+	.on_hangup = (void*)upoll_on_hangup,
 	.close = (void*)upoll_close
 };
 
@@ -85,10 +87,10 @@ void afb_apis_free_context(int apiidx, void *context)
 		free(context);
 }
 
-static struct afb_poll itf_poll_open(int fd, uint32_t events, void (*process)(void *closure, int fd, uint32_t events), void *closure)
+static struct afb_poll itf_poll_open(int fd, void *closure)
 {
 	struct afb_poll result;
-	result.data = upoll_open(fd, events, process, closure);
+	result.data = upoll_open(fd, closure);
 	result.itf = result.data ? &upoll_itf : NULL;
 	return result;
 }

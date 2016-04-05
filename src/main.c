@@ -32,8 +32,10 @@
 
 #include "local-def.h"
 #include "afb-apis.h"
+#include "afb-hsrv.h"
 #include "session.h"
 #include "verbose.h"
+#include "utils-upoll.h"
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"
@@ -126,24 +128,29 @@ static void printVersion (void)
 }
 
 // load config from disk and merge with CLI option
-static AFB_error config_set_default (AFB_session * session)
+static void config_set_default (AFB_session * session)
 {
    static char cacheTimeout [10];
    
    // default HTTP port
-   if (session->config->httpdPort == 0) session->config->httpdPort=1234;
+   if (session->config->httpdPort == 0)
+	session->config->httpdPort = 1234;
    
    // default Plugin API timeout
-   if (session->config->apiTimeout == 0) session->config->apiTimeout=DEFLT_API_TIMEOUT;
+   if (session->config->apiTimeout == 0)
+	session->config->apiTimeout = DEFLT_API_TIMEOUT;
    
    // default AUTH_TOKEN
-   if (session->config->token == NULL) session->config->token= DEFLT_AUTH_TOKEN;
+   if (session->config->token == NULL)
+		session->config->token = DEFLT_AUTH_TOKEN;
 
    // cache timeout default one hour
-   if (session->config->cacheTimeout == 0) session->config->cacheTimeout=DEFLT_CACHE_TIMEOUT;
+   if (session->config->cacheTimeout == 0)
+		session->config->cacheTimeout = DEFLT_CACHE_TIMEOUT;
 
    // cache timeout default one hour
-   if (session->config->cntxTimeout == 0) session->config->cntxTimeout=DEFLT_CNTX_TIMEOUT;
+   if (session->config->cntxTimeout == 0)
+		session->config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
 
    if (session->config->rootdir == NULL) {
        session->config->rootdir = getenv("AFBDIR");
@@ -157,17 +164,14 @@ static AFB_error config_set_default (AFB_session * session)
    }
    
    // if no Angular/HTML5 rootbase let's try '/' as default
-   if  (session->config->rootbase == NULL) {
+   if  (session->config->rootbase == NULL)
        session->config->rootbase = "/opa";
-   }
    
-   if  (session->config->rootapi == NULL) {
+   if  (session->config->rootapi == NULL)
        session->config->rootapi = "/api";
-   }
 
-   if  (session->config->ldpaths == NULL) {
+   if  (session->config->ldpaths == NULL)
        session->config->ldpaths = PLUGIN_INSTALL_DIR;
-   }
 
    // if no session dir create a default path from rootdir
    if  (session->config->sessiondir == NULL) {
@@ -186,8 +190,6 @@ static AFB_error config_set_default (AFB_session * session)
    // cacheTimeout is an integer but HTTPd wants it as a string
    snprintf (cacheTimeout, sizeof (cacheTimeout),"%d", session->config->cacheTimeout);
    session->cacheTimeout = cacheTimeout; // httpd uses cacheTimeout string version
-
-   return AFB_SUCCESS;
 }
 
 
@@ -406,20 +408,11 @@ static void closeSession (int status, void *data) {
 
 /*----------------------------------------------------------
  | timeout signalQuit
- |
  +--------------------------------------------------------- */
-void signalQuit (int signum) {
-
-  sigset_t sigset;
-
-  // unlock timeout signal to allow a new signal to come
-  sigemptyset (&sigset);
-  sigaddset   (&sigset, SIGABRT);
-  sigprocmask (SIG_UNBLOCK, &sigset, 0);
-
-  fprintf (stderr, "ERR: Received signal quit\n");
-  syslog (LOG_ERR, "Daemon got kill3 & quit [please report bug]");
-  exit(1);
+void signalQuit (int signum)
+{
+	fprintf(stderr, "Terminating signal received %s\n", strsignal(signum));
+	exit(1);
 }
 
 
@@ -439,6 +432,10 @@ static void signalError(int signum)
 		sigprocmask(SIG_UNBLOCK, &sigset, 0);
 		longjmp(*error_handler, signum);
 	}
+	if (signum == SIGALRM)
+		return;
+	fprintf(stderr, "Unmonitored signal received %s\n", strsignal(signum));
+	exit(2);
 }
 
 static void install_error_handlers()
@@ -453,30 +450,6 @@ static void install_error_handlers()
 	}
 }
 
-/*----------------------------------------------------------
- | listenLoop
- |   Main listening HTTP loop
- +--------------------------------------------------------- */
-static void listenLoop (AFB_session *session) {
-  AFB_error  err;
-
-  // ------ Start httpd server
-
-   err = httpdStart (session);
-   if (err != AFB_SUCCESS) return;
-
-	if (session->readyfd != 0) {
-		static const char readystr[] = "READY=1";
-		write(session->readyfd, readystr, sizeof(readystr) - 1);
-		close(session->readyfd);
-	}
-
-   // infinite loop
-   httpdLoop(session);
-
-   fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
-}
-  
 /*----------------------------------------------------------
  | daemonize
  |   set the process in background
@@ -530,6 +503,7 @@ static void daemonize(AFB_session *session)
  +--------------------------------------------------------- */
 
 int main(int argc, char *argv[])  {
+  int rc;
   AFB_session    *session;
 
   // open syslog if ever needed
@@ -560,14 +534,14 @@ int main(int argc, char *argv[])  {
   install_error_handlers();
 
   // ------------------ Some useful default values -------------------------
-  if  ((session->background == 0) && (session->foreground == 0)) session->foreground=1;
+  if  ((session->background == 0) && (session->foreground == 0))
+	session->foreground = 1;
 
   // ------------------ clean exit on CTR-C signal ------------------------
   if (signal (SIGINT, signalQuit) == SIG_ERR || signal (SIGABRT, signalQuit) == SIG_ERR) {
      fprintf (stderr, "ERR: main fail to install Signal handler\n");
      return 1;
   }
-
 
   // let's run this program with a low priority
   nice (20);
@@ -576,13 +550,6 @@ int main(int argc, char *argv[])  {
   // let's not take the risk to run as ROOT
   //if (getuid() == 0)  goto errorNoRoot;
 
-#if defined(ALLOWS_SESSION_FILES)
-  // check session dir and create if it does not exist
-  if (sessionCheckdir (session) != AFB_SUCCESS) {
-  	fprintf (stderr,"\nERR: AFB-daemon cannot read/write session dir\n\n");
-  	exit (1);
-  }
-#endif
   if (verbosity) fprintf (stderr, "AFB: notice Init config done\n");
 
   // ---- run in foreground mode --------------------
@@ -606,10 +573,26 @@ int main(int argc, char *argv[])  {
   } // end background-foreground
 
 
-  listenLoop(session);
-  if (verbosity) printf ("\n---- Application Framework Binder Normal End ------\n");
-  exit(0);
+  // ------ Start httpd server
 
+   rc = afb_hsrv_start (session);
+   if (!rc)
+	exit(1);
+
+   if (session->readyfd != 0) {
+		static const char readystr[] = "READY=1";
+		write(session->readyfd, readystr, sizeof(readystr) - 1);
+		close(session->readyfd);
+  }
+
+   // infinite loop
+  for(;;)
+   upoll_wait(30000); 
+
+   if (verbosity)
+       fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
+
+  return 0;
 }
 
 

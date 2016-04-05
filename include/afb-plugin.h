@@ -67,7 +67,7 @@ struct AFB_interface
 {
 	int verbosity;
 	enum AFB_Mode mode;
-	struct afb_poll (*poll_open)(int fd, uint32_t events, void (*process)(void *closure, int fd, uint32_t events), void *closure);
+	struct afb_poll (*poll_open)(int fd, void *closure);
 };
 
 extern const struct AFB_plugin *pluginRegister (const struct AFB_interface *interface);

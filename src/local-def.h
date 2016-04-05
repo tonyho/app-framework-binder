@@ -40,29 +40,8 @@
 #define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout
 #define AFB_MAX_PLUGINS     20     // Max number of plugins for a given binder
 
-#ifndef FALSE
-  #define FALSE 0
-#endif
-#ifndef TRUE
-  #define TRUE 1
-#endif
-
-#define PUBLIC
-#define STATIC    static
-#define FAILED    -1
-
-#define AUDIO_BUFFER "/tmp/buf"
-
-// prebuild json error are constructed in helper-api.c
-typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
-
 #define MAX_POST_SIZE  4096   // maximum size for POST data
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
-
-
-
-
-
 
 
 
@@ -132,7 +111,5 @@ struct AFB_session
 
 typedef struct AFB_config AFB_config;
 typedef struct AFB_session AFB_session;
-
-#include "proto-def.h"
 
 #endif /* LOCAL_DEF_H */

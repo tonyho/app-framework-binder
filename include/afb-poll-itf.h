@@ -17,7 +17,9 @@
 
 struct afb_poll_itf
 {
-	int (*update)(void *data, uint32_t events);
+	int (*on_readable)(void *, void (*cb)(void *));
+	int (*on_writable)(void *, void (*cb)(void *));
+	int (*on_hangup)(void *, void (*cb)(void *));
 	void (*close)(void *data);
 };
 
