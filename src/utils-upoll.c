@@ -99,8 +99,8 @@ struct upoll *upoll_open(int fd, void *closure)
 static int update(struct upoll *upoll)
 {
 	struct epoll_event e;
-	e.events = (upoll->read != NULL ? EPOLLIN : 0 )
-		 | (upoll->write != NULL ? EPOLLOUT : 0);
+	e.events = (uint32_t)((upoll->read != NULL ? EPOLLIN : 0 )
+		 | (upoll->write != NULL ? EPOLLOUT : 0));
 	e.data.ptr = upoll;
 	return epoll_ctl(pollfd, EPOLL_CTL_MOD, upoll->fd, &e);
 }

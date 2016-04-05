@@ -22,7 +22,6 @@
 #define LOCAL_DEF_H
 
 #include <json.h>
-#include <magic.h>
 #include <microhttpd.h>
 
 /* other definitions --------------------------------------------------- */
@@ -104,7 +103,6 @@ struct AFB_session
   struct MHD_Daemon *httpd;            // structure for httpd handler
   int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  readyfd;           // a #fd to signal when ready to serve
-  magic_t  magic;         // Mime type file magic lib
   struct afb_hsrv_handler *handlers;
 };
 

@@ -57,33 +57,6 @@ struct afb_diralias {
 
 static struct upoll *upoll = NULL;
 
-int afb_hreq_one_page_api_redirect(
-		struct afb_hreq *hreq,
-		void *data)
-{
-	size_t plen;
-	char *url;
-
-	if (hreq->lentail >= 2 && hreq->tail[1] == '#')
-		return 0;
-	/*
-	 * Here we have for example:
-	 *    url  = "/pre/dir/page"   lenurl = 13
-	 *    tail =     "/dir/page"   lentail = 9
-	 *
-	 * We will produce "/pre/#!dir/page"
-	 *
-	 * Let compute plen that include the / at end (for "/pre/")
-	 */
-	plen = hreq->lenurl - hreq->lentail + 1;
-	url = alloca(hreq->lenurl + 3);
-	memcpy(url, hreq->url, plen);
-	url[plen++] = '#';
-	url[plen++] = '!';
-	memcpy(&url[plen], &hreq->tail[1], hreq->lentail);
-	return afb_hreq_redirect_to(hreq, url);
-}
-
 static struct afb_hsrv_handler *new_handler(
 		struct afb_hsrv_handler *head,
 		const char *prefix,
@@ -139,6 +112,33 @@ int afb_hsrv_add_handler(
 		return 0;
 	session->handlers = head;
 	return 1;
+}
+
+int afb_hreq_one_page_api_redirect(
+		struct afb_hreq *hreq,
+		void *data)
+{
+	size_t plen;
+	char *url;
+
+	if (hreq->lentail >= 2 && hreq->tail[1] == '#')
+		return 0;
+	/*
+	 * Here we have for example:
+	 *    url  = "/pre/dir/page"   lenurl = 13
+	 *    tail =     "/dir/page"   lentail = 9
+	 *
+	 * We will produce "/pre/#!dir/page"
+	 *
+	 * Let compute plen that include the / at end (for "/pre/")
+	 */
+	plen = hreq->lenurl - hreq->lentail + 1;
+	url = alloca(hreq->lenurl + 3);
+	memcpy(url, hreq->url, plen);
+	url[plen++] = '#';
+	url[plen++] = '!';
+	memcpy(&url[plen], &hreq->tail[1], hreq->lentail);
+	return afb_hreq_redirect_to(hreq, url);
 }
 
 static int afb_hreq_websocket_switch(struct afb_hreq *hreq, void *data)
@@ -366,7 +366,8 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	struct afb_hreq *hreq;
 
 	hreq = *recordreq;
-
+	if (hreq->upgrade)
+		MHD_suspend_connection (connection);
 	afb_hreq_free(hreq);
 }
 
@@ -374,36 +375,6 @@ static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t 
 {
 	return MHD_YES;
 }
-
-#if defined(USE_MAGIC_MIME_TYPE)
-
-#if !defined(MAGIC_DB)
-#define MAGIC_DB "/usr/share/misc/magic.mgc"
-#endif
-
-static int init_lib_magic (AFB_session *session)
-{
-	/* MAGIC_MIME tells magic to return a mime of the file, but you can specify different things */
-	if (verbosity)
-		printf("Loading mimetype default magic database\n");
-
-	session->magic = magic_open(MAGIC_MIME_TYPE);
-	if (session->magic == NULL) {
-		fprintf(stderr,"ERROR: unable to initialize magic library\n");
-		return 0;
-	}
-
-	/* Warning: should not use NULL for DB [libmagic bug wont pass efence check] */
-	if (magic_load(session->magic, MAGIC_DB) != 0) {
-		fprintf(stderr,"cannot load magic database - %s\n", magic_error(session->magic));
-		magic_close(session->magic);
-		session->magic = NULL;
-		return 0;
-	}
-
-	return 1;
-}
-#endif
 
 static int my_default_init(AFB_session * session)
 {
@@ -424,11 +395,6 @@ static int my_default_init(AFB_session * session)
 
 	if (!afb_hsrv_add_handler(session, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
 		return 0;
-
-#if defined(USE_MAGIC_MIME_TYPE)
-	/*TBD open libmagic cache [fail to pass EFENCE check (allocating 0 bytes)] */
-	init_lib_magic (session);
-#endif
 
 	return 1;
 }

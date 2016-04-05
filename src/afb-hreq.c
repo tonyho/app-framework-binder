@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#define USE_MAGIC_MIME_TYPE
 #define _GNU_SOURCE
 
 #include <stdlib.h>
@@ -26,6 +27,10 @@
 #include <sys/stat.h>
 
 #include <microhttpd.h>
+
+#if defined(USE_MAGIC_MIME_TYPE)
+#include <magic.h>
+#endif
 
 #include "local-def.h"
 #include "afb-method.h"
@@ -135,6 +140,51 @@ static int validsubpath(const char *subpath)
 	}
 	return 1;
 }
+
+#if defined(USE_MAGIC_MIME_TYPE)
+
+#if !defined(MAGIC_DB)
+#define MAGIC_DB "/usr/share/misc/magic.mgc"
+#endif
+
+static magic_t lazy_libmagic()
+{
+	static int done = 0;
+	static magic_t result = NULL;
+
+	if (!done) {
+		done = 1;
+		/* MAGIC_MIME tells magic to return a mime of the file,
+			 but you can specify different things */
+		if (verbosity)
+			printf("Loading mimetype default magic database\n");
+
+		result = magic_open(MAGIC_MIME_TYPE);
+		if (result == NULL) {
+			fprintf(stderr,"ERROR: unable to initialize magic library\n");
+		}
+		/* Warning: should not use NULL for DB
+				[libmagic bug wont pass efence check] */
+		else if (magic_load(result, MAGIC_DB) != 0) {
+			fprintf(stderr,"cannot load magic database - %s\n",
+					magic_error(result));
+			magic_close(result);
+			result = NULL;
+		}
+	}
+
+	return result;
+}
+
+static const char *magic_mimetype_fd(int fd)
+{
+	magic_t lib = lazy_libmagic();
+	return lib ? magic_descriptor(lib, fd) : NULL;
+}
+
+#endif
+
+
 
 void afb_hreq_free(struct afb_hreq *hreq)
 {
@@ -288,8 +338,8 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 
 #if defined(USE_MAGIC_MIME_TYPE)
 		/* set the type */
-		if (hreq->session->magic) {
-			const char *mimetype = magic_descriptor(hreq->session->magic, fd);
+		{
+			const char *mimetype = magic_mimetype_fd(fd);
 			if (mimetype != NULL)
 				MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
 		}

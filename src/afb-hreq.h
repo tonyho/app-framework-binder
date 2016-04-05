@@ -30,6 +30,7 @@ struct afb_hreq {
 	struct MHD_PostProcessor *postform;
 	struct AFB_clientCtx *context;
 	struct hreq_data *data;
+	int upgrade;
 };
 
 extern void afb_hreq_free(struct afb_hreq *request);
