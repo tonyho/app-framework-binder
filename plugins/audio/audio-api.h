@@ -19,10 +19,6 @@
 #ifndef AUDIO_API_H
 #define AUDIO_API_H
 
-#ifdef HAVE_PULSE
-#include "audio-pulse.h"
-#endif
-
 /* global plugin handle, should store everything we may need */
 typedef struct {
   int devCount;

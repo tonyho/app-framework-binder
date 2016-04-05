@@ -21,6 +21,9 @@
 
 #include "audio-api.h"
 #include "audio-alsa.h"
+#ifdef HAVE_PULSE
+#include "audio-pulse.h"
+#endif
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
