@@ -17,6 +17,7 @@
  */
 
 #include "audio-api.h"
+#include "audio-alsa.h"
 
 snd_mixer_selem_channel_id_t SCHANNELS[8] = {
  SND_MIXER_SCHN_FRONT_LEFT,
@@ -42,7 +43,7 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     int num, i;
 
     if (snd_pcm_open (&dev, name, SND_PCM_STREAM_PLAYBACK, 0) < 0)
-        return -1;
+        return 0;
 
     snd_pcm_hw_params_malloc (&params);
     snd_pcm_hw_params_any (dev, params);
@@ -52,14 +53,14 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     snd_pcm_hw_params_set_channels (dev, params, ctx->channels);
     if (snd_pcm_hw_params (dev, params) < 0) {
         snd_pcm_hw_params_free (params);
-        return -1;
+        return 0;
     }
     snd_pcm_prepare (dev);
 
     snd_mixer_open (&mixer, 0);
     if (snd_mixer_attach (mixer, name) < 0) {
         snd_pcm_hw_params_free (params);
-        return -1;
+        return 0;
     }
     snd_mixer_selem_register (mixer, NULL, NULL);
     snd_mixer_load (mixer);
@@ -107,7 +108,7 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     for (num = 0; num < (sizeof(dev_ctx_a)/sizeof(dev_ctx_alsa_T)); num++) {
         if (dev_ctx_a[num]->name &&
            !strcmp (dev_ctx_a[num]->name, name))
-            return -1;
+            return 0;
     }
     num++;
 
@@ -129,10 +130,11 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
         ctx->volume[i] = _alsa_get_volume (num, i);
     ctx->mute = _alsa_get_mute (num);
     ctx->idx = num;
+    ctx->name = strdup (name);
 
     if (verbose) fprintf (stderr, "Successfully initialized ALSA backend.\n");
 
-    return 0;
+    return 1;
 }
 
 PUBLIC void _alsa_free (const char *name) {
@@ -153,7 +155,7 @@ PUBLIC void _alsa_free (const char *name) {
     }
 }
 
-PUBLIC void _alsa_play (unsigned int num) {
+PUBLIC void _alsa_play (int num) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || dev_ctx_a[num]->thr_should_run ||
         access (AUDIO_BUFFER, F_OK) == -1)
@@ -164,7 +166,7 @@ PUBLIC void _alsa_play (unsigned int num) {
     pthread_create (&dev_ctx_a[num]->thr, NULL, _alsa_play_thread_fn, (void*)dev_ctx_a[num]);
 }
 
-PUBLIC void _alsa_stop (unsigned int num) {
+PUBLIC void _alsa_stop (int num) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->thr_should_run)
         return;
@@ -178,41 +180,41 @@ PUBLIC void _alsa_stop (unsigned int num) {
     pthread_join (dev_ctx_a[num]->thr, NULL);
 }
 
-PUBLIC int _alsa_get_volume (unsigned int num, unsigned int channel) {
+PUBLIC unsigned int _alsa_get_volume (int num, unsigned int channel) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm)
-        return;
+        return 0;
 
     snd_mixer_selem_get_playback_volume (dev_ctx_a[num]->mixer_elm, SCHANNELS[channel], &dev_ctx_a[num]->vol);
 
     return (int)(dev_ctx_a[num]->vol*100)/dev_ctx_a[num]->vol_max;
 }
 
-PUBLIC void _alsa_set_volume (unsigned int num, unsigned int channel, int vol) {
+PUBLIC void _alsa_set_volume (int num, unsigned int channel, unsigned int vol) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm ||
-        0 > vol > 100)
+        vol > 100)
         return;
 
     snd_mixer_selem_set_playback_volume (dev_ctx_a[num]->mixer_elm, SCHANNELS[channel], (vol*dev_ctx_a[num]->vol_max)/100);
 
 }
 
-PUBLIC void _alsa_set_volume_all (unsigned int num, int vol) {
+PUBLIC void _alsa_set_volume_all (int num, unsigned int vol) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm ||
-        0 > vol > 100)
+        vol > 100)
 
     snd_mixer_selem_set_playback_volume_all (dev_ctx_a[num]->mixer_elm, (vol*dev_ctx_a[num]->vol_max)/100);
 }
 
-PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
+PUBLIC unsigned char _alsa_get_mute (int num) {
 
     int mute = 0;
     snd_mixer_elem_t *elm_m;
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm)
-        return;
+        return 0;
 
     dev_ctx_a[num]->mixer_elm_m ? (elm_m = dev_ctx_a[num]->mixer_elm_m) :
                                   (elm_m = dev_ctx_a[num]->mixer_elm);
@@ -228,12 +230,12 @@ PUBLIC unsigned char _alsa_get_mute (unsigned int num) {
         return (unsigned char)!mute;
 }
 
-PUBLIC void _alsa_set_mute (unsigned int num, unsigned char tomute) {
+PUBLIC void _alsa_set_mute (int num, unsigned char tomute) {
 
     snd_mixer_elem_t *elm_m;
     int mute;
 
-    if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm || 1 < tomute < 0)
+    if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm || 1 < tomute)
         return;
 
     if (dev_ctx_a[num]->mixer_elm_m) {
@@ -248,7 +250,7 @@ PUBLIC void _alsa_set_mute (unsigned int num, unsigned char tomute) {
         snd_mixer_selem_set_playback_switch_all (elm_m, !mute);
 }
 
-PUBLIC void _alsa_set_rate (unsigned int num, unsigned int rate) {
+PUBLIC void _alsa_set_rate (int num, unsigned int rate) {
 
     if (!dev_ctx_a || !dev_ctx_a[num])
         return;
@@ -256,7 +258,7 @@ PUBLIC void _alsa_set_rate (unsigned int num, unsigned int rate) {
     snd_pcm_hw_params_set_rate_near (dev_ctx_a[num]->dev, dev_ctx_a[num]->params, &rate, 0);
 }
 
-PUBLIC void _alsa_set_channels (unsigned int num, unsigned int channels) {
+PUBLIC void _alsa_set_channels (int num, unsigned int channels) {
 
     if (!dev_ctx_a || !dev_ctx_a[num])
         return;

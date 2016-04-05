@@ -49,6 +49,16 @@ struct alsa_info {
   char *synonyms;
 };
 
+PUBLIC unsigned char _pulse_init (const char *, audioCtxHandleT *);
+PUBLIC void _pulse_free (audioCtxHandleT *);
+PUBLIC void _pulse_play (audioCtxHandleT *);
+PUBLIC void _pulse_stop (audioCtxHandleT *);
+PUBLIC unsigned int _pulse_get_volume (audioCtxHandleT *, unsigned int);
+PUBLIC void _pulse_set_volume (audioCtxHandleT *, unsigned int, unsigned int);
+PUBLIC void _pulse_set_volume_all (audioCtxHandleT *, unsigned int);
+PUBLIC unsigned char _pulse_get_mute (audioCtxHandleT *);
+PUBLIC void _pulse_set_mute (audioCtxHandleT *, unsigned char);
+
 STATIC void  _pulse_context_cb (pa_context *, void *);
 STATIC void  _pulse_sink_list_cb (pa_context *, const pa_sink_info *, int, void *);
 STATIC void  _pulse_sink_info_cb (pa_context *, const pa_sink_info *, int, void *);

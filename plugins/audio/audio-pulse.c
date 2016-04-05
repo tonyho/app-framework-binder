@@ -16,6 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+#include <stdio.h>
+
 #include "audio-api.h"
 #include "audio-pulse.h"
 
@@ -56,7 +59,7 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
         if (ret == -1) {
             if (verbose) fprintf (stderr, "Stopping PulseAudio backend...\n");
-            return -1;
+            return 0;
         }
         if (ret >= 0) {
             /* found a matching sink from callback */
@@ -68,26 +71,26 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
     }
     /* fail if we found no matching sink */
     if (!ctx->audio_dev)
-      return -1;
+      return 0;
 
     /* make the client context aware of current card state */
     ctx->mute = (unsigned char)dev_ctx_p[ret]->mute;
     ctx->channels = (unsigned int)dev_ctx_p[ret]->volume.channels;
     for (i = 0; i < ctx->channels; i++)
-        ctx->volume[i] = (int)dev_ctx_p[ret]->volume.values[i];
+        ctx->volume[i] = dev_ctx_p[ret]->volume.values[i];
     ctx->idx = ret;
 
     /* open matching sink for playback */
     pa_spec = (pa_sample_spec*) malloc (sizeof(pa_sample_spec));
     pa_spec->format = PA_SAMPLE_S16LE;
     pa_spec->rate = 22050;
-    pa_spec->channels = ctx->channels;
+    pa_spec->channels = (uint8_t)ctx->channels;
 
     if (!(pa = pa_simple_new (NULL, "afb-audio-plugin", PA_STREAM_PLAYBACK, dev_ctx_p[ret]->sink_name,
                               "afb-audio-output", pa_spec, NULL, NULL, &error))) {
         fprintf (stderr, "Error opening PulseAudio sink %s : %s\n",
                           dev_ctx_p[ret]->sink_name, pa_strerror(error));
-        return -1;
+        return 0;
     }
     dev_ctx_p[ret]->pa = pa;
     free (pa_spec);
@@ -96,7 +99,7 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
     if (verbose) fprintf (stderr, "Successfully initialized PulseAudio backend.\n");
 
-    return 0;
+    return 1;
 }
 
 PUBLIC void _pulse_free (audioCtxHandleT *ctx) {
@@ -150,19 +153,19 @@ PUBLIC void _pulse_stop (audioCtxHandleT *ctx) {
     pthread_join (dev_ctx_p_c->thr, NULL);
 }
 
-PUBLIC int _pulse_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
+PUBLIC unsigned int _pulse_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
     if (!dev_ctx_p_c)
-        return;
+        return 0;
 
     _pulse_refresh_sink (dev_ctx_p_c);
 
-    return (int)dev_ctx_p_c->volume.values[channel];
+    return dev_ctx_p_c->volume.values[channel];
 }
 
-PUBLIC void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, int vol) {
+PUBLIC void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsigned int vol) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
     struct pa_cvolume volume;
@@ -178,7 +181,7 @@ PUBLIC void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, int v
     _pulse_refresh_sink (dev_ctx_p_c);
 }
 
-PUBLIC void _pulse_set_volume_all (audioCtxHandleT *ctx, int vol) {
+PUBLIC void _pulse_set_volume_all (audioCtxHandleT *ctx, unsigned int vol) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
     struct pa_cvolume volume;
@@ -199,7 +202,7 @@ PUBLIC unsigned char _pulse_get_mute (audioCtxHandleT *ctx) {
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
     if (!dev_ctx_p_c)
-        return;
+        return 0;
 
     _pulse_refresh_sink (dev_ctx_p_c);
 

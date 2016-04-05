@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <alsa/asoundlib.h>
 
+#include "audio-api.h"
 #include "local-def.h"
 
 typedef struct dev_ctx_alsa dev_ctx_alsa_T;
@@ -39,9 +40,17 @@ struct dev_ctx_alsa {
   unsigned char thr_finished;
 };
 
+PUBLIC unsigned char _alsa_init (const char *, audioCtxHandleT *);
+PUBLIC void _alsa_free (const char *);
+PUBLIC void _alsa_play (int);
+PUBLIC void _alsa_stop (int);
+PUBLIC unsigned int _alsa_get_volume (int, unsigned int);
+PUBLIC void _alsa_set_volume (int, unsigned int, unsigned int);
+PUBLIC void _alsa_set_volume_all (int, unsigned int);
+PUBLIC unsigned char _alsa_get_mute (int);
+PUBLIC void _alsa_set_mute (int, unsigned char);
+PUBLIC void _alsa_set_channels (int, unsigned int);
 STATIC void* _alsa_play_thread_fn (void *);
-PUBLIC int _alsa_get_volume (unsigned int, unsigned int);
-PUBLIC unsigned char _alsa_get_mute (unsigned int);
 
 static struct dev_ctx_alsa **dev_ctx_a = NULL;
 
