@@ -73,7 +73,7 @@ static struct json_object *embed(const char *tag, struct json_object *obj)
 static void embed_call_void(struct afb_req request, const char *method)
 {
 	struct json_object *obj = jbus_call_sj_sync(jbus, method, "true");
-	if (interface->verbose)
+	if (interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) %s(true) -> %s\n", method, obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
 		afb_req_fail(request, "failed", "framework daemon failure");
@@ -101,7 +101,7 @@ static void call_appid(struct afb_req request, const char *method)
 		return;
 	}
 	obj = jbus_call_sj_sync(jbus, method, sid);
-	if (interface->verbose)
+	if (interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) %s(%s) -> %s\n", method, sid, obj ? json_object_to_json_string(obj) : "NULL");
 	free(sid);
 	if (obj == NULL) {
@@ -120,7 +120,7 @@ static void call_runid(struct afb_req request, const char *method)
 		return;
 	}
 	obj = jbus_call_sj_sync(jbus, method, id);
-	if (interface->verbose)
+	if (interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) %s(%s) -> %s\n", method, id,
 				obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
@@ -171,7 +171,7 @@ static void start(struct afb_req request)
 
 	/* calls the service */
 	obj = jbus_call_sj_sync(jbus, _start_, query);
-	if (interface->verbose)
+	if (interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) start(%s) -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
 
@@ -234,7 +234,7 @@ static void install(struct afb_req request)
 	}
 
 	obj = jbus_call_sj_sync(jbus, _install_, query);
-	if (interface->verbose)
+	if (interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) install(%s) -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
 

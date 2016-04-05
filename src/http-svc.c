@@ -32,6 +32,7 @@
 #include "afb-websock.h"
 #include "afb-apis.h"
 #include "afb-req-itf.h"
+#include "verbose.h"
 
 #define JSON_CONTENT  "application/json"
 #define FORM_CONTENT  MHD_HTTP_POST_ENCODING_MULTIPART_FORMDATA
@@ -380,7 +381,7 @@ static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t 
 static int init_lib_magic (AFB_session *session)
 {
 	/* MAGIC_MIME tells magic to return a mime of the file, but you can specify different things */
-	if (verbose)
+	if (verbosity)
 		printf("Loading mimetype default magic database\n");
 
 	session->magic = magic_open(MAGIC_MIME_TYPE);
@@ -436,7 +437,7 @@ AFB_error httpdStart(AFB_session * session)
 	init_lib_magic (session);
 #endif
 
-	if (verbose) {
+	if (verbosity) {
 		printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
 		printf("AFB:notice Browser URL= http:/*localhost:%d\n", session->config->httpdPort);
 	}
@@ -472,10 +473,10 @@ AFB_error httpdLoop(AFB_session * session)
 	pfd.fd = info->listen_fd;
 	pfd.events = POLLIN;
 
-	if (verbose)
+	if (verbosity)
 		fprintf(stderr, "AFB:notice entering httpd waiting loop\n");
 	while (TRUE) {
-		if (verbose)
+		if (verbosity)
 			fprintf(stderr, "AFB:notice httpd alive [%d]\n", count++);
 		poll(&pfd, 1, 15000);	/* 15 seconds (as above timeout when starting) */
 		MHD_run(session->httpd);

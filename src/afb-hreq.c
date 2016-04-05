@@ -32,6 +32,7 @@
 #include "afb-req-itf.h"
 #include "afb-hreq.h"
 #include "session.h"
+#include "verbose.h"
 
 #define SIZE_RESPONSE_BUFFER   8000
 
@@ -269,7 +270,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	if (inm && 0 == strcmp(inm, etag)) {
 		/* etag ok, return NOT MODIFIED */
 		close(fd);
-		if (verbose)
+		if (verbosity)
 			fprintf(stderr, "Not Modified: [%s]\n", filename);
 		response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
 		status = MHD_HTTP_NOT_MODIFIED;
@@ -319,7 +320,7 @@ int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
 	MHD_add_response_header(response, MHD_HTTP_HEADER_LOCATION, url);
 	MHD_queue_response(hreq->connection, MHD_HTTP_MOVED_PERMANENTLY, response);
 	MHD_destroy_response(response);
-	if (verbose)
+	if (verbosity)
 		fprintf(stderr, "redirect from [%s] to [%s]\n", hreq->url, url);
 	return 1;
 }

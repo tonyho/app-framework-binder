@@ -43,6 +43,7 @@
 #include "afb-req-itf.h"
 #include "session.h"
 #include "afb-apis.h"
+#include "verbose.h"
 
 struct api_desc {
 	struct AFB_plugin *plugin;	/* descriptor */
@@ -97,7 +98,7 @@ int afb_apis_add_plugin(const char *path)
 		fprintf(stderr, "[%s] not an AFB plugin, continuing...\n", path);
 		goto error2;
 	}
-	if (verbose)
+	if (verbosity)
 		fprintf(stderr, "[%s] is a valid AFB plugin\n", path);
 
 	/* allocates enough memory */
@@ -114,7 +115,7 @@ int afb_apis_add_plugin(const char *path)
 		fprintf(stderr, "ERROR: plugin [%s] memory missing. continuing...\n", path);
 		goto error2;
 	}
-	interface->verbose = 0;
+	interface->verbosity = 0;
 	interface->mode = AFB_MODE_LOCAL;
 
 	/* init the plugin */
@@ -151,7 +152,7 @@ int afb_apis_add_plugin(const char *path)
 	}
 
 	/* record the plugin */
-	if (verbose)
+	if (verbosity)
 		fprintf(stderr, "Loading plugin[%lu] prefix=[%s] info=%s\n", (unsigned long)apis_count, plugin->prefix, plugin->info);
 	apis = &apis_array[apis_count];
 	apis->plugin = plugin;
@@ -184,7 +185,7 @@ static int adddirs(char path[PATH_MAX], size_t end)
 		fprintf(stderr, "ERROR in scanning plugin directory %s, %m\n", path);
 		return -1;
 	}
-	if (verbose)
+	if (verbosity)
 		fprintf(stderr, "Scanning dir=[%s] for plugins\n", path);
 
 	/* scan each entry */

@@ -53,8 +53,6 @@
 
 #define AUDIO_BUFFER "/tmp/buf"
 
-extern int verbose;  // this is the only global variable
-
 // prebuild json error are constructed in helper-api.c
 typedef enum  { AFB_FALSE, AFB_TRUE, AFB_FATAL, AFB_FAIL, AFB_WARNING, AFB_EMPTY, AFB_SUCCESS, AFB_DONE, AFB_UNAUTH} AFB_error;
 

@@ -8,7 +8,7 @@ ADD_LIBRARY(src OBJECT
 	afb-hreq.c
 	afb-websock.c
 	websock.c
-	helper-api.c)
+	verbose.c)
 
 INCLUDE_DIRECTORIES(${include_dirs})
 

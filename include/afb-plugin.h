@@ -72,7 +72,7 @@ typedef struct AFB_plugin AFB_plugin;
 
 struct AFB_interface
 {
-	int verbose;
+	int verbosity;
 	enum AFB_Mode mode;
 };
 

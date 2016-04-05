@@ -32,6 +32,7 @@
 #include "local-def.h"
 #include "afb-apis.h"
 #include "session.h"
+#include "verbose.h"
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"
@@ -255,7 +256,7 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
     switch (optc)
     {
      case SET_VERBOSE:
-       verbose = 1;
+       verbosity++;
        break;
 
     case SET_TCP_PORT:
@@ -276,19 +277,19 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
     case SET_ROOT_DIR:
        if (optarg == 0) goto needValueForOption;
        session->config->rootdir   = optarg;
-       if (verbose) fprintf(stderr, "Forcing Rootdir=%s\n",session->config->rootdir);
+       if (verbosity) fprintf(stderr, "Forcing Rootdir=%s\n",session->config->rootdir);
        break;       
        
     case SET_ROOT_BASE:
        if (optarg == 0) goto needValueForOption;
        session->config->rootbase   = optarg;
-       if (verbose) fprintf(stderr, "Forcing Rootbase=%s\n",session->config->rootbase);
+       if (verbosity) fprintf(stderr, "Forcing Rootbase=%s\n",session->config->rootbase);
        break;
 
     case SET_ROOT_API:
        if (optarg == 0) goto needValueForOption;
        session->config->rootapi   = optarg;
-       if (verbose) fprintf(stderr, "Forcing Rootapi=%s\n",session->config->rootapi);
+       if (verbosity) fprintf(stderr, "Forcing Rootapi=%s\n",session->config->rootapi);
        break;
        
     case SET_ALIAS:
@@ -300,7 +301,7 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
             } else {
               aliasdir[aliascount].path = optarg;
               aliasdir[aliascount].len  = strlen(aliasdir[aliascount].url);
-              if (verbose) fprintf(stderr, "Alias url=%s path=%s\n", aliasdir[aliascount].url, aliasdir[aliascount].path);
+              if (verbosity) fprintf(stderr, "Alias url=%s path=%s\n", aliasdir[aliascount].url, aliasdir[aliascount].path);
               aliascount++;
             }
        } else {
@@ -581,19 +582,19 @@ int main(int argc, char *argv[])  {
   	exit (1);
   }
 #endif
-  if (verbose) fprintf (stderr, "AFB: notice Init config done\n");
+  if (verbosity) fprintf (stderr, "AFB: notice Init config done\n");
 
   // ---- run in foreground mode --------------------
   if (session->foreground) {
 
-        if (verbose) fprintf (stderr,"AFB: notice Foreground mode\n");
+        if (verbosity) fprintf (stderr,"AFB: notice Foreground mode\n");
 
   } // end foreground
 
   // --------- run in background mode -----------
   if (session->background) {
 
-      if (verbose) printf ("AFB: Entering background mode\n");
+      if (verbosity) printf ("AFB: Entering background mode\n");
 
       daemonize(session);
 
@@ -605,7 +606,7 @@ int main(int argc, char *argv[])  {
 
 
   listenLoop(session);
-  if (verbose) printf ("\n---- Application Framework Binder Normal End ------\n");
+  if (verbosity) printf ("\n---- Application Framework Binder Normal End ------\n");
   exit(0);
 
 }

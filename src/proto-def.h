@@ -19,16 +19,6 @@
 
 */
 
-// helper-api
-extern const char* getQueryValue (const AFB_request * request, const char *name);
-extern size_t getQueryAll(AFB_request * request, char *query, size_t len);
-/*
-extern json_object* getPostFile (AFB_request *request, AFB_PostItem *item, char* destination) ;
-extern char* getPostPath (AFB_request *request);
-*/
-
-extern json_object *jsonNewMessage (AFB_error level, char* format, ...);
-
 
 // Httpd server
 extern AFB_error httpdStart          (AFB_session *session);
