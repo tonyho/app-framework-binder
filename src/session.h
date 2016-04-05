@@ -28,7 +28,8 @@ struct AFB_clientCtx
 
 extern void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok);
 
-extern struct AFB_clientCtx *ctxClientGet (const char *uuid);
+extern struct AFB_clientCtx *ctxClientGetForUuid (const char *uuid);
+extern struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx);
 extern void ctxClientPut(struct AFB_clientCtx *clientCtx);
 extern void ctxClientClose (struct AFB_clientCtx *clientCtx);
 extern int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token);

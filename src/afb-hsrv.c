@@ -29,6 +29,7 @@
 #include "local-def.h"
 #include "afb-method.h"
 #include "afb-hreq.h"
+#include "afb-hsrv.h"
 #include "afb-websock.h"
 #include "afb-apis.h"
 #include "afb-req-itf.h"

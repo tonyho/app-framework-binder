@@ -168,7 +168,7 @@ static void ctxStoreCleanUp (time_t now)
 }
 
 // This function will return exiting client context or newly created client context
-struct AFB_clientCtx *ctxClientGet (const char *uuid)
+struct AFB_clientCtx *ctxClientGetForUuid (const char *uuid)
 {
 	uuid_t newuuid;
 	struct AFB_clientCtx *clientCtx;
@@ -213,6 +213,13 @@ struct AFB_clientCtx *ctxClientGet (const char *uuid)
 		free(clientCtx);
 	}
 	return NULL;
+}
+
+struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx)
+{
+	if (clientCtx != NULL)
+		clientCtx->refcount++;
+	return clientCtx;
 }
 
 void ctxClientPut(struct AFB_clientCtx *clientCtx)

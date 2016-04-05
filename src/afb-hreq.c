@@ -562,7 +562,7 @@ struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
 			uuid = afb_hreq_get_argument(hreq, uuid_arg);
 		if (uuid == NULL)
 			uuid = afb_hreq_get_cookie(hreq, uuid_cookie);
-		hreq->context = ctxClientGet(uuid);
+		hreq->context = ctxClientGetForUuid(uuid);
 	}
 	return hreq->context;
 }
