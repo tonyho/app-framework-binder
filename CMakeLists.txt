@@ -54,7 +54,7 @@ ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
 INCLUDE(FindPkgConfig)
 PKG_CHECK_MODULES(json-c REQUIRED json-c)
-PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd)
+PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.34)
 PKG_CHECK_MODULES(openssl REQUIRED openssl)
 PKG_CHECK_MODULES(uuid REQUIRED uuid)
 PKG_CHECK_MODULES(dbus REQUIRED dbus-1)
