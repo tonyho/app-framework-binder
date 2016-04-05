@@ -16,6 +16,6 @@
  */
 
 int afb_websock_check(struct afb_hreq *hreq, int *later);
-struct afb_websock *afb_websock_create(struct MHD_Connection *connection);
+struct afb_websock *afb_websock_create(struct afb_hreq *hreq);
 
 
