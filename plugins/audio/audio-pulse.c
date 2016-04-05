@@ -56,7 +56,7 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
         if (ret == -1) {
             if (verbose) fprintf (stderr, "Stopping PulseAudio backend...\n");
-            return -1;
+            return 0;
         }
         if (ret >= 0) {
             /* found a matching sink from callback */
@@ -68,7 +68,7 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
     }
     /* fail if we found no matching sink */
     if (!ctx->audio_dev)
-      return -1;
+      return 0;
 
     /* make the client context aware of current card state */
     ctx->mute = (unsigned char)dev_ctx_p[ret]->mute;
@@ -87,7 +87,7 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
                               "afb-audio-output", pa_spec, NULL, NULL, &error))) {
         fprintf (stderr, "Error opening PulseAudio sink %s : %s\n",
                           dev_ctx_p[ret]->sink_name, pa_strerror(error));
-        return -1;
+        return 0;
     }
     dev_ctx_p[ret]->pa = pa;
     free (pa_spec);
@@ -96,7 +96,7 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
     if (verbose) fprintf (stderr, "Successfully initialized PulseAudio backend.\n");
 
-    return 0;
+    return 1;
 }
 
 PUBLIC void _pulse_free (audioCtxHandleT *ctx) {

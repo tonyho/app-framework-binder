@@ -16,23 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+#include <stdlib.h>
+
 #include "audio-api.h"
+#include "audio-alsa.h"
+
+#include "afb-plugin.h"
+#include "afb-req-itf.h"
 
 /* ------ BACKEND FUNCTIONS ------- */
 
 void _backend_init (const char *name, audioCtxHandleT *ctx) {
 
     char *backend_env = getenv ("AFB_AUDIO_OUTPUT");
-    unsigned char res = -1;
+    unsigned char res = 0;
 
 # ifdef HAVE_PULSE
-    if (!backend_env || (strcasecmp (backend_env, "Alsa") != 0))
+    if (!backend_env || (strcasecmp (backend_env, "Pulse") == 0))
         res = _pulse_init (name, ctx);
-    if (res < 0)
+    if (!res)
 #endif
     res = _alsa_init (name, ctx);
 
-    if (res < 0 && verbose)
+    if (!res && verbose)
         fprintf (stderr, "Could not initialize Audio backend\n");
 }
 
@@ -41,7 +48,7 @@ void _backend_free (audioCtxHandleT *ctx) {
 # ifdef HAVE_PULSE
     if (ctx->audio_dev) _pulse_free (ctx); else
 # endif
-    _alsa_free (ctx->idx);
+    _alsa_free (ctx->name);
 }
 
 void _backend_play (audioCtxHandleT *ctx) {
@@ -60,7 +67,7 @@ void _backend_stop (audioCtxHandleT *ctx) {
     _alsa_stop (ctx->idx);
 }
 
-int _backend_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
+unsigned int _backend_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
 
 # ifdef HAVE_PULSE
     if (ctx->audio_dev) return _pulse_get_volume (ctx, channel); else
@@ -68,7 +75,7 @@ int _backend_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
     return _alsa_get_volume (ctx->idx, channel);
 }
 
-void _backend_set_volume (audioCtxHandleT *ctx, unsigned int channel, int vol) {
+void _backend_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsigned int vol) {
 
 # ifdef HAVE_PULSE
     if (ctx->audio_dev) _pulse_set_volume (ctx, channel, vol); else
@@ -76,7 +83,7 @@ void _backend_set_volume (audioCtxHandleT *ctx, unsigned int channel, int vol) {
     _alsa_set_volume (ctx->idx, channel, vol);
 }
 
-void _backend_set_volume_all (audioCtxHandleT *ctx, int vol) {
+void _backend_set_volume_all (audioCtxHandleT *ctx, unsigned int vol) {
 
 # ifdef HAVE_PULSE
     if (ctx->audio_dev) _pulse_set_volume_all (ctx, vol); else
@@ -147,31 +154,31 @@ STATIC void freeAudio (void *context) {
 
 /* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
     json_object *jresp;
-    int idx;
 
     /* create a private client context */
-    if (!request->context)
-        request->context = initAudioCtx();
+    if (!request.context)
+        request.context = initAudioCtx();
 
-    _backend_init("default", request->context);
+    _backend_init("default", request.context);
 
     jresp = json_object_new_object();
-    json_object_object_add (jresp, "info", json_object_new_string ("Audio initialised"));
-    return (jresp);
+    json_object_object_add (jresp, "info", json_object_new_string ("Audio initialized"));
+
+    afb_req_success (request, jresp, "Audio initiliazed");
 }
 
-STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
+STATIC void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp;
-    int volume[8], i;
+    unsigned int volume[8], i;
     char *volume_i;
     char volume_str[256];
-    int len_str = 0;
+    size_t len_str = 0;
 
     /* no "?value=" parameter : return current state */
     if (!value) {
@@ -188,12 +195,13 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
     else {
         volume_i = strdup (value);
         volume_i = strtok (volume_i, ",");
-        volume[0] = atoi (volume_i);
+        volume[0] = (unsigned int) atoi (volume_i);
 
-        if ((100 < volume[0])||(volume[0] < 0)) {
+        if (100 < volume[0]) {
             free (volume_i);
-            request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
-            return (jsonNewMessage (AFB_FAIL, "Volume must be between 0 and 100"));
+            //request.errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+            afb_req_fail (request, "Failed", "Volume must be between 0 and 100");
+            return;
         }
         ctx->volume[0] = volume[0];
         _backend_set_volume (ctx, 0, ctx->volume[0]);
@@ -204,10 +212,10 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
             /* if there is only one value, set all channels to this one */
             if (!volume_i && i == 1)
                _backend_set_volume_all (ctx, ctx->volume[0]);
-            if (!volume_i || 100 < atoi(volume_i) < 0) {
+            if (!volume_i || 100 < atoi(volume_i) || atoi(volume_i) < 0) {
                ctx->volume[i] = _backend_get_volume (ctx, i);
             } else {
-               ctx->volume[i] = atoi(volume_i);
+               ctx->volume[i] = (unsigned int) atoi(volume_i);
                _backend_set_volume (ctx, i, ctx->volume[i]);
             }
             len_str = strlen(volume_str);
@@ -217,13 +225,13 @@ STATIC json_object* volume (AFB_request *request) {      /* AFB_SESSION_CHECK */
         json_object_object_add (jresp, "volume", json_object_new_string(volume_str));
     }
 
-    return jresp;
+    afb_req_success (request, jresp, "Audio - Volume changed");
 }
 
-STATIC json_object* channels (AFB_request *request) {    /* AFB_SESSION_CHECK */
+STATIC void channels (struct afb_req request) {    /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
     char channels_str[256];
 
@@ -235,20 +243,20 @@ STATIC json_object* channels (AFB_request *request) {    /* AFB_SESSION_CHECK */
 
     /* "?value=" parameter, set channels */
     else {
-        ctx->channels = atoi (value);
+        ctx->channels = (unsigned int) atoi (value);
         _backend_set_channels (ctx, ctx->channels);
 
         snprintf (channels_str, sizeof(channels_str), "%d", ctx->channels);
         json_object_object_add (jresp, "channels", json_object_new_string (channels_str));
     }
 
-    return jresp;
+    afb_req_success (request, jresp, "Audio - Channels set");
 }
 
-STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
@@ -275,13 +283,13 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
         json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
 
-    return jresp;
+    afb_req_success (request, jresp, "Audio - Mute set");
 }
 
-STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
@@ -307,31 +315,26 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
         json_object_object_add (jresp, "play", json_object_new_string ("off"));
     }
 
-    return jresp;
+    afb_req_success (request, jresp, "Audio - Play");
 }
 
-STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
-    return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Radio API");
+STATIC void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
+    afb_req_success (request, NULL, "Audio - Ping success");
 }
 
-STATIC AFB_restapi pluginApis[]= {
-  {"init"    , AFB_SESSION_CHECK,  (AFB_apiCB)init      , "Audio API - init"},
-  {"volume"  , AFB_SESSION_CHECK,  (AFB_apiCB)volume    , "Audio API - volume"},
-  {"channels", AFB_SESSION_CHECK,  (AFB_apiCB)channels  , "Audio API - channels"},
-  {"mute"    , AFB_SESSION_CHECK,  (AFB_apiCB)mute      , "Audio API - mute"},
-  {"play"    , AFB_SESSION_CHECK,  (AFB_apiCB)play      , "Audio API - play"},
-  {"ping"    , AFB_SESSION_NONE,   (AFB_apiCB)ping      , "Audio API - ping"},
+STATIC const struct AFB_restapi pluginApis[]= {
+  {"init"    , AFB_SESSION_CHECK,  init      , "Audio API - init"},
+  {"volume"  , AFB_SESSION_CHECK,  volume    , "Audio API - volume"},
+  {"channels", AFB_SESSION_CHECK,  channels  , "Audio API - channels"},
+  {"mute"    , AFB_SESSION_CHECK,  mute      , "Audio API - mute"},
+  {"play"    , AFB_SESSION_CHECK,  play      , "Audio API - play"},
+  {"ping"    , AFB_SESSION_NONE,   ping      , "Audio API - ping"},
   {NULL}
 };
 
-PUBLIC AFB_plugin *pluginRegister () {
-    AFB_plugin *plugin = malloc (sizeof(AFB_plugin));
-    plugin->type   = AFB_PLUGIN_JSON;
-    plugin->info   = "Application Framework Binder - Audio plugin";
-    plugin->prefix = "audio";        
-    plugin->apis   = pluginApis;
-
-    plugin->freeCtxCB = (AFB_freeCtxCB)freeAudio;
-
-    return (plugin);
+STATIC const struct AFB_plugin plug_desc = {
+    .type   = AFB_PLUGIN_JSON,
+    .info   = "Application Framework Binder - Audio plugin",
+    .prefix = "audio",
+    .apis   = pluginApis
 };

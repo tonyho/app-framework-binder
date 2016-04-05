@@ -83,7 +83,7 @@ ENDIF(gupnp_FOUND)
 INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
 
-SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${dbus_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${pulseaudio_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS} ${gupnp_INCLUDE_DIRS} ${openssl_INCLUDE_DIRS})
+SET(include_dirs ${INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src ${json-c_INCLUDE_DIRS} ${libmicrohttpd_INCLUDE_DIRS} ${uuid_INCLUDE_DIRS} ${dbus_INCLUDE_DIRS} ${alsa_INCLUDE_DIRS} ${pulseaudio_INCLUDE_DIRS} ${librtlsdr_INCLUDE_DIRS} ${gupnp_INCLUDE_DIRS} ${openssl_INCLUDE_DIRS})
 SET(link_libraries ${json-c_LIBRARIES} ${libmicrohttpd_LIBRARIES} ${uuid_LIBRARIES} ${dbus_LIBRARIES} ${alsa_LIBRARIES} ${pulseaudio_LIBRARIES} ${librtlsdr_LIBRARIES} ${gupnp_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${libefence_LIBRARIES} ${openssl_LIBRARIES} -lmagic -lm -ldl -lrt)
 SET(plugin_install_dir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/afb)
 
