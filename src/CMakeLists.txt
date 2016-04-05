@@ -8,7 +8,9 @@ ADD_LIBRARY(src OBJECT
 	afb-hreq.c
 	afb-websock.c
 	websock.c
-	verbose.c)
+	verbose.c
+	utils-upoll.c
+)
 
 INCLUDE_DIRECTORIES(${include_dirs})
 

@@ -61,19 +61,13 @@ enum AFB_Mode {
 	AFB_MODE_GLOBAL
 };
 
-/*
-typedef enum AFB_pluginE AFB_pluginE;
-typedef enum AFB_sessionE AFB_sessionE;
-typedef void (*AFB_apiCB)(struct afb_req);
-typedef void (*AFB_freeCtxCB)(void*);
-typedef struct AFB_restapi AFB_restapi;
-typedef struct AFB_plugin AFB_plugin;
-*/
+struct afb_poll;
 
 struct AFB_interface
 {
 	int verbosity;
 	enum AFB_Mode mode;
+	struct afb_poll (*poll_open)(int fd, uint32_t events, void (*process)(void *closure, int fd, uint32_t events), void *closure);
 };
 
 extern const struct AFB_plugin *pluginRegister (const struct AFB_interface *interface);

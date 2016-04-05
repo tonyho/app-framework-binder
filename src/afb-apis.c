@@ -41,9 +41,12 @@
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
+#include "afb-poll-itf.h"
+
 #include "session.h"
 #include "afb-apis.h"
 #include "verbose.h"
+#include "utils-upoll.h"
 
 struct api_desc {
 	struct AFB_plugin *plugin;	/* descriptor */
@@ -58,6 +61,12 @@ static struct api_desc *apis_array = NULL;
 static int apis_count = 0;
 
 static const char plugin_register_function[] = "pluginRegister";
+
+static const struct afb_poll_itf upoll_itf = {
+	.update = (void*)upoll_update,
+	.close = (void*)upoll_close
+};
+
 
 int afb_apis_count()
 {
@@ -75,6 +84,15 @@ void afb_apis_free_context(int apiidx, void *context)
 	else
 		free(context);
 }
+
+static struct afb_poll itf_poll_open(int fd, uint32_t events, void (*process)(void *closure, int fd, uint32_t events), void *closure)
+{
+	struct afb_poll result;
+	result.data = upoll_open(fd, events, process, closure);
+	result.itf = result.data ? &upoll_itf : NULL;
+	return result;
+}
+
 
 int afb_apis_add_plugin(const char *path)
 {
@@ -117,6 +135,7 @@ int afb_apis_add_plugin(const char *path)
 	}
 	interface->verbosity = 0;
 	interface->mode = AFB_MODE_LOCAL;
+	interface->poll_open = itf_poll_open;
 
 	/* init the plugin */
 	plugin = pluginRegisterFct(interface);
