@@ -367,9 +367,8 @@ int afb_apis_handle(struct afb_req req, struct AFB_clientCtx *context, const cha
 			v = a->plugin->apis;
 			for (j = 0 ; v->name ; j++, v++) {
 				if (!strncasecmp(v->name, verb, lenverb) && !v->name[lenverb]) {
-					req.context = context->contexts[i];
+					req.context = &context->contexts[i];
 					handle(req, v);
-					context->contexts[i] = req.context;
 					return 1;
 				}
 			}

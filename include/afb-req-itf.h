@@ -37,7 +37,7 @@ struct afb_req_itf {
 struct afb_req {
 	const struct afb_req_itf *itf;
 	void *data;
-	void *context;
+	void **context;
 };
 
 static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
