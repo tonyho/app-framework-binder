@@ -83,12 +83,7 @@ static void pingNull (struct afb_req request)
 
 static void pingBug (struct afb_req request)
 {
-    int a,b,c;
-    
-    b=4;
-    c=0;
-    a=b/c;
-    
+	pingNull((struct afb_req){NULL,NULL,NULL});
 }
 
 
