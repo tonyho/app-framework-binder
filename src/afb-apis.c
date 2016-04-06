@@ -311,6 +311,7 @@ static void trapping_handle(struct afb_req req, void(*cb)(struct afb_req))
 			timerset = 1; /* TODO: check statuses */
 			sevp.sigev_notify = SIGEV_THREAD_ID;
 			sevp.sigev_signo = SIGALRM;
+			sevp.sigev_value.sival_ptr = NULL;
 #if defined(sigev_notify_thread_id)
 			sevp.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
 #else
