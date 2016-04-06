@@ -23,7 +23,9 @@
 		document.getElementById("output").innerHTML = "ERROR: "+JSON.stringify(obj);
 	}
 	function send(message) {
-		ws.call("hello", "ping", {data:message}, replyok, replyerr);
+		var api = document.getElementById("api").value;
+		var verb = document.getElementById("verb").value;
+		ws.call(api, verb, {data:message}, replyok, replyerr);
 	}
     </script>
 
@@ -31,6 +33,8 @@
     <h1>WebSocket Echo</h1>
     <div id="connected">Not Connected</div>
     <div id="main" style="visibility:hidden">
+    API: <input type="text" id="api" value="hello" size="80"/><br/>
+    VERB: <input type="text" id="verb" value="ping" size="80"/><br/>
     Enter Message: <input type="text" name="message" value="" size="80" onchange="send(this.value)"/><br/>
     Server says... <div id="output"></div>
     </div>
