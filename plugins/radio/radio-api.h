@@ -19,11 +19,10 @@
 #ifndef RADIO_API_H
 #define RADIO_API_H
 
-#include "radio-rtlsdr.h"
-
 /* -------------- PLUGIN DEFINITIONS ----------------- */
 
 #define MAX_RADIO 10
+typedef enum { FM, AM } Mode;
 
 /* structure holding one radio device with current usage status */
 typedef struct {
@@ -35,13 +34,13 @@ typedef struct {
 /* global plugin handle, should store everything we may need */
 typedef struct {
   radioDevT *radios[MAX_RADIO];  // pointer to existing radio
-  int devCount;
+  unsigned int devCount;
 } pluginHandleT;
 
 /* private client context [will be destroyed when client leaves] */
 typedef struct {
     radioDevT *radio;         /* pointer to client radio            */
-    int idx;                  /* radio index within global array    */
+    unsigned int idx;         /* radio index within global array    */
     Mode mode;                /* radio mode: AM/FM                  */
     float freq;               /* radio frequency (Mhz)              */
     unsigned char mute;       /* radio muted: 0(false)/1(true)      */

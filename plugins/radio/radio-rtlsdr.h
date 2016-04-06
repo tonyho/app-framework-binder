@@ -25,13 +25,13 @@
 #include <pthread.h>
 #include <rtl-sdr.h>
 
+#include "radio-api.h"
 #include "local-def.h"
 
 #define pthread_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
 #define pthread_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
 #define BUF_LEN 16*16384
 
-typedef enum { FM, AM } Mode;
 typedef struct dongle_ctx dongle_ctx;
 typedef struct demod_ctx demod_ctx;
 typedef struct output_ctx output_ctx;
@@ -83,6 +83,14 @@ struct dev_ctx {
 
 PUBLIC unsigned int _radio_dev_count (void);
 PUBLIC const char* _radio_dev_name (unsigned int);
+
+PUBLIC unsigned char _radio_on (unsigned int, radioCtxHandleT *);
+PUBLIC void _radio_off (unsigned int);
+PUBLIC void _radio_stop (unsigned int);
+PUBLIC void _radio_play (unsigned int);
+PUBLIC void _radio_set_mode (unsigned int, Mode);
+PUBLIC void _radio_set_freq (unsigned int, double);
+PUBLIC void _radio_set_mute (unsigned int, unsigned char);
 
 STATIC void* _dongle_thread_fn (void *);
 STATIC void* _demod_thread_fn (void *);

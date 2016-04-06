@@ -16,7 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+#include <strings.h>
+
 #include "radio-api.h"
+#include "radio-rtlsdr.h"
+
+#include "afb-plugin.h"
+#include "afb-req-itf.h"
 
 /* ********************************************************
 
@@ -60,7 +67,7 @@ STATIC radioCtxHandleT* initRadioCtx () {
 
     ctx = malloc (sizeof(radioCtxHandleT));
     ctx->radio = NULL;
-    ctx->idx = -1;
+    //ctx->idx = -1;
     ctx->mode = FM;
     ctx->freq = 100.0;
     ctx->mute = 0;
@@ -71,7 +78,7 @@ STATIC radioCtxHandleT* initRadioCtx () {
 
 /* reserve a radio device for requesting client, power it on */
 STATIC AFB_error reserveRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
-    int idx;
+    unsigned int idx;
 
     /* loop on all devices, find an unused one */
     for (idx = 0; idx < _radio_dev_count(); idx++) {
@@ -112,7 +119,7 @@ STATIC AFB_error releaseRadio (pluginHandleT *handle, radioCtxHandleT *ctx) {
 
     /* clean client context */
     ctx->radio = NULL;
-    ctx->idx = -1;
+    //ctx->idx = -1;
 
     return AFB_SUCCESS;
 }
@@ -127,24 +134,24 @@ STATIC void freeRadio (void *context) {
 
 /* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC json_object* init (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
     json_object *jresp;
 
     /* create a private client context */
-    if (!request->context)
-        request->context = initRadioCtx();
+    if (!request.context)
+        request.context = initRadioCtx();
 
     jresp = json_object_new_object();
     json_object_object_add(jresp, "info", json_object_new_string ("Radio initialized"));
-    return jresp;
+    afb_req_success (request, jresp, "Radio - Initialized");
 }
 
-STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
+STATIC void power (struct afb_req request) {       /* AFB_SESSION_CHECK */
 
     pluginHandleT *handle = the_radio;
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp;
 
     /* no "?value=" parameter : return current state */
@@ -159,8 +166,9 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
     else if ( atoi(value) == 1 || !strcasecmp(value, "true") ) {
         if (!ctx->radio) {
             if (reserveRadio (handle, ctx) == AFB_FAIL) {
-                request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
-                return (jsonNewMessage (AFB_FAIL, "No more radio devices available"));
+                //request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+                afb_req_fail (request, "failed", "No more radio devices available");
+		return;
             }
         }
         jresp = json_object_new_object();
@@ -171,8 +179,9 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
     else if ( atoi(value) == 0 || !strcasecmp(value, "false") ) {
         if (ctx->radio) {
             if (releaseRadio (handle, ctx) == AFB_FAIL) {
-                request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
-                return (jsonNewMessage (AFB_FAIL, "Unable to release radio device"));
+                //request->errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
+                afb_req_fail (request, "failed", "Unable to release radio device");
+		return;
             }
         }
         jresp = json_object_new_object();
@@ -181,13 +190,13 @@ STATIC json_object* power (AFB_request *request) {       /* AFB_SESSION_CHECK */
     else
         jresp = NULL;
 
-    return jresp;
+    afb_req_success (request, jresp, "Radio - Power set");
 }
 
-STATIC json_object* mode (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void mode (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
@@ -210,14 +219,14 @@ STATIC json_object* mode (AFB_request *request) {        /* AFB_SESSION_CHECK */
         _radio_set_mode (ctx->idx, ctx->mode);
         json_object_object_add (jresp, "mode", json_object_new_string ("FM"));
     }
-    
-    return jresp;
+
+    afb_req_success (request, jresp, "Radio - Mode set");
 }
 
-STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void freq (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
     double freq;
     char freq_str[256];
@@ -237,16 +246,16 @@ STATIC json_object* freq (AFB_request *request) {        /* AFB_SESSION_CHECK */
         snprintf (freq_str, sizeof(freq_str), "%f", ctx->freq);
         json_object_object_add (jresp, "freq", json_object_new_string (freq_str));
     }
-    
-    return jresp;
+
+    afb_req_success (request, jresp, "Radio - Frequency Set");
 }
 
-STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
-    char *mute_str;
+    //char *mute_str;
 
     /* no "?value=" parameter : return current state */
     if (!value || !ctx->radio) {
@@ -268,14 +277,14 @@ STATIC json_object* mute (AFB_request *request) {        /* AFB_SESSION_CHECK */
         _radio_set_mute (ctx->idx, ctx->mute);
         json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
-    
-    return jresp;
+
+    afb_req_success (request, jresp, "Radio - Mute set"); 
 }
 
-STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
+STATIC void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    radioCtxHandleT *ctx = (radioCtxHandleT*)request->context;
-    const char *value = getQueryValue (request, "value");
+    radioCtxHandleT *ctx = (radioCtxHandleT*)request.context;
+    const char *value = afb_req_argument (request, "value");
     json_object *jresp = json_object_new_object();
     
     /* no "?value=" parameter : return current state */
@@ -301,34 +310,30 @@ STATIC json_object* play (AFB_request *request) {        /* AFB_SESSION_CHECK */
         json_object_object_add (jresp, "play", json_object_new_string ("off"));
     }
 
-    return jresp;
+    afb_req_success (request, jresp, "Radio - Play succeeded");
 }
 
-STATIC json_object* ping (AFB_request *request) {         /* AFB_SESSION_NONE */
-    return jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon - Radio API");
+STATIC void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
+    afb_req_success (request, NULL, "Radio - Ping succeeded");
 }
 
 
-STATIC AFB_restapi pluginApis[]= {
-  {"init"   , AFB_SESSION_CHECK,  (AFB_apiCB)init       , "Radio API - init"},
-  {"power"  , AFB_SESSION_CHECK,  (AFB_apiCB)power      , "Radio API - power"},
-  {"mode"   , AFB_SESSION_CHECK,  (AFB_apiCB)mode       , "Radio API - mode"},
-  {"freq"   , AFB_SESSION_CHECK,  (AFB_apiCB)freq       , "Radio API - freq"},
-  {"mute"   , AFB_SESSION_CHECK,  (AFB_apiCB)mute       , "Radio API - mute"},
-  {"play"   , AFB_SESSION_CHECK,  (AFB_apiCB)play       , "Radio API - play"},
-  {"ping"   , AFB_SESSION_NONE,   (AFB_apiCB)ping       , "Radio API - ping"},
+STATIC const struct AFB_restapi pluginApis[]= {
+  {"init"   , AFB_SESSION_CHECK,  init       , "Radio API - init"},
+  {"power"  , AFB_SESSION_CHECK,  power      , "Radio API - power"},
+  {"mode"   , AFB_SESSION_CHECK,  mode       , "Radio API - mode"},
+  {"freq"   , AFB_SESSION_CHECK,  freq       , "Radio API - freq"},
+  {"mute"   , AFB_SESSION_CHECK,  mute       , "Radio API - mute"},
+  {"play"   , AFB_SESSION_CHECK,  play       , "Radio API - play"},
+  {"ping"   , AFB_SESSION_NONE,   ping       , "Radio API - ping"},
   {NULL}
 };
 
-PUBLIC AFB_plugin* pluginRegister () {
-    AFB_plugin *plugin = malloc (sizeof(AFB_plugin));
-    plugin->type  = AFB_PLUGIN_JSON;
-    plugin->info  = "Application Framework Binder - Radio plugin";
-    plugin->prefix  = "radio";
-    plugin->apis  = pluginApis;
-
-    plugin->freeCtxCB = (AFB_freeCtxCB)freeRadio;
-
-    the_radio = initRadioPlugin();
-    return plugin;
+STATIC const struct AFB_plugin plug_desc = {
+    .type  = AFB_PLUGIN_JSON,
+    .info  = "Application Framework Binder - Radio plugin",
+    .prefix  = "radio",
+    .apis  = pluginApis,
+    //plugin->freeCtxCB = (AFB_freeCtxCB)freeRadio;
+    //the_radio = initRadioPlugin();
 };
