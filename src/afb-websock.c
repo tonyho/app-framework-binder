@@ -220,15 +220,21 @@ static const struct afb_req_itf wsreq_itf = {
 
 struct afb_websock *afb_websock_create(struct afb_hreq *hreq)
 {
+	int fd;
 	struct afb_websock *result;
+
+	fd = MHD_get_connection_info(hreq->connection,
+				MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd;
+	fd = dup(fd);
+	if (fd < 0)
+		return NULL;
 
 	result = malloc(sizeof * result);
 	if (result == NULL)
 		goto error;
 
 	result->connection = hreq->connection;
-	result->fd = MHD_get_connection_info(hreq->connection,
-				MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd;
+	result->fd = fd;
 	result->context = ctxClientGet(afb_hreq_context(hreq));
 	if (result->context == NULL)
 		goto error2;
@@ -255,6 +261,7 @@ error3:
 error2:
 	free(result);
 error:
+	close(fd);
 	return NULL;
 }
 
@@ -346,7 +353,7 @@ static int aws_handle_json(struct afb_websock *aws, struct json_object *obj)
 		goto error;
 	verb = &api[lenapi+1];
 	for (lenverb = 0 ; verb[lenverb] && verb[lenverb] != '/' ; lenverb++);
-	if (!lenverb || !verb[lenverb])
+	if (!lenverb || verb[lenverb])
 		goto error;
 
 	/* allocates the request data */

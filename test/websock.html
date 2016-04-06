@@ -1,47 +1,37 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
-  <head>
+<head>
     <title>WebSocket Echo</title>
+    <script type="text/javascript" src="websock.js"></script>
     <script type="text/javascript">
-    <!--
-      var ws;
+	var ws;
 
-      if ((typeof(WebSocket) == 'undefined') &&
-          (typeof(MozWebSocket) != 'undefined')) {
-        WebSocket = MozWebSocket;
-      }
-
-      function init() {
-        ws = new WebSocket("ws://localhost:1234/api/");
-        ws.onopen = function(event) {
-          document.getElementById("main").style.visibility = "visible";
-          document.getElementById("connected").innerHTML = "Connected to WebSocket server";
-        };
-        ws.onmessage = function(event) {
-          document.getElementById("output").innerHTML = event.data;
-        };
-        ws.onerror = function(event) { alert("Received error"); };
-        ws.onclose = function(event) {
-          ws = null;
-          document.getElementById("main").style.visibility = "hidden";
-          document.getElementById("connected").innerHTML = "Connection Closed";
-        }
-      }
-
-      function send(message) {
-        if (ws) {
-          ws.send(message);
-        }
-      }
-    // -->
+	function onopen() {
+		document.getElementById("main").style.visibility = "visible";
+		document.getElementById("connected").innerHTML = "Connected to WebSocket server";
+	}
+	function onabort() {
+		document.getElementById("main").style.visibility = "hidden";
+		document.getElementById("connected").innerHTML = "Connected Closed";
+	}
+	function init() {
+		ws = new AfbWsItf("api", onopen, onabort, new AfbCtxItf("hello"));
+	}
+	function replyok(obj) {
+		document.getElementById("output").innerHTML = "OK: "+JSON.stringify(obj);
+	}
+	function replyerr(obj) {
+		document.getElementById("output").innerHTML = "ERROR: "+JSON.stringify(obj);
+	}
+	function send(message) {
+		ws.call("hello", "ping", {data:message}, replyok, replyerr);
+	}
     </script>
-  </head>
-  <body onload="init();">
+
+<body onload="init();">
     <h1>WebSocket Echo</h1>
     <div id="connected">Not Connected</div>
     <div id="main" style="visibility:hidden">
     Enter Message: <input type="text" name="message" value="" size="80" onchange="send(this.value)"/><br/>
     Server says... <div id="output"></div>
     </div>
-  </body>
-</html>
+

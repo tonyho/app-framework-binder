@@ -63,3 +63,4 @@ int websock_dispatch(struct websock *ws);
 
 struct websock *websock_create(const struct websock_itf *itf, void *closure);
 void websock_destroy(struct websock *ws);
+

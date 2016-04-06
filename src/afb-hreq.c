@@ -184,7 +184,34 @@ static const char *magic_mimetype_fd(int fd)
 
 #endif
 
+static const char *mimetype_fd_name(int fd, const char *filename)
+{
+	const char *result = NULL;
 
+#if defined(INFER_EXTENSION)
+	const char *extension = strrchr(filename, '.');
+	if (extension) {
+		static const char *const known[][2] = {
+			{ ".js", "text/javascript" },
+			{ ".html", "text/html" },
+			{ NULL, NULL }
+		};
+		int i = 0;
+		while (known[i][0]) {
+			if (!strcasecmp(extension, known[i][0])) {
+				result = known[i][1];
+				break;
+			}
+			i++;
+		}
+	}
+#endif
+#if defined(USE_MAGIC_MIME_TYPE)
+	if (result == NULL)
+		result = magic_mimetype_fd(fd);
+#endif
+	return result;
+}
 
 void afb_hreq_free(struct afb_hreq *hreq)
 {
@@ -257,6 +284,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	char etag[1 + 2 * sizeof(int)];
 	const char *inm;
 	struct MHD_Response *response;
+	const char *mimetype;
 
 	/* Opens the file or directory */
 	if (filename[0]) {
@@ -336,14 +364,10 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 		response = MHD_create_response_from_fd((size_t) st.st_size, fd);
 		status = MHD_HTTP_OK;
 
-#if defined(USE_MAGIC_MIME_TYPE)
 		/* set the type */
-		{
-			const char *mimetype = magic_mimetype_fd(fd);
-			if (mimetype != NULL)
-				MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
-		}
-#endif
+		mimetype = mimetype_fd_name(fd, filename);
+		if (mimetype != NULL)
+			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
 	}
 
 	/* fills the value and send */

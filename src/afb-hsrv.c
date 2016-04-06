@@ -152,11 +152,8 @@ static int afb_hreq_websocket_switch(struct afb_hreq *hreq, void *data)
 
 	if (!later) {
 		struct afb_websock *ws = afb_websock_create(hreq);
-		if (ws == NULL) {
-			/* TODO */
-		} else {
-			/* TODO */
-		}
+		if (ws != NULL)
+			hreq->upgrade = 1;
 	}
 	return 1;
 }

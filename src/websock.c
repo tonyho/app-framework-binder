@@ -170,12 +170,12 @@ void websock_pong(struct websock *ws)
 
 void websock_text(struct websock *ws, const char *text, size_t length)
 {
-	websock_send(ws, OPCODE_TEXT, NULL, 0);
+	websock_send(ws, OPCODE_TEXT, text, length);
 }
 
 void websock_binary(struct websock *ws, const void *data, size_t length)
 {
-	websock_send(ws, OPCODE_BINARY, NULL, 0);
+	websock_send(ws, OPCODE_BINARY, data, length);
 }
 
 static int read_header(struct websock *ws)
@@ -192,7 +192,7 @@ static int read_header(struct websock *ws)
 
 int websock_dispatch(struct websock *ws)
 {
- loop:
+loop:
 	switch (ws->state) {
 	case STATE_INIT:
 		ws->lenhead = 0;
@@ -201,7 +201,7 @@ int websock_dispatch(struct websock *ws)
 
 	case STATE_START:
 		/* read the header */
-		if (!read_header(ws))
+		if (read_header(ws))
 			return -1;
 		else if (ws->lenhead < ws->szhead)
 			return 0;
@@ -262,7 +262,7 @@ int websock_dispatch(struct websock *ws)
 
 	case STATE_LENGTH:
 		/* continue to read the header */
-		if (!read_header(ws))
+		if (read_header(ws))
 			return -1;
 		else if (ws->lenhead < ws->szhead)
 			return 0;
@@ -409,6 +409,7 @@ struct websock *websock_create(const struct websock_itf *itf, void *closure)
 	if (result) {
 		result->itf = itf;
 		result->closure = closure;
+		result->maxlength = 65000;
 	}
 	return result;
 }
