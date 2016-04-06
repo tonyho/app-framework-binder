@@ -16,106 +16,99 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+#include <json.h>
 
-#include "local-def.h"
+#include "afb-plugin.h"
+#include "afb-req-itf.h"
+
+
+static int fillargs(json_object *args, struct afb_arg arg)
+{
+    json_object *obj;
+
+    obj = json_object_new_object();
+    json_object_object_add (obj, "value", json_object_new_string(arg.value));
+    json_object_object_add (obj, "size", json_object_new_int64((int64_t)arg.size));
+    json_object_object_add (obj, "is_file", json_object_new_boolean(arg.is_file));
+    json_object_object_add (args, arg.name && *arg.name ? arg.name : "<empty-string>", obj);
+    return 1; /* continue to iterate */
+}
 
 // Sample Generic Ping Debug API
-static json_object* getPingTest(AFB_request *request) {
+static void getPingTest(struct afb_req request)
+{
     static int pingcount = 0;
-    json_object *response;
-    char query  [8000];
-    int len;
-    
-    // request all query key/value
-    len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
-    
-    // return response to caller
-    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon count=%d uuid=%s query={%s}"
-               , pingcount++, request->uuid, query);
-    return (response);
+    json_object *query;
+
+    query = json_object_new_object();
+    afb_req_iterate(request, (void*)fillargs, query);
+
+    afb_req_success_f(request, query, "Ping Binder Daemon count=%d", ++pingcount);
 }
 
 // With content-type=json data are directly avaliable in request->post->data
-STATIC json_object* GetJsonByPost (AFB_request *request) {
+static void GetJsonByPost (struct afb_req request)
+{
     json_object* jresp;
-    char query [8000];
-    int  len;
-    
-    // Get all query string [Note real app should probably use value=getQueryValue(request,"key")]
-    len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strncpy (query, "NoSearchQueryList", sizeof(query));
-    
-    // for debug/test return response to caller
-    jresp = jsonNewMessage(AFB_SUCCESS, "GetJsonByPost query={%s}", query);
-    
-    return (jresp);    
+    json_object *query;
+    struct afb_arg arg;
+
+    query = json_object_new_object();
+    afb_req_iterate(request, (void*)fillargs, query);
+
+    arg = afb_req_get(request, "");
+    jresp = arg.value ? json_tokener_parse(arg.value) : NULL;
+    afb_req_success_f(request, jresp, "GetJsonByPost query={%s}", json_object_to_json_string(query));
 }
 
-
+// Upload a file and execute a function when upload is done
+static void Uploads (struct afb_req request, const char *destination)
+{
+   afb_req_fail_f(request, "unimplemented", "destination: %s", destination);
+}
 
 // Upload a file and execute a function when upload is done
-STATIC json_object* UploadAppli (AFB_request *request, AFB_PostItem *item) {
-    
-    char *destination = "applications";
-
-    // This is called after PostForm and then after DonePostForm
-    if (item == NULL) {
-        // Do something intelligent here to install application
-        request->errcode = MHD_HTTP_OK;   // or error is something went wrong;   
-        request->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Appli=%s done", getPostPath (request));
-        // Note: should not return here in order getPostedFile to clear Post resources.
-    }
-    
-    // upload multi iteration logic is handle by getPostedFile
-    return (getPostFile (request, item, destination));
+static void UploadAppli (struct afb_req request)
+{
+    Uploads(request, "applications");
 }
 
 // Simples Upload case just upload a file
-STATIC json_object* UploadMusic (AFB_request *request, AFB_PostItem *item) {
-    
-    // upload multi iteration logic is handle by getPostedFile
-    return (getPostFile (request, item, "musics"));
+static void UploadMusic (struct afb_req request)
+{
+    Uploads(request, "musics");
 }
 
 // PostForm callback is called multiple times (one or each key within form, or once per file buffer)
 // When file has been fully uploaded call is call with item==NULL 
-STATIC json_object* UploadImage (AFB_request *request, AFB_PostItem *item) {
-    
-    // note if directory is relative it will be prefixed by request->config->sessiondir
-    char *destination = "images";
-
-    // This is called after PostForm and then after DonePostForm
-    if (item == NULL && getPostPath (request) != NULL) {
-        // Do something with your newly upload filepath=postFileCtx->path
-        request->errcode = MHD_HTTP_OK;     
-        request->jresp   = jsonNewMessage(AFB_SUCCESS,"UploadFile Post Image done");    
-
-        // Note: should not return here in order getPostedFile to clear Post resources.
-    }
-    
-    // upload multi iteration logic is handle by getPostedFile
-    return (getPostFile (request, item, destination));
+static void UploadImage (struct afb_req request)
+{
+    Uploads(request, "images");
 }
 
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application upload-xxx should be protected with AFB_SESSION_CHECK
-STATIC  AFB_restapi pluginApis[]= {
-  {"ping"         , AFB_SESSION_NONE  , (AFB_apiCB)getPingTest    ,"Ping Rest Test Service"},
-  {"upload-json"  , AFB_SESSION_NONE  , (AFB_apiCB)GetJsonByPost  ,"Demo for Json Buffer on Post"},
-  {"upload-image" , AFB_SESSION_NONE  , (AFB_apiCB)UploadImage    ,"Demo for file upload"},
-  {"upload-music" , AFB_SESSION_NONE  , (AFB_apiCB)UploadMusic    ,"Demo for file upload"},
-  {"upload-appli" , AFB_SESSION_NONE  , (AFB_apiCB)UploadAppli    ,"Demo for file upload"},
+static const struct AFB_restapi pluginApis[]= {
+  {"ping"         , AFB_SESSION_NONE  , getPingTest    ,"Ping Rest Test Service"},
+  {"upload-json"  , AFB_SESSION_NONE  , GetJsonByPost  ,"Demo for Json Buffer on Post"},
+  {"upload-image" , AFB_SESSION_NONE  , UploadImage    ,"Demo for file upload"},
+  {"upload-music" , AFB_SESSION_NONE  , UploadMusic    ,"Demo for file upload"},
+  {"upload-appli" , AFB_SESSION_NONE  , UploadAppli    ,"Demo for file upload"},
   {NULL}
 };
 
-PUBLIC AFB_plugin *pluginRegister () {
-    AFB_plugin *plugin = malloc (sizeof (AFB_plugin));
-    plugin->type  = AFB_PLUGIN_JSON; 
-    plugin->info  = "Sample with Post Upload Files";
-    plugin->prefix= "post";  // url base
-    plugin->apis  = pluginApis;
-    
-    return (plugin);
+static const struct AFB_plugin plugin_desc = {
+	.type = AFB_PLUGIN_JSON,
+	.info = "Sample with Post Upload Files",
+	.prefix = "post",
+	.apis = pluginApis
+};
+
+const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+{
+    return &plugin_desc;
 };

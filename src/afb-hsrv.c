@@ -56,6 +56,12 @@ struct afb_diralias {
 	int dirfd;
 };
 
+struct afb_hsrv {
+	struct MHD_Daemon *httpd;
+	struct afb_hsrv_handler *handlers;
+	struct upoll *upoll;
+};
+
 static struct upoll *upoll = NULL;
 
 static struct afb_hsrv_handler *new_handler(
@@ -303,6 +309,7 @@ static int access_handler(
 				hreq->postform = MHD_create_post_processor (connection, 65500, postproc, hreq);
 				if (hreq->postform == NULL)
 					goto internal_error;
+				return MHD_YES;
 			} else if (strcasestr(type, JSON_CONTENT) == NULL) {
 				afb_hsrv_reply_error(connection, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
 				return MHD_YES;

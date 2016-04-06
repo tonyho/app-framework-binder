@@ -447,9 +447,29 @@ int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, 
 
 int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *file, const char *data, size_t size)
 {
+	ssize_t sz;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
 
-	/* continuation with reopening */
+	if (hdat->value == NULL) {
+		hdat->file = open(file, O_WRONLY|O_TRUNC|O_CREAT, 0600);
+		if (hdat->file == 0) {
+			hdat->file = dup(0);
+			close(0);
+		}
+		if (hdat->file <= 0) {
+			hdat->file = 0;
+			return 0;
+		}
+		hdat->value = strdup(file);
+		if (hdat->value == NULL) {
+			close(hdat->file);
+			hdat->file = 0;
+			return 0;
+		}
+	} else {
+		if (strcmp(hdat->value, file))
+			return 0;
+	}
 	if (hdat->file < 0) {
 		hdat->file = open(hdat->value, O_WRONLY|O_APPEND);
 		if (hdat->file == 0) {
@@ -459,15 +479,16 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 		if (hdat->file <= 0)
 			return 0;
 	}
-	if (hdat->file > 0) {
-		write(hdat->file, data, size);
-		return 1;
+	while (size) {
+		sz = write(hdat->file, data, size);
+		if (sz >= 0) {
+			hdat->length += (size_t)sz;
+			size -= (size_t)sz;
+			data += sz;
+		} else if (errno != EINTR)
+			return 0;
 	}
-
-	/* creation */
-	/* TODO */
-	return 0;
-	
+	return 1;
 }
 
 int afb_hreq_is_argument_a_file(struct afb_hreq *hreq, const char *key)
