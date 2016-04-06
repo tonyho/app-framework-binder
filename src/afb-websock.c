@@ -27,10 +27,6 @@
 #include <json.h>
 
 #include <openssl/sha.h>
-/*
-#include <openssl/bio.h>
-#include <openssl/evp.h>
-*/
 
 #include "websock.h"
 
@@ -509,6 +505,7 @@ static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status
 	/* emits the reply */
 	message = json_object_to_json_string(reply);
 	websock_text(wsreq->aws->ws, message, strlen(message));
+	json_object_put(reply);
 
 	/* TODO eliminates the wsreq */
 }
