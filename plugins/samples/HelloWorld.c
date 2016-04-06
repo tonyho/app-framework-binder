@@ -23,47 +23,28 @@
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
 
-typedef struct queryHandleT {
-     char    *msg;
-     size_t  idx;
-     size_t  len;
-} queryHandleT;
+static int fillargs(json_object *args, struct afb_arg arg)
+{
+    json_object *obj;
 
-static int getQueryCB (queryHandleT *query, struct afb_arg arg) {
-    if (query->idx >= query->len)
-	return 0;
-    query->idx += (unsigned)snprintf (&query->msg[query->idx], query->len-query->idx, " %s: %s\'%s\',", arg.name, arg.is_file?"FILE=":"", arg.value);
+    obj = json_object_new_object();
+    json_object_object_add (obj, "value", json_object_new_string(arg.value));
+    json_object_object_add (obj, "path", json_object_new_string(arg.path));
+    json_object_object_add (obj, "size", json_object_new_int64((int64_t)arg.size));
+    json_object_object_add (args, arg.name && *arg.name ? arg.name : "<empty-string>", obj);
     return 1; /* continue to iterate */
 }
 
-// Helper to retrieve argument from  connection
-static size_t getQueryAll(struct afb_req request, char *buffer, size_t len) {
-    queryHandleT query;
-    buffer[0] = '\0'; // start with an empty string
-    query.msg = buffer;
-    query.len = len;
-    query.idx = 0;
-
-    afb_req_iterate(request, (void*)getQueryCB, &query);
-    buffer[len-1] = 0;
-    return query.idx >= len ? len - 1 : query.idx;
-}
-
-static void ping (struct afb_req request, json_object *jresp)
+// Sample Generic Ping Debug API
+static void ping(struct afb_req request, json_object *jresp)
 {
     static int pingcount = 0;
-    char query [512];
-    size_t len;
+    json_object *query;
 
-    // request all query key/value
-    len = getQueryAll (request, query, sizeof(query));
-    if (len == 0) strcpy (query,"NoSearchQueryList");
-    
-    // return response to caller
-//    response = jsonNewMessage(AFB_SUCCESS, "Ping Binder Daemon %d query={%s}", pingcount++, query);
-    afb_req_success_f(request, jresp, "Ping Binder Daemon %d query={%s}", pingcount++, query);
-    
-    fprintf(stderr, "%d: \n", pingcount);
+    query = json_object_new_object();
+    afb_req_iterate(request, (void*)fillargs, query);
+
+    afb_req_success_f(request, jresp, "Ping Binder Daemon count=%d query=%s", ++pingcount, json_object_to_json_string(query));
 }
 
 static void pingSample (struct afb_req request)

@@ -221,8 +221,8 @@ static void install(struct afb_req request)
 
 	/* get the argument */
 	arg = afb_req_get(request, "widget");
-	filename = arg.value;
-	if (filename == NULL || !arg.is_file) {
+	filename = arg.path;
+	if (filename == NULL) {
 		afb_req_fail(request, "bad-request", "missing 'widget' file");
 		return;
 	}

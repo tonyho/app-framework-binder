@@ -53,13 +53,9 @@ extern const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name);
 
 extern const char *afb_hreq_get_argument(struct afb_hreq *hreq, const char *name);
 
-extern int afb_hreq_is_argument_a_file(struct afb_hreq *hreq, const char *name);
-
 extern int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *name, const char *file, const char *data, size_t size);
 
 extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char *data, size_t size);
-
-extern void afb_hreq_post_end(struct afb_hreq *hreq);
 
 extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
 

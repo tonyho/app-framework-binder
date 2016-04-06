@@ -331,7 +331,6 @@ static int access_handler(
 	}
 
 	/* flush the data */
-	afb_hreq_post_end(hreq);
 	if (hreq->postform != NULL) {
 		rc = MHD_destroy_post_processor(hreq->postform);
 		hreq->postform = NULL;

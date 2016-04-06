@@ -20,8 +20,8 @@ struct json_object;
 struct afb_arg {
 	const char *name;
 	const char *value;
+	const char *path;
 	size_t size;
-	int is_file;
 };
 
 struct afb_req_itf {
@@ -50,9 +50,9 @@ static inline const char *afb_req_argument(struct afb_req req, const char *name)
 	return afb_req_get(req, name).value;
 }
 
-static inline int afb_req_is_argument_file(struct afb_req req, const char *name)
+static inline const char *afb_req_path(struct afb_req req, const char *name)
 {
-	return afb_req_get(req, name).is_file;
+	return afb_req_get(req, name).path;
 }
 
 static inline void afb_req_iterate(struct afb_req req, int (*iterator)(void *closure, struct afb_arg arg), void *closure)

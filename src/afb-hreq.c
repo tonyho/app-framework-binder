@@ -55,9 +55,9 @@ static const char token_cookie[] = "token";
 struct hreq_data {
 	struct hreq_data *next;
 	char *key;
-	int file;
 	size_t length;
 	char *value;
+	char *path;
 };
 
 static struct afb_arg req_get(struct afb_hreq *hreq, const char *name);
@@ -415,23 +415,11 @@ const char *afb_hreq_get_header(struct afb_hreq *hreq, const char *name)
 	return MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, name);
 }
 
-void afb_hreq_post_end(struct afb_hreq *hreq)
-{
-	struct hreq_data *data = hreq->data;
-	while(data) {
-		if (data->file > 0) {
-			close(data->file);
-			data->file = -1;
-		}
-		data = data->next;
-	}
-}
-
 int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, size_t size)
 {
 	void *p;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
-	if (hdat->file) {
+	if (hdat->path != NULL) {
 		return 0;
 	}
 	p = realloc(hdat->value, hdat->length + size + 1);
@@ -445,58 +433,51 @@ int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, 
 	return 1;
 }
 
+static int opentempfile(char **path)
+{
+	int fd;
+	char *fname;
+
+	fname = strdup("XXXXXX");
+	if (fname == NULL)
+		return -1;
+
+	fd = mkostemp(fname, O_CLOEXEC);
+	if (fd < 0)
+		free(fname);
+	return fd;
+}
+
 int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *file, const char *data, size_t size)
 {
+	int fd;
 	ssize_t sz;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
 
 	if (hdat->value == NULL) {
-		hdat->file = open(file, O_WRONLY|O_TRUNC|O_CREAT, 0600);
-		if (hdat->file == 0) {
-			hdat->file = dup(0);
-			close(0);
-		}
-		if (hdat->file <= 0) {
-			hdat->file = 0;
-			return 0;
-		}
 		hdat->value = strdup(file);
-		if (hdat->value == NULL) {
-			close(hdat->file);
-			hdat->file = 0;
+		if (hdat->value == NULL)
 			return 0;
-		}
+		fd = opentempfile(&hdat->path);
+	} else if (strcmp(hdat->value, file) || hdat->path == NULL) {
+		return 0;
 	} else {
-		if (strcmp(hdat->value, file))
-			return 0;
+		fd = open(hdat->path, O_WRONLY|O_APPEND);
 	}
-	if (hdat->file < 0) {
-		hdat->file = open(hdat->value, O_WRONLY|O_APPEND);
-		if (hdat->file == 0) {
-			hdat->file = dup(0);
-			close(0);
-		}
-		if (hdat->file <= 0)
-			return 0;
-	}
+	if (fd < 0)
+		return 0;
 	while (size) {
-		sz = write(hdat->file, data, size);
+		sz = write(fd, data, size);
 		if (sz >= 0) {
 			hdat->length += (size_t)sz;
 			size -= (size_t)sz;
 			data += sz;
 		} else if (errno != EINTR)
-			return 0;
+			break;
 	}
-	return 1;
+	close(fd);
+	return !size;
 }
-
-int afb_hreq_is_argument_a_file(struct afb_hreq *hreq, const char *key)
-{
-	struct hreq_data *hdat = get_data(hreq, key, 0);
-	return hdat != NULL && hdat->file != 0;
-}
-
 
 struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
 {
@@ -511,14 +492,14 @@ static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
 			.name = hdat->key,
 			.value = hdat->value,
 			.size = hdat->length,
-			.is_file = (hdat->file != 0)
+			.path = hdat->path
 		};
 		
 	return (struct afb_arg){
 		.name = name,
 		.value = MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name),
 		.size = 0,
-		.is_file = 0
+		.path = NULL
 	};
 }
 
@@ -537,7 +518,7 @@ static int _iterargs_(struct iterdata *id, enum MHD_ValueKind kind, const char *
 		.name = key,
 		.value = value,
 		.size = 0,
-		.is_file = 0
+		.path = NULL
 	});
 }
 
@@ -550,7 +531,7 @@ static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, st
 			.name = hdat->key,
 			.value = hdat->value,
 			.size = hdat->length,
-			.is_file = (hdat->file != 0)}))
+			.path = hdat->path}))
 			return;
 		hdat = hdat->next;
 	}

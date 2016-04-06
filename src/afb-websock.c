@@ -421,7 +421,7 @@ static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 		arg.value = NULL;
 	}
 	arg.size = 0;
-	arg.is_file = 0;
+	arg.path = NULL;
 	return arg;
 }
 
@@ -432,7 +432,7 @@ static void wsreq_iterate(struct afb_wsreq *wsreq, int (*iterator)(void *closure
 	struct json_object_iterator end = json_object_iter_end(wsreq->request);
 
 	arg.size = 0;
-	arg.is_file = 0;
+	arg.path = NULL;
 	while(!json_object_iter_equal(&it, &end)) {
 		arg.name = json_object_iter_peek_name(&it);
 		arg.value = json_object_get_string(json_object_iter_peek_value(&it));
