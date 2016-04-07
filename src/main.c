@@ -30,9 +30,9 @@
 #include "afb-plugin.h"
 
 #include "local-def.h"
-#include "afb-apis.h"
+#include "afb-hswitch.h"
+#include "afb-api-so.h"
 #include "afb-hsrv.h"
-#include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"
 #include "utils-upoll.h"
@@ -513,9 +513,9 @@ int main(int argc, char *argv[])  {
   }
 
   if (session->config->ldpaths) 
-    afb_apis_add_pathset(session->config->ldpaths);
+    afb_api_so_add_pathset(session->config->ldpaths);
 
-  ctxStoreInit(CTX_NBCLIENTS, session->config->cntxTimeout, afb_apis_count(), session->config->token);
+  ctxStoreInit(CTX_NBCLIENTS, session->config->cntxTimeout, session->config->token);
 
   install_error_handlers();
 
@@ -569,10 +569,10 @@ static int init(struct afb_hsrv *hsrv, AFB_config * config)
 {
 	int idx;
 
-	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hreq_websocket_switch, NULL, 20))
+	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_websocket_switch, NULL, 20))
 		return 0;
 
-	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hreq_rest_api, NULL, 10))
+	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_apis, NULL, 10))
 		return 0;
 
 	for (idx = 0; config->aliasdir[idx].url != NULL; idx++)
@@ -582,7 +582,7 @@ static int init(struct afb_hsrv *hsrv, AFB_config * config)
 	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10))
 		return 0;
 
-	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
+	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL, -20))
 		return 0;
 
 	return 1;

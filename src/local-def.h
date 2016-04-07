@@ -63,9 +63,6 @@ struct AFB_config
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 };
 
-struct afb_hsrv;
-struct MHD_Daemon;
-
 struct AFB_session
 {
   struct AFB_config  *config;   // pointer to current config

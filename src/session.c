@@ -63,13 +63,13 @@ static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
-void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok)
+void ctxStoreInit (int nbSession, int timeout, const char *initok)
 {
 	// let's create as store as hashtable does not have any
 	sessions.store = calloc (1 + (unsigned)nbSession, sizeof(struct AFB_clientCtx));
 	sessions.max = nbSession;
 	sessions.timeout = timeout;
-	sessions.apicount = apicount;
+	sessions.apicount = afb_apis_count();
 	if (strlen(initok) >= 37) {
 		fprintf(stderr, "Error: initial token '%s' too long (max length 36)", initok);
 		exit(1);

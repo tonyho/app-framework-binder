@@ -15,20 +15,13 @@
  * limitations under the License.
  */
 
-struct afb_req;
-struct AFB_clientCtx;
 
-struct afb_api
-{
-	void *closure;
-	void (*call)(void *closure, struct afb_req req, const char *verb, size_t lenverb);
-	void (*free_context)(void *closure, void *context);
-};
+extern int afb_api_so_add_plugin(const char *path);
 
+extern int afb_api_so_add_directory(const char *path);
 
-extern int afb_apis_count();
-extern int afb_apis_add(const char *name, struct afb_api api);
-extern void afb_apis_call(struct afb_req req, struct AFB_clientCtx *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
+extern int afb_api_so_add_path(const char *path);
 
-extern void afb_apis_free_context(int apiidx, void *context);
+extern int afb_api_so_add_pathset(const char *pathset);
+
 

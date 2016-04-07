@@ -26,7 +26,7 @@ struct AFB_clientCtx
 	char token[37];       // short term authentication of remote client
 };
 
-extern void ctxStoreInit (int nbSession, int timeout, int apicount, const char *initok);
+extern void ctxStoreInit (int nbSession, int timeout, const char *initok);
 
 extern struct AFB_clientCtx *ctxClientGetForUuid (const char *uuid);
 extern struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx);

@@ -367,9 +367,7 @@ static int aws_handle_json(struct afb_websock *aws, struct json_object *obj)
 
 	r.data = wsreq;
 	r.itf = &wsreq_itf;
-	rc = afb_apis_handle(r, aws->context, api, lenapi, verb, lenverb);
-	if (rc == 0)
-		wsreq_fail(wsreq, "ail", "api not found");
+	afb_apis_call(r, aws->context, api, lenapi, verb, lenverb);
 	return 1;
 
 error:
@@ -414,11 +412,12 @@ static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 	if (json_object_object_get_ex(wsreq->request, name, &value)) {
 		arg.name = name;
 		arg.value = json_object_get_string(value);
+		arg.size = strlen(arg.value);
 	} else {
 		arg.name = NULL;
 		arg.value = NULL;
+		arg.size = 0;
 	}
-	arg.size = 0;
 	arg.path = NULL;
 	return arg;
 }
