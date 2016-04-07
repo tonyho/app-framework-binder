@@ -380,7 +380,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	}
 
 	/* fills the value and send */
-	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, hreq->session->cacheTimeout);
+	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, hreq->cacheTimeout);
 	MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag);
 	MHD_queue_response(hreq->connection, status, response);
 	MHD_destroy_response(response);

@@ -16,5 +16,9 @@
  limitations under the License.
 */
 
-int afb_hsrv_start(AFB_session * session);
-void afb_hsrv_stop(AFB_session * session);
+struct afb_hsrv;
+
+extern struct afb_hsrv *afb_hsrv_create();
+
+extern int afb_hsrv_start(AFB_session * session);
+extern void afb_hsrv_stop(AFB_session * session);

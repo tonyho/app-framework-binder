@@ -19,7 +19,7 @@ struct AFB_session;
 struct AFB_clientCtx;
 
 struct afb_hreq {
-	struct AFB_session *session;
+	const char *cacheTimeout;
 	struct MHD_Connection *connection;
 	enum afb_method method;
 	const char *version;

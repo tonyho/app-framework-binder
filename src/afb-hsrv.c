@@ -57,12 +57,14 @@ struct afb_diralias {
 };
 
 struct afb_hsrv {
-	struct MHD_Daemon *httpd;
+	unsigned refcount;
 	struct afb_hsrv_handler *handlers;
+	struct MHD_Daemon *httpd;
 	struct upoll *upoll;
+	char *cache_to;
 };
 
-static struct upoll *upoll = NULL;
+
 
 static struct afb_hsrv_handler *new_handler(
 		struct afb_hsrv_handler *head,
@@ -106,7 +108,7 @@ static struct afb_hsrv_handler *new_handler(
 }
 
 int afb_hsrv_add_handler(
-		AFB_session * session,
+		struct afb_hsrv *hsrv,
 		const char *prefix,
 		int (*handler) (struct afb_hreq *, void *),
 		void *data,
@@ -114,10 +116,10 @@ int afb_hsrv_add_handler(
 {
 	struct afb_hsrv_handler *head;
 
-	head = new_handler(session->handlers, prefix, handler, data, priority);
+	head = new_handler(hsrv->handlers, prefix, handler, data, priority);
 	if (head == NULL)
 		return 0;
-	session->handlers = head;
+	hsrv->handlers = head;
 	return 1;
 }
 
@@ -200,7 +202,7 @@ static int handle_alias(struct afb_hreq *hreq, void *data)
 	return afb_hreq_reply_file(hreq, da->dirfd, &hreq->tail[1]);
 }
 
-int afb_hsrv_add_alias(AFB_session * session, const char *prefix, const char *alias, int priority)
+int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority)
 {
 	struct afb_diralias *da;
 	int dirfd;
@@ -216,7 +218,7 @@ int afb_hsrv_add_alias(AFB_session * session, const char *prefix, const char *al
 		da->directory = alias;
 		da->lendir = strlen(da->directory);
 		da->dirfd = dirfd;
-		if (afb_hsrv_add_handler(session, prefix, handle_alias, da, priority))
+		if (afb_hsrv_add_handler(hsrv, prefix, handle_alias, da, priority))
 			return 1;
 		free(da);
 	}
@@ -224,7 +226,7 @@ int afb_hsrv_add_alias(AFB_session * session, const char *prefix, const char *al
 	return 0;
 }
 
-void afb_hsrv_reply_error(struct MHD_Connection *connection, unsigned int status)
+static void reply_error(struct MHD_Connection *connection, unsigned int status)
 {
 	char *buffer;
 	int length;
@@ -272,11 +274,11 @@ static int access_handler(
 	int rc;
 	struct afb_hreq *hreq;
 	enum afb_method method;
-	AFB_session *session;
+	struct afb_hsrv *hsrv;
 	struct afb_hsrv_handler *iter;
 	const char *type;
 
-	session = cls;
+	hsrv = cls;
 	hreq = *recordreq;
 	if (hreq == NULL) {
 		/* create the request */
@@ -292,7 +294,7 @@ static int access_handler(
 			goto bad_request;
 
 		/* init the request */
-		hreq->session = cls;
+		hreq->cacheTimeout = hsrv->cache_to;
 		hreq->connection = connection;
 		hreq->method = method;
 		hreq->version = version;
@@ -311,7 +313,7 @@ static int access_handler(
 					goto internal_error;
 				return MHD_YES;
 			} else if (strcasestr(type, JSON_CONTENT) == NULL) {
-				afb_hsrv_reply_error(connection, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
+				reply_error(connection, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
 				return MHD_YES;
 			}
 		}
@@ -339,7 +341,7 @@ static int access_handler(
 	}
 
 	/* search an handler for the request */
-	iter = session->handlers;
+	iter = hsrv->handlers;
 	while (iter) {
 		if (afb_hreq_unprefix(hreq, iter->prefix, iter->length)) {
 			if (iter->handler(hreq, iter->data))
@@ -355,11 +357,11 @@ static int access_handler(
 	return MHD_YES;
 
 bad_request:
-	afb_hsrv_reply_error(connection, MHD_HTTP_BAD_REQUEST);
+	reply_error(connection, MHD_HTTP_BAD_REQUEST);
 	return MHD_YES;
 
 internal_error:
-	afb_hsrv_reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
+	reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	return MHD_YES;
 }
 
@@ -380,61 +382,43 @@ static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t 
 	return MHD_YES;
 }
 
-static int my_default_init(AFB_session * session)
-{
-	int idx;
-
-	if (!afb_hsrv_add_handler(session, session->config->rootapi, afb_hreq_websocket_switch, NULL, 20))
-		return 0;
-
-	if (!afb_hsrv_add_handler(session, session->config->rootapi, afb_hreq_rest_api, NULL, 10))
-		return 0;
-
-	for (idx = 0; session->config->aliasdir[idx].url != NULL; idx++)
-		if (!afb_hsrv_add_alias (session, session->config->aliasdir[idx].url, session->config->aliasdir[idx].path, 0))
-			return 0;
-
-	if (!afb_hsrv_add_alias(session, "", session->config->rootdir, -10))
-		return 0;
-
-	if (!afb_hsrv_add_handler(session, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
-		return 0;
-
-	return 1;
-}
-
 /* infinite loop */
 static void hsrv_handle_event(struct MHD_Daemon *httpd)
 {
 	MHD_run(httpd);
 }
 
-int afb_hsrv_start(AFB_session * session)
+int afb_hsrv_set_cache_timeout(struct afb_hsrv *hsrv, int duration)
 {
+	int rc;
+	char *dur;
+
+	rc = asprintf(&dur, "%d", duration);
+	if (rc < 0)
+		return 0;
+
+	free(hsrv->cache_to);
+	hsrv->cache_to = dur;
+	return 1;
+}
+
+int _afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection_timeout)
+{
+	struct upoll *upoll;
 	struct MHD_Daemon *httpd;
 	const union MHD_DaemonInfo *info;
 
-	if (!my_default_init(session)) {
-		printf("Error: initialisation of httpd failed");
-		return 0;
-	}
-
-	if (verbosity) {
-		printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
-		printf("AFB:notice Browser URL= http:/*localhost:%d\n", session->config->httpdPort);
-	}
-
 	httpd = MHD_start_daemon(
 		MHD_USE_EPOLL_LINUX_ONLY | MHD_USE_TCP_FASTOPEN | MHD_USE_DEBUG | MHD_USE_SUSPEND_RESUME,
-		(uint16_t) session->config->httpdPort,	/* port */
+		port,				/* port */
 		new_client_handler, NULL,	/* Tcp Accept call back + extra attribute */
-		access_handler, session,	/* Http Request Call back + extra attribute */
-		MHD_OPTION_NOTIFY_COMPLETED, end_handler, session,
-		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)15,	/* 15 seconds */
+		access_handler, hsrv,	/* Http Request Call back + extra attribute */
+		MHD_OPTION_NOTIFY_COMPLETED, end_handler, hsrv,
+		MHD_OPTION_CONNECTION_TIMEOUT, connection_timeout,
 		MHD_OPTION_END);	/* options-end */
 
 	if (httpd == NULL) {
-		printf("Error: httpStart invalid httpd port: %d", session->config->httpdPort);
+		printf("Error: httpStart invalid httpd port: %d", (int)port);
 		return 0;
 	}
 
@@ -453,17 +437,94 @@ int afb_hsrv_start(AFB_session * session)
 	}
 	upoll_on_readable(upoll, (void*)hsrv_handle_event);
 
-	session->httpd = httpd;
+	hsrv->httpd = httpd;
+	hsrv->upoll = upoll;
+	return 1;
+}
+
+void _afb_hsrv_stop(struct afb_hsrv *hsrv)
+{
+	if (hsrv->upoll)
+		upoll_close(hsrv->upoll);
+	hsrv->upoll = NULL;
+	if (hsrv->httpd != NULL)
+		MHD_stop_daemon(hsrv->httpd);
+	hsrv->httpd = NULL;
+}
+
+struct afb_hsrv *afb_hsrv_create()
+{
+	struct afb_hsrv *result = calloc(1, sizeof(struct afb_hsrv));
+	if (result != NULL)
+		result->refcount = 1;
+	return result;
+}
+
+void afb_hsrv_put(struct afb_hsrv *hsrv)
+{
+	assert(hsrv->refcount != 0);
+	if (!--hsrv->refcount) {
+		_afb_hsrv_stop(hsrv);
+		free(hsrv);
+	}
+}
+
+static int my_default_init(struct afb_hsrv *hsrv, AFB_session * session)
+{
+	int idx;
+
+	if (!afb_hsrv_add_handler(hsrv, session->config->rootapi, afb_hreq_websocket_switch, NULL, 20))
+		return 0;
+
+	if (!afb_hsrv_add_handler(hsrv, session->config->rootapi, afb_hreq_rest_api, NULL, 10))
+		return 0;
+
+	for (idx = 0; session->config->aliasdir[idx].url != NULL; idx++)
+		if (!afb_hsrv_add_alias (hsrv, session->config->aliasdir[idx].url, session->config->aliasdir[idx].path, 0))
+			return 0;
+
+	if (!afb_hsrv_add_alias(hsrv, "", session->config->rootdir, -10))
+		return 0;
+
+	if (!afb_hsrv_add_handler(hsrv, session->config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
+		return 0;
+
+	return 1;
+}
+
+int afb_hsrv_start(AFB_session * session)
+{
+	int rc;
+	struct afb_hsrv *hsrv;
+
+	hsrv = afb_hsrv_create();
+	if (hsrv == NULL) {
+		fprintf(stderr, "memory allocation failure\n");
+		return 0;
+	}
+
+	if (!afb_hsrv_set_cache_timeout(hsrv, session->config->cacheTimeout)
+	|| !my_default_init(hsrv, session)) {
+		printf("Error: initialisation of httpd failed");
+		afb_hsrv_put(hsrv);
+		return 0;
+	}
+
+	if (verbosity) {
+		printf("AFB:notice Waiting port=%d rootdir=%s\n", session->config->httpdPort, session->config->rootdir);
+		printf("AFB:notice Browser URL= http:/*localhost:%d\n", session->config->httpdPort);
+	}
+
+	rc = _afb_hsrv_start(hsrv, (uint16_t) session->config->httpdPort, 15);
+	if (!rc)
+		return 0;
+
+	session->hsrv = hsrv;
 	return 1;
 }
 
 void afb_hsrv_stop(AFB_session * session)
 {
-	if (upoll)
-		upoll_close(upoll);
-	upoll = NULL;
-	if (session->httpd != NULL)
-		MHD_stop_daemon(session->httpd);
-	session->httpd = NULL;
+	_afb_hsrv_stop(session->hsrv);
 }
 

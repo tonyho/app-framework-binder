@@ -46,7 +46,6 @@
 #define SET_VERBOSE        1
 #define SET_BACKGROUND     2
 #define SET_FORGROUND      3
-#define SET_FAKE_MOD       4
 
 #define SET_TCP_PORT       5
 #define SET_ROOT_DIR       6
@@ -129,8 +128,6 @@ static void printVersion (void)
 // load config from disk and merge with CLI option
 static void config_set_default (AFB_session * session)
 {
-   static char cacheTimeout [10];
-   
    // default HTTP port
    if (session->config->httpdPort == 0)
 	session->config->httpdPort = 1234;
@@ -185,10 +182,6 @@ static void config_set_default (AFB_session * session)
        strncpy (session->config->console, session->config->sessiondir, 512);
        strncat (session->config->console, "/AFB-console.out",512);
    }
-
-   // cacheTimeout is an integer but HTTPd wants it as a string
-   snprintf (cacheTimeout, sizeof (cacheTimeout),"%d", session->config->cacheTimeout);
-   session->cacheTimeout = cacheTimeout; // httpd uses cacheTimeout string version
 }
 
 
@@ -331,14 +324,9 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
        if (!sscanf (optarg, "%d", &session->config->cacheTimeout)) goto notAnInteger;
        break;
 
-    case SET_FAKE_MOD:
-       if (optarg != 0) goto noValueForOption;
-       session->fakemod  = 1;
-       break;
-
     case SET_FORGROUND:
        if (optarg != 0) goto noValueForOption;
-       session->foreground  = 1;
+       session->background  = 0;
        break;
 
     case SET_BACKGROUND:
@@ -516,10 +504,6 @@ int main(int argc, char *argv[])  {
   parse_arguments(argc, argv, session);
 
   // ------------------ sanity check ----------------------------------------
-  if  ((session->background) && (session->foreground)) {
-    fprintf (stderr, "ERR: cannot select foreground & background at the same time\n");
-     exit (1);
-  }
   if (session->config->httpdPort <= 0) {
     fprintf (stderr, "ERR: no port is defined\n");
      exit (1);
@@ -531,10 +515,6 @@ int main(int argc, char *argv[])  {
   ctxStoreInit(CTX_NBCLIENTS, session->config->cntxTimeout, afb_apis_count(), session->config->token);
 
   install_error_handlers();
-
-  // ------------------ Some useful default values -------------------------
-  if  ((session->background == 0) && (session->foreground == 0))
-	session->foreground = 1;
 
   // ------------------ clean exit on CTR-C signal ------------------------
   if (signal (SIGINT, signalQuit) == SIG_ERR || signal (SIGABRT, signalQuit) == SIG_ERR) {
@@ -551,28 +531,16 @@ int main(int argc, char *argv[])  {
 
   if (verbosity) fprintf (stderr, "AFB: notice Init config done\n");
 
-  // ---- run in foreground mode --------------------
-  if (session->foreground) {
-
-        if (verbosity) fprintf (stderr,"AFB: notice Foreground mode\n");
-
-  } // end foreground
-
-  // --------- run in background mode -----------
+  // --------- run -----------
   if (session->background) {
-
+      // --------- in background mode -----------
       if (verbosity) printf ("AFB: Entering background mode\n");
-
       daemonize(session);
+  } else {
+      // ---- in foreground mode --------------------
+      if (verbosity) fprintf (stderr,"AFB: notice Foreground mode\n");
 
-         // if everything look OK then look forever
-         syslog (LOG_ERR, "AFB: Entering infinite loop in background mode");
-
-
-  } // end background-foreground
-
-
-  // ------ Start httpd server
+  }
 
    rc = afb_hsrv_start (session);
    if (!rc)

@@ -63,6 +63,7 @@ struct AFB_config
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 };
 
+struct afb_hsrv;
 struct afb_hsrv_handler;
 struct MHD_Daemon;
 
@@ -71,12 +72,8 @@ struct AFB_session
   struct AFB_config  *config;   // pointer to current config
   // List of commands to execute
   int  background;        // run in backround mode
-  int  foreground;        // run in forground mode
-  char *cacheTimeout;     // http require timeout to be a string
-  struct MHD_Daemon *httpd;            // structure for httpd handler
-  int  fakemod;           // respond to GET/POST request without interacting with sndboard
   int  readyfd;           // a #fd to signal when ready to serve
-  struct afb_hsrv_handler *handlers;
+  struct afb_hsrv *hsrv;
 };
 
 
