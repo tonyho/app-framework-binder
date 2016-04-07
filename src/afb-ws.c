@@ -2,8 +2,6 @@
  * Copyright 2016 IoT.bzh
  * Author: José Bollo <jose.bollo@iot.bzh>
  *
- * Inspired by the work of 
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
