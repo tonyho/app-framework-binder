@@ -37,8 +37,6 @@
 #include <sys/syscall.h>
 #include <setjmp.h>
 
-#include "local-def.h"
-
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
 #include "afb-poll-itf.h"

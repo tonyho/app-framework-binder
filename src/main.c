@@ -32,6 +32,7 @@
 #include "local-def.h"
 #include "afb-apis.h"
 #include "afb-hsrv.h"
+#include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"
 #include "utils-upoll.h"
@@ -66,6 +67,8 @@
 
 #define SET_MODE           18
 #define SET_READYFD        19
+
+static struct afb_hsrv *start(AFB_config * config);
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -126,61 +129,61 @@ static void printVersion (void)
 }
 
 // load config from disk and merge with CLI option
-static void config_set_default (AFB_session * session)
+static void config_set_default (AFB_config * config)
 {
    // default HTTP port
-   if (session->config->httpdPort == 0)
-	session->config->httpdPort = 1234;
+   if (config->httpdPort == 0)
+	config->httpdPort = 1234;
    
    // default Plugin API timeout
-   if (session->config->apiTimeout == 0)
-	session->config->apiTimeout = DEFLT_API_TIMEOUT;
+   if (config->apiTimeout == 0)
+	config->apiTimeout = DEFLT_API_TIMEOUT;
    
    // default AUTH_TOKEN
-   if (session->config->token == NULL)
-		session->config->token = DEFLT_AUTH_TOKEN;
+   if (config->token == NULL)
+		config->token = DEFLT_AUTH_TOKEN;
 
    // cache timeout default one hour
-   if (session->config->cacheTimeout == 0)
-		session->config->cacheTimeout = DEFLT_CACHE_TIMEOUT;
+   if (config->cacheTimeout == 0)
+		config->cacheTimeout = DEFLT_CACHE_TIMEOUT;
 
    // cache timeout default one hour
-   if (session->config->cntxTimeout == 0)
-		session->config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
+   if (config->cntxTimeout == 0)
+		config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
 
-   if (session->config->rootdir == NULL) {
-       session->config->rootdir = getenv("AFBDIR");
-       if (session->config->rootdir == NULL) {
-           session->config->rootdir = malloc (512);
-           strncpy  (session->config->rootdir, getenv("HOME"),512);
-           strncat (session->config->rootdir, "/.AFB",512);
+   if (config->rootdir == NULL) {
+       config->rootdir = getenv("AFBDIR");
+       if (config->rootdir == NULL) {
+           config->rootdir = malloc (512);
+           strncpy (config->rootdir, getenv("HOME"),512);
+           strncat (config->rootdir, "/.AFB",512);
        }
        // if directory does not exist createit
-       mkdir (session->config->rootdir,  O_RDWR | S_IRWXU | S_IRGRP);
+       mkdir (config->rootdir,  O_RDWR | S_IRWXU | S_IRGRP);
    }
    
    // if no Angular/HTML5 rootbase let's try '/' as default
-   if  (session->config->rootbase == NULL)
-       session->config->rootbase = "/opa";
+   if  (config->rootbase == NULL)
+       config->rootbase = "/opa";
    
-   if  (session->config->rootapi == NULL)
-       session->config->rootapi = "/api";
+   if  (config->rootapi == NULL)
+       config->rootapi = "/api";
 
-   if  (session->config->ldpaths == NULL)
-       session->config->ldpaths = PLUGIN_INSTALL_DIR;
+   if  (config->ldpaths == NULL)
+       config->ldpaths = PLUGIN_INSTALL_DIR;
 
    // if no session dir create a default path from rootdir
-   if  (session->config->sessiondir == NULL) {
-       session->config->sessiondir = malloc (512);
-       strncpy (session->config->sessiondir, session->config->rootdir, 512);
-       strncat (session->config->sessiondir, "/sessions",512);
+   if  (config->sessiondir == NULL) {
+       config->sessiondir = malloc (512);
+       strncpy (config->sessiondir, config->rootdir, 512);
+       strncat (config->sessiondir, "/sessions",512);
    }
 
    // if no config dir create a default path from sessiondir
-   if  (session->config->console == NULL) {
-       session->config->console = malloc (512);
-       strncpy (session->config->console, session->config->sessiondir, 512);
-       strncat (session->config->console, "/AFB-console.out",512);
+   if  (config->console == NULL) {
+       config->console = malloc (512);
+       strncpy (config->console, config->sessiondir, 512);
+       strncat (config->console, "/AFB-console.out",512);
    }
 }
 
@@ -360,7 +363,7 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
   }
   free(gnuOptions);
  
-  config_set_default  (session);
+  config_set_default  (session->config);
   return;
 
 
@@ -490,8 +493,8 @@ static void daemonize(AFB_session *session)
  +--------------------------------------------------------- */
 
 int main(int argc, char *argv[])  {
-  int rc;
   AFB_session    *session;
+  struct afb_hsrv *hsrv;
 
   // open syslog if ever needed
   openlog("afb-daemon", 0, LOG_DAEMON);
@@ -542,8 +545,8 @@ int main(int argc, char *argv[])  {
 
   }
 
-   rc = afb_hsrv_start (session);
-   if (!rc)
+   hsrv = start (session->config);
+   if (hsrv == NULL)
 	exit(1);
 
    if (session->readyfd != 0) {
@@ -554,12 +557,68 @@ int main(int argc, char *argv[])  {
 
    // infinite loop
   for(;;)
-   upoll_wait(30000); 
+    upoll_wait(30000); 
 
    if (verbosity)
        fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
 
   return 0;
+}
+
+static int init(struct afb_hsrv *hsrv, AFB_config * config)
+{
+	int idx;
+
+	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hreq_websocket_switch, NULL, 20))
+		return 0;
+
+	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hreq_rest_api, NULL, 10))
+		return 0;
+
+	for (idx = 0; config->aliasdir[idx].url != NULL; idx++)
+		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0))
+			return 0;
+
+	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10))
+		return 0;
+
+	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hreq_one_page_api_redirect, NULL, -20))
+		return 0;
+
+	return 1;
+}
+
+static struct afb_hsrv *start(AFB_config * config)
+{
+	int rc;
+	struct afb_hsrv *hsrv;
+
+	hsrv = afb_hsrv_create();
+	if (hsrv == NULL) {
+		fprintf(stderr, "memory allocation failure\n");
+		return NULL;
+	}
+
+	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
+	|| !init(hsrv, config)) {
+		printf("Error: initialisation of httpd failed");
+		afb_hsrv_put(hsrv);
+		return NULL;
+	}
+
+	if (verbosity) {
+		printf("AFB:notice Waiting port=%d rootdir=%s\n", config->httpdPort, config->rootdir);
+		printf("AFB:notice Browser URL= http:/*localhost:%d\n", config->httpdPort);
+	}
+
+	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
+	if (!rc) {
+		printf("Error: starting of httpd failed");
+		afb_hsrv_put(hsrv);
+		return NULL;
+	}
+
+	return hsrv;
 }
 
 

@@ -17,8 +17,15 @@
 */
 
 struct afb_hsrv;
+struct afb_hreq;
 
 extern struct afb_hsrv *afb_hsrv_create();
+extern void afb_hsrv_put(struct afb_hsrv *hsrv);
 
-extern int afb_hsrv_start(AFB_session * session);
-extern void afb_hsrv_stop(AFB_session * session);
+
+extern void afb_hsrv_stop(struct afb_hsrv *hsrv);
+extern int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection_timeout);
+extern int afb_hsrv_set_cache_timeout(struct afb_hsrv *hsrv, int duration);
+extern int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority);
+extern int afb_hsrv_add_handler(struct afb_hsrv *hsrv, const char *prefix, int (*handler) (struct afb_hreq *, void *), void *data, int priority);
+

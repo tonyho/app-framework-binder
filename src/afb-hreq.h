@@ -21,7 +21,7 @@ struct AFB_clientCtx;
 struct afb_hreq {
 	const char *cacheTimeout;
 	struct MHD_Connection *connection;
-	enum afb_method method;
+	int method;
 	const char *version;
 	const char *url;
 	size_t lenurl;
@@ -60,3 +60,10 @@ extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char
 extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
 
 extern struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq);
+
+extern int afb_hreq_one_page_api_redirect(struct afb_hreq *hreq, void *data);
+
+extern int afb_hreq_websocket_switch(struct afb_hreq *hreq, void *data);
+
+extern int afb_hreq_rest_api(struct afb_hreq *hreq, void *data);
+

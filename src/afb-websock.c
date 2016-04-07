@@ -30,8 +30,6 @@
 
 #include "websock.h"
 
-#include "local-def.h"
-
 #include "afb-req-itf.h"
 #include "afb-method.h"
 #include "afb-hreq.h"

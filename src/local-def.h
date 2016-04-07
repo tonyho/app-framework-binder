@@ -64,7 +64,6 @@ struct AFB_config
 };
 
 struct afb_hsrv;
-struct afb_hsrv_handler;
 struct MHD_Daemon;
 
 struct AFB_session
@@ -73,7 +72,6 @@ struct AFB_session
   // List of commands to execute
   int  background;        // run in backround mode
   int  readyfd;           // a #fd to signal when ready to serve
-  struct afb_hsrv *hsrv;
 };
 
 
