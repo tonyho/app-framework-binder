@@ -37,7 +37,7 @@ static int fillargs(json_object *args, struct afb_arg arg)
 }
 
 // Sample Generic Ping Debug API
-static void ping(struct afb_req request, json_object *jresp)
+static void ping(struct afb_req request, json_object *jresp, const char *tag)
 {
     static int pingcount = 0;
     json_object *query;
@@ -45,12 +45,12 @@ static void ping(struct afb_req request, json_object *jresp)
     query = json_object_new_object();
     afb_req_iterate(request, (void*)fillargs, query);
 
-    afb_req_success_f(request, jresp, "Ping Binder Daemon count=%d query=%s", ++pingcount, json_object_to_json_string(query));
+    afb_req_success_f(request, jresp, "Ping Binder Daemon tag=%s count=%d query=%s", tag, ++pingcount, json_object_to_json_string(query));
 }
 
 static void pingSample (struct afb_req request)
 {
-	ping(request, json_object_new_string ("Some String"));
+	ping(request, json_object_new_string ("Some String"), "pingSample");
 }
 
 static void pingFail (struct afb_req request)
@@ -60,12 +60,12 @@ static void pingFail (struct afb_req request)
 
 static void pingNull (struct afb_req request)
 {
-	ping(request, NULL);
+	ping(request, NULL, "pingNull");
 }
 
 static void pingBug (struct afb_req request)
 {
-	pingNull((struct afb_req){NULL,NULL,NULL});
+	ping((struct afb_req){NULL,NULL,NULL}, NULL, "pingBug");
 }
 
 
@@ -83,7 +83,7 @@ static void pingJson (struct afb_req request) {
     
     json_object_object_add(jresp,"eobj", embed);
 
-    ping(request, jresp);
+    ping(request, jresp, "pingJson");
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
