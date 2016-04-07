@@ -312,15 +312,24 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 
 	/* serve directory */
 	if (S_ISDIR(st.st_mode)) {
-		if (hreq->url[hreq->lenurl - 1] != '/') {
-			/* the redirect is needed for reliability of relative path */
-			char *tourl = alloca(hreq->lenurl + 2);
-			memcpy(tourl, hreq->url, hreq->lenurl);
-			tourl[hreq->lenurl] = '/';
-			tourl[hreq->lenurl + 1] = 0;
-			rc = afb_hreq_redirect_to(hreq, tourl);
-		} else {
-			rc = afb_hreq_reply_file_if_exist(hreq, fd, "index.html");
+		static const char *indexes[] = { "index.html", NULL };
+		int i = 0;
+		rc = 0;
+		while (indexes[i] != NULL) {
+			if (faccessat(fd, indexes[i], R_OK, 0) == 0) {
+				if (hreq->url[hreq->lenurl - 1] != '/') {
+					/* the redirect is needed for reliability of relative path */
+					char *tourl = alloca(hreq->lenurl + 2);
+					memcpy(tourl, hreq->url, hreq->lenurl);
+					tourl[hreq->lenurl] = '/';
+					tourl[hreq->lenurl + 1] = 0;
+					rc = afb_hreq_redirect_to(hreq, tourl);
+				} else {
+					rc = afb_hreq_reply_file_if_exist(hreq, fd, indexes[i]);
+				}
+				break;
+			}
+			i++;
 		}
 		close(fd);
 		return rc;
