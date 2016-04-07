@@ -438,13 +438,15 @@ static int opentempfile(char **path)
 	int fd;
 	char *fname;
 
-	fname = strdup("XXXXXX");
+	fname = strdup("XXXXXX"); /* TODO improve the path */
 	if (fname == NULL)
 		return -1;
 
-	fd = mkostemp(fname, O_CLOEXEC);
+	fd = mkostemp(fname, O_CLOEXEC|O_WRONLY);
 	if (fd < 0)
 		free(fname);
+	else
+		*path = fname;
 	return fd;
 }
 
@@ -454,6 +456,7 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 	ssize_t sz;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
 
+fprintf(stderr, "%s=%s %s=%s %s\n",key,hdat->key,file,hdat->value,hdat->path);
 	if (hdat->value == NULL) {
 		hdat->value = strdup(file);
 		if (hdat->value == NULL)

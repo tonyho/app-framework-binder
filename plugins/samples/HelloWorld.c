@@ -29,7 +29,8 @@ static int fillargs(json_object *args, struct afb_arg arg)
 
     obj = json_object_new_object();
     json_object_object_add (obj, "value", json_object_new_string(arg.value));
-    json_object_object_add (obj, "path", json_object_new_string(arg.path));
+    if (arg.path != NULL)
+	json_object_object_add (obj, "path", json_object_new_string(arg.path));
     json_object_object_add (obj, "size", json_object_new_int64((int64_t)arg.size));
     json_object_object_add (args, arg.name && *arg.name ? arg.name : "<empty-string>", obj);
     return 1; /* continue to iterate */

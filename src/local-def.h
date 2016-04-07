@@ -27,26 +27,16 @@
 /* other definitions --------------------------------------------------- */
 
 // Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
-#define OPA_INDEX "index.html"
 #define MAX_ALIAS 10           // max number of aliases
 #define COOKIE_NAME   "afb-session"
 
 #define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout [0=NoLimit for Debug Only]
-#define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout
 #define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
 #define DEFLT_AUTH_TOKEN    NULL   // expect for debug should == NULL
 #define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout
-#define AFB_MAX_PLUGINS     20     // Max number of plugins for a given binder
 
-#define MAX_POST_SIZE  4096   // maximum size for POST data
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
-
-
-
-
-
-enum AFB_Mode;
 
 
 typedef struct {
@@ -72,23 +62,6 @@ struct AFB_config
   int mode;           // mode of listening
   AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
 };
-
-// MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "value");
-typedef struct {
-  const char *uuid;
-  const char *url;
-  const char *prefix;              // plugin convivial name
-  const char *method;
-/*
-  AFB_PostRequest *post;
-*/
-  struct json_object *jresp;
-  void *context;             // Hold Client Context when using session
-  int  restfull;             // request is resfull [uuid token provided]
-  int  errcode;              // http error code
-  struct AFB_config *config;         // plugin may need access to config
-  struct afb_req *areq;
-} AFB_request;
 
 struct afb_hsrv_handler;
 struct MHD_Daemon;
