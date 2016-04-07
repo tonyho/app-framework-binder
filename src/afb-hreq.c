@@ -519,8 +519,8 @@ static int _iterargs_(struct iterdata *id, enum MHD_ValueKind kind, const char *
 		return 1;
 	return id->iterator(id->closure, (struct afb_arg){
 		.name = key,
-		.value = value,
-		.size = 0,
+		.value = value ? : "",
+		.size = value ? strlen(value) : 0,
 		.path = NULL
 	});
 }
