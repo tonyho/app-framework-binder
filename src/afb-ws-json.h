@@ -15,17 +15,8 @@
  * limitations under the License.
  */
 
-struct afb_ws;
+struct afb_ws_json;
+struct AFB_clientCtx;
 
-struct afb_ws_itf
-{
-	void (*on_close) (void *, uint16_t code, char *, size_t size);
-	void (*on_text) (void *, char *, size_t size);
-	void (*on_binary) (void *, char *, size_t size);
-};
-
-extern struct afb_ws *afb_ws_create(int fd, const struct afb_ws_itf *itf, void *closure);
-extern void afb_ws_close(struct afb_ws *ws, uint16_t code);
-extern void afb_ws_text(struct afb_ws *ws, const char *text, size_t length);
-extern void afb_ws_binary(struct afb_ws *ws, const void *data, size_t length);
+extern struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *closure);
 

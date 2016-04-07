@@ -346,7 +346,7 @@ loop:
 						  (size_t) ws->length);
 			else
 				ws->itf->on_close(ws->closure,
-						  WEBSOCKET_CODE_UNSET, 0);
+						  WEBSOCKET_CODE_NOT_SET, 0);
 			ws->itf->disconnect(ws->closure);
 			return 0;
 		default:

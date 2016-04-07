@@ -9,6 +9,8 @@ ADD_LIBRARY(src OBJECT
 	afb-method.c
 	afb-hreq.c
 	afb-websock.c
+	afb-ws.c
+	afb-ws-json.c
 	websock.c
 	verbose.c
 	utils-upoll.c

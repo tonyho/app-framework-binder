@@ -28,6 +28,8 @@
 
 #include "websock.h"
 
+#include "afb-ws-json.h"
+
 #include "afb-req-itf.h"
 #include "afb-method.h"
 #include "afb-hreq.h"
@@ -185,12 +187,12 @@ struct afb_wsreq
 struct afb_websock
 {
 	int fd;
+	struct afb_wsreq *requests;
 	struct MHD_Connection *connection;
+	struct AFB_clientCtx *context;
 	struct websock *ws;
 	struct upoll *up;
-	struct AFB_clientCtx *context;
 	struct json_tokener *tokener;
-	struct afb_wsreq *requests;
 };
 
 static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name);
@@ -213,6 +215,15 @@ static const struct afb_req_itf wsreq_itf = {
 
 struct afb_websock *afb_websock_create(struct afb_hreq *hreq)
 {
+	return (void*)afb_ws_json_create(
+			dup(MHD_get_connection_info(hreq->connection,MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd),
+			afb_hreq_context(hreq),
+			(void*)MHD_resume_connection,
+			hreq->connection);
+}
+
+struct afb_websock *_afb_websock_create(struct afb_hreq *hreq)
+{
 	int fd;
 	struct afb_websock *result;
 
@@ -226,8 +237,9 @@ struct afb_websock *afb_websock_create(struct afb_hreq *hreq)
 	if (result == NULL)
 		goto error;
 
-	result->connection = hreq->connection;
 	result->fd = fd;
+	result->requests = NULL;
+	result->connection = hreq->connection;
 	result->context = ctxClientGet(afb_hreq_context(hreq));
 	if (result->context == NULL)
 		goto error2;
