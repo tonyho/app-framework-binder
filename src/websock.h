@@ -23,27 +23,28 @@
 
 struct iovec;
 
-#define STATUS_CODE_UNSET                0
-#define STATUS_CODE_OK                1000
-#define STATUS_CODE_GOING_AWAY        1001
-#define STATUS_CODE_PROTOCOL_ERROR    1002
-#define STATUS_CODE_RESERVED          1004	/* Protocol 8: frame too large */
-#define STATUS_CODE_INVALID_UTF8      1007
-#define STATUS_CODE_POLICY_VIOLATION  1008
-#define STATUS_CODE_MESSAGE_TOO_LARGE 1009
-#define STATUS_CODE_INTERNAL_ERROR    1011
+#define WEBSOCKET_CODE_UNSET                0
+#define WEBSOCKET_CODE_OK                1000
+#define WEBSOCKET_CODE_GOING_AWAY        1001
+#define WEBSOCKET_CODE_PROTOCOL_ERROR    1002
+#define WEBSOCKET_CODE_RESERVED          1004	/* Protocol 8: frame too large */
+#define WEBSOCKET_CODE_INVALID_UTF8      1007
+#define WEBSOCKET_CODE_POLICY_VIOLATION  1008
+#define WEBSOCKET_CODE_MESSAGE_TOO_LARGE 1009
+#define WEBSOCKET_CODE_INTERNAL_ERROR    1011
 
 struct websock_itf {
 	ssize_t (*writev) (void *, const struct iovec *, int);
 	ssize_t (*readv) (void *, const struct iovec *, int);
 	void (*disconnect) (void *);
 
-	void (*on_ping) (void *);
+	void (*on_ping) (void *); /* if not NULL, responsible of pong */
 	void (*on_pong) (void *);
 	void (*on_close) (void *, uint16_t code, size_t size);
 	void (*on_text) (void *, int last, size_t size);
 	void (*on_binary) (void *, int last, size_t size);
 	void (*on_continue) (void *, int last, size_t size);
+	int (*on_extension) (void *, int last, int rsv1, int rsv2, int rsv3, int opcode, size_t size);
 };
 
 struct websock;
@@ -61,6 +62,6 @@ void websock_drop(struct websock *ws);
 
 int websock_dispatch(struct websock *ws);
 
-struct websock *websock_create(const struct websock_itf *itf, void *closure);
+struct websock *websock_create_v13(const struct websock_itf *itf, void *closure);
 void websock_destroy(struct websock *ws);
 

@@ -190,6 +190,22 @@ static int read_header(struct websock *ws)
 	return 0;
 }
 
+static int check_control_header(struct websock *ws)
+{
+	/* sanity checks */
+	if (FRAME_GET_RSV1(ws->header[0]) != 0)
+		return 0;
+	if (FRAME_GET_RSV2(ws->header[0]) != 0)
+		return 0;
+	if (FRAME_GET_RSV3(ws->header[0]) != 0)
+		return 0;
+	if (FRAME_GET_MASK(ws->header[1]))
+		return 0;
+	if (FRAME_GET_OPCODE(ws->header[0]) == OPCODE_CLOSE)
+		return FRAME_GET_PAYLOAD_LEN(ws->header[1]) != 1;
+	return FRAME_GET_PAYLOAD_LEN(ws->header[1]) == 0;
+}
+
 int websock_dispatch(struct websock *ws)
 {
 loop:
@@ -205,13 +221,6 @@ loop:
 			return -1;
 		else if (ws->lenhead < ws->szhead)
 			return 0;
-		/* sanity checks */
-		if (FRAME_GET_RSV1(ws->header[0]) != 0)
-			goto protocol_error;
-		if (FRAME_GET_RSV2(ws->header[0]) != 0)
-			goto protocol_error;
-		if (FRAME_GET_RSV3(ws->header[0]) != 0)
-			goto protocol_error;
 		/* fast track */
 		switch (FRAME_GET_OPCODE(ws->header[0])) {
 		case OPCODE_CONTINUATION:
@@ -219,17 +228,13 @@ loop:
 		case OPCODE_BINARY:
 			break;
 		case OPCODE_CLOSE:
-			if (FRAME_GET_MASK(ws->header[1]))
-				goto protocol_error;
-			if (FRAME_GET_PAYLOAD_LEN(ws->header[1]) == 1)
+			if (!check_control_header(ws))
 				goto protocol_error;
 			if (FRAME_GET_PAYLOAD_LEN(ws->header[1]))
 				ws->szhead += 2;
 			break;
 		case OPCODE_PING:
-			if (FRAME_GET_MASK(ws->header[1]))
-				goto protocol_error;
-			if (FRAME_GET_PAYLOAD_LEN(ws->header[1]) != 0)
+			if (!check_control_header(ws))
 				goto protocol_error;
 			if (ws->itf->on_ping)
 				ws->itf->on_ping(ws->closure);
@@ -238,16 +243,14 @@ loop:
 			ws->state = STATE_INIT;
 			goto loop;
 		case OPCODE_PONG:
-			if (FRAME_GET_MASK(ws->header[1]))
-				goto protocol_error;
-			if (FRAME_GET_PAYLOAD_LEN(ws->header[1]) != 0)
+			if (!check_control_header(ws))
 				goto protocol_error;
 			if (ws->itf->on_pong)
 				ws->itf->on_pong(ws->closure);
 			ws->state = STATE_INIT;
 			goto loop;
 		default:
-			goto protocol_error;
+			break;
 		}
 		/* update heading size */
 		switch (FRAME_GET_PAYLOAD_LEN(ws->header[1])) {
@@ -295,7 +298,30 @@ loop:
 			((unsigned char *)&ws->mask)[3] = ws->header[ws->szhead - 1];
 		} else
 			ws->mask = 0;
+
+		/* all heading fields are known, process */
 		ws->state = STATE_DATA;
+		if (ws->itf->on_extension != NULL) {
+			if (ws->itf->on_extension(ws->closure,
+					FRAME_GET_FIN(ws->header[0]),
+					FRAME_GET_RSV1(ws->header[0]),
+					FRAME_GET_RSV2(ws->header[0]),
+					FRAME_GET_RSV3(ws->header[0]),
+					FRAME_GET_OPCODE(ws->header[0]),
+					(size_t) ws->length)) {
+				return 0;
+			}
+		}
+
+		/* not an extension case */
+		if (FRAME_GET_RSV1(ws->header[0]) != 0)
+			goto protocol_error;
+		if (FRAME_GET_RSV2(ws->header[0]) != 0)
+			goto protocol_error;
+		if (FRAME_GET_RSV3(ws->header[0]) != 0)
+			goto protocol_error;
+
+		/* handle */
 		switch (FRAME_GET_OPCODE(ws->header[0])) {
 		case OPCODE_CONTINUATION:
 			ws->itf->on_continue(ws->closure,
@@ -320,9 +346,11 @@ loop:
 						  (size_t) ws->length);
 			else
 				ws->itf->on_close(ws->closure,
-						  STATUS_CODE_UNSET, 0);
+						  WEBSOCKET_CODE_UNSET, 0);
 			ws->itf->disconnect(ws->closure);
 			return 0;
+		default:
+			goto protocol_error;
 		}
 		break;
 
@@ -338,11 +366,11 @@ loop:
 	goto loop;
 
  too_long_error:
-	websock_close_code(ws, STATUS_CODE_MESSAGE_TOO_LARGE);
+	websock_close_code(ws, WEBSOCKET_CODE_MESSAGE_TOO_LARGE);
 	return 0;
 
  protocol_error:
-	websock_close_code(ws, STATUS_CODE_PROTOCOL_ERROR);
+	websock_close_code(ws, WEBSOCKET_CODE_PROTOCOL_ERROR);
 	return 0;
 }
 
@@ -398,12 +426,12 @@ ssize_t websock_read(struct websock * ws, void *buffer, size_t size)
 
 void websock_drop(struct websock *ws)
 {
-	char buffer[4096];
+	char buffer[8000];
 
 	while (ws->length && ws_read(ws, buffer, sizeof buffer) >= 0) ;
 }
 
-struct websock *websock_create(const struct websock_itf *itf, void *closure)
+struct websock *websock_create_v13(const struct websock_itf *itf, void *closure)
 {
 	struct websock *result = calloc(1, sizeof *result);
 	if (result) {
