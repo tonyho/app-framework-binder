@@ -16,9 +16,6 @@
  */
 
 struct afb_hreq;
-struct afb_websock;
-
-extern int afb_websock_check(struct afb_hreq *hreq, int *later);
-extern struct afb_websock *afb_websock_create(struct afb_hreq *hreq);
+extern int afb_websock_check_upgrade(struct afb_hreq *hreq);
 
 

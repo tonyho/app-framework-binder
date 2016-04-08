@@ -29,7 +29,7 @@ AfbWsItf = (function(){
 	function AfbWsItf(base, onopen, onabort, ctx) {
 		var wl = window.location;
 		var u = "ws://"+wl.host+"/"+base;
-		this.ws = new (WebSocket || MozWebSocket)(u, [ "afb1", "afb2" ]);
+		this.ws = new (WebSocket || MozWebSocket)(u, [ "x-afb-ws-json1" ]);
 		this.pendings = {};
 		this.counter = 0;
 		this.ctx = ctx || new AfbCtxItf();

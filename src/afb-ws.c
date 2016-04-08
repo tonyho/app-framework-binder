@@ -116,8 +116,6 @@ void afb_ws_disconnect(struct afb_ws *ws)
 	struct websock *wsi = ws->ws;
 	ws->up = NULL;
 	ws->ws = NULL;
-	upoll_on_hangup(up, NULL);
-	upoll_on_readable(up, NULL);
 	upoll_close(up);
 	websock_destroy(wsi);
 }
@@ -162,10 +160,12 @@ static void aws_on_readable(struct afb_ws *ws)
 
 static void aws_on_hangup(struct afb_ws *ws)
 {
+	afb_ws_disconnect(ws);
 }
 
 static void aws_disconnect(struct afb_ws *ws)
 {
+	afb_ws_disconnect(ws);
 }
 
 static inline struct buf aws_pick_buffer(struct afb_ws *ws)
@@ -204,7 +204,7 @@ static void aws_on_close(struct afb_ws *ws, uint16_t code, size_t size)
 	else {
 		aws_read(ws, size);
 		b = aws_pick_buffer(ws);
-		ws->itf->on_close(ws, code, b.buffer, b.size);
+		ws->itf->on_close(ws->closure, code, b.buffer, b.size);
 	}
 }
 

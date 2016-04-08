@@ -74,18 +74,10 @@ int afb_hswitch_one_page_api_redirect(struct afb_hreq *hreq, void *data)
 
 int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
 {
-	int later;
-
-	afb_hreq_context(hreq);
-	if (hreq->lentail != 0 || !afb_websock_check(hreq, &later))
+	if (hreq->lentail != 0)
 		return 0;
 
-	if (!later) {
-		struct afb_websock *ws = afb_websock_create(hreq);
-		if (ws != NULL)
-			hreq->upgrade = 1;
-	}
-	return 1;
+	return afb_websock_check_upgrade(hreq /* TODO: protocols here */);
 }
 
 

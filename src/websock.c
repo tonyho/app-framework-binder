@@ -199,10 +199,10 @@ static int check_control_header(struct websock *ws)
 		return 0;
 	if (FRAME_GET_RSV3(ws->header[0]) != 0)
 		return 0;
-	if (FRAME_GET_MASK(ws->header[1]))
-		return 0;
 	if (FRAME_GET_OPCODE(ws->header[0]) == OPCODE_CLOSE)
 		return FRAME_GET_PAYLOAD_LEN(ws->header[1]) != 1;
+	if (FRAME_GET_MASK(ws->header[1]))
+		return 0;
 	return FRAME_GET_PAYLOAD_LEN(ws->header[1]) == 0;
 }
 
