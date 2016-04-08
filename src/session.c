@@ -184,11 +184,13 @@ struct AFB_clientCtx *ctxClientGetForUuid (const char *uuid)
         }
 
 	/* mimic old behaviour */
+/*
+TODO remove? not remove?
 	if (sessions.initok == NULL)
 		return NULL;
-
+*/
 	/* check the uuid if given */
-	if (uuid != NULL && 1 + strlen(uuid) >= sizeof clientCtx->uuid)
+	if (uuid != NULL && strlen(uuid) >= sizeof clientCtx->uuid)
 		return NULL;
 
 	/* returns a new one */
