@@ -1,0 +1,42 @@
+<html>
+<head>
+    <title>Test of AFB Echo</title>
+    <script type="text/javascript" src="AFB.js"></script>
+    <script type="text/javascript">
+	var afb = new AFB("api", "hello-token");
+	var ws;
+
+	function onopen() {
+		document.getElementById("main").style.visibility = "visible";
+		document.getElementById("connected").innerHTML = "Connected to WebSocket server";
+	}
+	function onabort() {
+		document.getElementById("main").style.visibility = "hidden";
+		document.getElementById("connected").innerHTML = "Connected Closed";
+	}
+	function init() {
+		ws = new afb.ws(onopen, onabort);
+	}
+	function replyok(obj) {
+		document.getElementById("output").innerHTML = "OK: "+JSON.stringify(obj);
+	}
+	function replyerr(obj) {
+		document.getElementById("output").innerHTML = "ERROR: "+JSON.stringify(obj);
+	}
+	function send(message) {
+		var api = document.getElementById("api").value;
+		var verb = document.getElementById("verb").value;
+		ws.call(api, verb, {data:message}, replyok, replyerr);
+	}
+    </script>
+
+<body onload="init();">
+    <h1>WebSocket Echo</h1>
+    <div id="connected">Not Connected</div>
+    <div id="main" style="visibility:hidden">
+    API: <input type="text" id="api" value="hello" size="80"/><br/>
+    VERB: <input type="text" id="verb" value="ping" size="80"/><br/>
+    Enter Message: <input type="text" name="message" value="" size="80" onchange="send(this.value)"/><br/>
+    Server says... <div id="output"></div>
+    </div>
+
