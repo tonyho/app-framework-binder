@@ -65,19 +65,8 @@ struct afb_hsrv {
 
 static void reply_error(struct MHD_Connection *connection, unsigned int status)
 {
-	char *buffer;
-	int length;
-	struct MHD_Response *response;
-
-	length = asprintf(&buffer, "<html><body>error %u</body></html>", status);
-	if (length > 0)
-		response = MHD_create_response_from_buffer((unsigned)length, buffer, MHD_RESPMEM_MUST_FREE);
-	else {
-		buffer = "<html><body>error</body></html>";
-		response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_PERSISTENT);
-	}
-	if (!MHD_queue_response(connection, status, response))
-		fprintf(stderr, "Failed to reply error code %u", status);
+	struct MHD_Response *response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+	MHD_queue_response(connection, status, response);
 	MHD_destroy_response(response);
 }
 
