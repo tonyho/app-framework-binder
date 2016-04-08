@@ -243,7 +243,7 @@ void ctxClientClose (struct AFB_clientCtx *clientCtx)
 }
 
 // Sample Generic Ping Debug API
-int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
+int ctxTokenCheckLen (struct AFB_clientCtx *clientCtx, const char *token, size_t length)
 {
 	assert(clientCtx != NULL);
 	assert(token != NULL);
@@ -252,13 +252,20 @@ int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
 	if (ctxStoreTooOld (clientCtx, NOW))
 		return 0;
 
-	if (!clientCtx->token[0] || 0 == strcmp (token, clientCtx->token)) {
-		clientCtx->created = 1; /* creates by default */
-		return 1;
-	}
+	if (clientCtx->token[0] && (length >= sizeof(clientCtx->token) || strncmp (token, clientCtx->token, length) || clientCtx->token[length]))
+		return 0;
 
-	// Token is not valid let move level of assurance to zero and free attached client handle
-	return 0;
+	clientCtx->created = 1; /* creates by default */
+	return 1;
+}
+
+// Sample Generic Ping Debug API
+int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
+{
+	assert(clientCtx != NULL);
+	assert(token != NULL);
+
+	return ctxTokenCheckLen(clientCtx, token, strlen(token));
 }
 
 // generate a new token and update client context

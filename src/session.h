@@ -33,5 +33,6 @@ extern struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx);
 extern void ctxClientPut(struct AFB_clientCtx *clientCtx);
 extern void ctxClientClose (struct AFB_clientCtx *clientCtx);
 extern int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token);
+extern int ctxTokenCheckLen (struct AFB_clientCtx *clientCtx, const char *token, size_t length);
 extern void ctxTokenNew (struct AFB_clientCtx *clientCtx);
 

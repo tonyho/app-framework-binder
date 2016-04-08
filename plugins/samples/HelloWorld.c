@@ -23,27 +23,11 @@
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
 
-static int fillargs(json_object *args, struct afb_arg arg)
-{
-    json_object *obj;
-
-    obj = json_object_new_object();
-    json_object_object_add (obj, "value", json_object_new_string(arg.value));
-    if (arg.path != NULL)
-	json_object_object_add (obj, "path", json_object_new_string(arg.path));
-    json_object_object_add (obj, "size", json_object_new_int64((int64_t)arg.size));
-    json_object_object_add (args, arg.name && *arg.name ? arg.name : "<empty-string>", obj);
-    return 1; /* continue to iterate */
-}
-
 // Sample Generic Ping Debug API
 static void ping(struct afb_req request, json_object *jresp, const char *tag)
 {
     static int pingcount = 0;
-    json_object *query;
-
-    query = json_object_new_object();
-    afb_req_iterate(request, (void*)fillargs, query);
+    json_object *query = afb_req_json(request);
 
     afb_req_success_f(request, jresp, "Ping Binder Daemon tag=%s count=%d query=%s", tag, ++pingcount, json_object_to_json_string(query));
 }

@@ -91,7 +91,7 @@ static void call_appid(struct afb_req request, const char *method)
 {
 	struct json_object *obj;
 	char *sid;
-	const char *id = afb_req_argument(request, _id_);
+	const char *id = afb_req_value(request, _id_);
 	if (id == NULL) {
 		afb_req_fail(request, "bad-request", "missing 'id'");
 		return;
@@ -114,7 +114,7 @@ static void call_appid(struct afb_req request, const char *method)
 static void call_runid(struct afb_req request, const char *method)
 {
 	struct json_object *obj;
-	const char *id = afb_req_argument(request, _runid_);
+	const char *id = afb_req_value(request, _runid_);
 	if (id == NULL) {
 		afb_req_fail(request, "bad-request", "missing 'runid'");
 		return;
@@ -151,13 +151,13 @@ static void start(struct afb_req request)
 	int rc;
 
 	/* get the id */
-	id = afb_req_argument(request, _id_);
+	id = afb_req_value(request, _id_);
 	if (id == NULL) {
 		afb_req_fail(request, "bad-request", "missing 'id'");
 		return;
 	}
 	/* get the mode */
-	mode = afb_req_argument(request, _mode_);
+	mode = afb_req_value(request, _mode_);
 	if (mode == NULL || !strcmp(mode, _auto_)) {
 		mode = interface->mode == AFB_MODE_REMOTE ? _remote_ : _local_;
 	}

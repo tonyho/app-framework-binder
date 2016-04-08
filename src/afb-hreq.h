@@ -17,6 +17,7 @@
 
 struct AFB_session;
 struct AFB_clientCtx;
+struct json_object;
 
 struct afb_hreq {
 	const char *cacheTimeout;
@@ -30,6 +31,7 @@ struct afb_hreq {
 	struct MHD_PostProcessor *postform;
 	struct AFB_clientCtx *context;
 	struct hreq_data *data;
+	struct json_object *json;
 	int upgrade;
 };
 

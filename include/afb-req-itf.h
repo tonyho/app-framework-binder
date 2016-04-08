@@ -21,14 +21,15 @@ struct afb_arg {
 	const char *name;
 	const char *value;
 	const char *path;
-	size_t size;
 };
 
 struct afb_req_itf {
+	struct json_object *(*json)(void *data);
 	struct afb_arg (*get)(void *data, const char *name);
-	void (*iterate)(void *data, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
-	void (*fail)(void *data, const char *status, const char *info);
 	void (*success)(void *data, struct json_object *obj, const char *info);
+	void (*fail)(void *data, const char *status, const char *info);
+	const char *(*raw)(void *data, size_t *size);
+	void (*send)(void *data, char *buffer, size_t size);
 	int (*session_create)(void *data);
 	int (*session_check)(void *data, int refresh);
 	void (*session_close)(void *data);
@@ -45,7 +46,7 @@ static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
 	return req.itf->get(req.data, name);
 }
 
-static inline const char *afb_req_argument(struct afb_req req, const char *name)
+static inline const char *afb_req_value(struct afb_req req, const char *name)
 {
 	return afb_req_get(req, name).value;
 }
@@ -55,9 +56,14 @@ static inline const char *afb_req_path(struct afb_req req, const char *name)
 	return afb_req_get(req, name).path;
 }
 
-static inline void afb_req_iterate(struct afb_req req, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
+static inline struct json_object *afb_req_json(struct afb_req req)
 {
-	req.itf->iterate(req.data, iterator, closure);
+	return req.itf->json(req.data);
+}
+
+static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
+{
+	req.itf->success(req.data, obj, info);
 }
 
 static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
@@ -65,9 +71,14 @@ static inline void afb_req_fail(struct afb_req req, const char *status, const ch
 	req.itf->fail(req.data, status, info);
 }
 
-static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
+static inline const char *afb_req_raw(struct afb_req req, size_t *size)
 {
-	req.itf->success(req.data, obj, info);
+	return req.itf->raw(req.data, size);
+}
+
+static inline void afb_req_send(struct afb_req req, char *buffer, size_t size)
+{
+	req.itf->send(req.data, buffer, size);
 }
 
 static inline int afb_req_session_create(struct afb_req req)

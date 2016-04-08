@@ -93,160 +93,253 @@ error:
 
 static void aws_on_close(struct afb_ws_json *ws, uint16_t code, char *text, size_t size)
 {
-	/* do nothing */
+	/* do nothing but free the text */
 	free(text);
 }
 
+#define CALL 2
+#define RETOK 3
+#define RETERR 4
 
 struct afb_wsreq
 {
 	struct afb_ws_json *aws;
 	struct afb_wsreq *next;
-	struct json_object *id;
-	struct json_object *name;
-	struct json_object *token;
-	struct json_object *request;
+	char *text;
+	size_t size;
+	int code;
+	char *id;
+	size_t idlen;
+	char *api;
+	size_t apilen;
+	char *verb;
+	size_t verblen;
+	char *obj;
+	size_t objlen;
+	char *tok;
+	size_t toklen;
+	struct json_object *root;
 };
+
+static struct json_object *wsreq_json(struct afb_wsreq *wsreq);
 static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name);
-static void wsreq_iterate(struct afb_wsreq *wsreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info);
 static void wsreq_success(struct afb_wsreq *wsreq, struct json_object *obj, const char *info);
+static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size);
+static void wsreq_send(struct afb_wsreq *wsreq, char *buffer, size_t size);
 static int wsreq_session_create(struct afb_wsreq *wsreq);
 static int wsreq_session_check(struct afb_wsreq *wsreq, int refresh);
 static void wsreq_session_close(struct afb_wsreq *wsreq);
 
+
 static const struct afb_req_itf wsreq_itf = {
+	.json = (void*)wsreq_json,
 	.get = (void*)wsreq_get,
-	.iterate = (void*)wsreq_iterate,
-	.fail = (void*)wsreq_fail,
 	.success = (void*)wsreq_success,
+	.fail = (void*)wsreq_fail,
+	.raw = (void*)wsreq_raw,
+	.send = (void*)wsreq_send,
 	.session_create = (void*)wsreq_session_create,
 	.session_check = (void*)wsreq_session_check,
 	.session_close = (void*)wsreq_session_close
 };
 
-static int aws_handle_json(struct afb_ws_json *aws, struct json_object *obj)
+static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)
 {
-	struct afb_req r;
-	int count, num;
-	struct json_object *type, *id, *name, *req, *token;
-	struct afb_wsreq *wsreq;
-	const char *api, *verb;
-	size_t lenapi, lenverb;
+	char *pos, *end, c;
+	int aux;
 
-	/* protocol inspired by http://www.gir.fr/ocppjs/ocpp_srpc_spec.shtml */
+	/* scan */
+	pos = text;
+	end = text + size;
 
-	/* the object must be an array of 4 or 5 elements */
-	if (!json_object_is_type(obj, json_type_array))
-		goto error;
-	count = json_object_array_length(obj);
-	if (count < 4 || count > 5)
-		goto error;
+	/* scans: [ */
+	while(pos < end && *pos == ' ') pos++;
+	if (pos == end) goto bad_header;
+	if (*pos++ != '[') goto bad_header;
 
-	/* get the 5 elements: type id name request token */
-	type = json_object_array_get_idx(obj, 0);
-	id = json_object_array_get_idx(obj, 1);
-	name = json_object_array_get_idx(obj, 2);
-	req = json_object_array_get_idx(obj, 3);
-	token = json_object_array_get_idx(obj, 4);
+	/* scans code: 2|3|4 */
+	while(pos < end && *pos == ' ') pos++;
+	if (pos == end) goto bad_header;
+	switch (*pos++) {
+	case '2': r->code = CALL; break;
+	case '3': r->code = RETOK; break;
+	case '4': r->code = RETERR; break;
+	default: goto bad_header;
+	}
 
-	/* check the types: int string string object string */
-	if (!json_object_is_type(type, json_type_int))
-		goto error;
-	if (!json_object_is_type(id, json_type_string))
-		goto error;
-	if (!json_object_is_type(name, json_type_string))
-		goto error;
-	if (!json_object_is_type(req, json_type_object))
-		goto error;
-	if (token != NULL && !json_object_is_type(token, json_type_string))
-		goto error;
+	/* scans: , */
+	while(pos < end && *pos == ' ') pos++;
+	if (pos == end) goto bad_header;
+	if (*pos++ != ',') goto bad_header;
 
-	/* the type is only 2 */
-	num = json_object_get_int(type);
-	if (num != 2)
-		goto error;
+	/* scans id: "id" */
+	while(pos < end && *pos == ' ') pos++;
+	if (pos == end) goto bad_header;
+	if (*pos++ != '"') goto bad_header;
+	r->id = pos;
+	while(pos < end && *pos != '"') pos++;
+	if (pos == end) goto bad_header;
+	r->idlen = (size_t)(pos++ - r->id);
 
-	/* checks the api/verb structure of name */
-	api = json_object_get_string(name);
-	for (lenapi = 0 ; api[lenapi] && api[lenapi] != '/' ; lenapi++);
-	if (!lenapi || !api[lenapi])
-		goto error;
-	verb = &api[lenapi+1];
-	for (lenverb = 0 ; verb[lenverb] && verb[lenverb] != '/' ; lenverb++);
-	if (!lenverb || verb[lenverb])
-		goto error;
+	/* scans: , */
+	while(pos < end && *pos == ' ') pos++;
+	if (pos == end) goto bad_header;
+	if (*pos++ != ',') goto bad_header;
 
-	/* allocates the request data */
-	wsreq = malloc(sizeof *wsreq);
-	if (wsreq == NULL)
-		goto error;
+	/* scans the method if needed */
+	if (r->code == CALL) {
+		/* scans: " */
+		while(pos < end && *pos == ' ') pos++;
+		if (pos == end) goto bad_header;
+		if (*pos++ != '"') goto bad_header;
 
-	/* fill and record the request */
-	wsreq->aws = aws;
-	wsreq->id = json_object_get(id);
-	wsreq->name = json_object_get(name);
-	wsreq->token = json_object_get(token);
-	wsreq->request = json_object_get(req);
-	wsreq->next = aws->requests;
-	aws->requests = wsreq;
-	json_object_put(obj);
+		/* scans: api/ */
+		r->api = pos;
+		while(pos < end && *pos != '"' && *pos != '/') pos++;
+		if (pos == end) goto bad_header;
+		if (*pos != '/') goto bad_header;
+		r->apilen = (size_t)(pos++ - r->api);
+		if (r->apilen && r->api[r->apilen - 1] == '\\')
+			r->apilen--;
 
-	r.data = wsreq;
-	r.itf = &wsreq_itf;
-	afb_apis_call(r, aws->context, api, lenapi, verb, lenverb);
+		/* scans: verb" */
+		r->verb = pos;
+		while(pos < end && *pos != '"') pos++;
+		if (pos == end) goto bad_header;
+		r->verblen = (size_t)(pos++ - r->verb);
+
+		/* scans: , */
+		while(pos < end && *pos == ' ') pos++;
+		if (pos == end) goto bad_header;
+		if (*pos++ != ',') goto bad_header;
+	}
+
+	/* scan obj */
+	while(pos < end && *pos == ' ') pos++;
+	if (pos == end) goto bad_header;
+	aux = 0;
+	r->obj = pos;
+	while (pos < end && (aux != 0 || (*pos != ',' && *pos != ']'))) {
+		if (pos == end) goto bad_header;
+		switch(*pos) {
+		case '{': case '[': aux++; break;
+		case '}': case ']': if (!aux--) goto bad_header; break;
+		case '"':
+			do {
+				pos += 1 + (*pos == '\\');
+			} while(pos < end && *pos != '"');
+		default:
+			break;
+		}
+		pos++;
+	}
+	if (pos > end) goto bad_header;
+	if (pos == end && aux != 0) goto bad_header;
+	c = *pos;
+	r->objlen = (size_t)(pos++ - r->obj);
+	while (r->objlen && r->obj[r->objlen - 1] == ' ')
+		r->objlen--;
+
+	/* scan the token (if any) */
+	if (c == ',') {
+		/* scans token: "token" */
+		while(pos < end && *pos == ' ') pos++;
+		if (pos == end) goto bad_header;
+		if (*pos++ != '"') goto bad_header;
+		r->tok = pos;
+		while(pos < end && *pos != '"') pos++;
+		if (pos == end) goto bad_header;
+		r->toklen = (size_t)(pos++ - r->tok);
+		while(pos < end && *pos == ' ') pos++;
+		if (pos == end) goto bad_header;
+		c = *pos++;
+	}
+
+	/* scan: ] */
+	if (c != ']') goto bad_header;
+	while(pos < end && *pos == ' ') pos++;
+	if (pos != end) goto bad_header;
+
+	/* done */
+	r->text = text;
+	r->size = size;
+fprintf(stderr, "\n\nONTEXT([%d, %.*s, %.*s/%.*s, %.*s, %.*s])\n\n",
+	r->code,
+	(int)r->idlen, r->id,
+	(int)r->apilen, r->api,
+	(int)r->verblen, r->verb,
+	(int)r->objlen, r->obj,
+	(int)r->toklen, r->tok
+);
 	return 1;
 
-error:
-	json_object_put(obj);
+bad_header:
 	return 0;
 }
 
 static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size)
 {
-	struct json_object *obj;
-	json_tokener_reset(ws->tokener);
-	obj = json_tokener_parse_ex(ws->tokener, text, (int)size);
-	if (obj == NULL) {
-		afb_ws_close(ws->ws, 1008);
-	} else if (!aws_handle_json(ws, obj)) {
-		afb_ws_close(ws->ws, 1008);
+	struct afb_req r;
+	struct afb_wsreq *wsreq;
+
+	/* allocate */
+	wsreq = calloc(1, sizeof *wsreq);
+	if (wsreq == NULL)
+		goto alloc_error;
+
+	/* init */
+	if (!aws_wsreq_parse(wsreq, text, size))
+		goto bad_header;
+
+	/* fill and record the request */
+	wsreq->aws = ws;
+	wsreq->next = ws->requests;
+	ws->requests = wsreq;
+
+	r.data = wsreq;
+	r.itf = &wsreq_itf;
+	afb_apis_call(r, ws->context, wsreq->api, wsreq->apilen, wsreq->verb, wsreq->verblen);
+	return;
+
+bad_header:
+	free(wsreq);
+alloc_error:
+	free(text);
+	afb_ws_close(ws->ws, 1008);
+	return;
+}
+
+static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
+{
+	struct json_object *root = wsreq->root;
+	if (root == NULL) {
+		json_tokener_reset(wsreq->aws->tokener);
+		root = json_tokener_parse_ex(wsreq->aws->tokener, wsreq->obj, (int)wsreq->objlen);
+		if (root == NULL) {
+			/* lazy discovering !!!! not good TODO improve*/
+			root = json_object_new_object();
+		}
+		wsreq->root = root;
 	}
+	return root;
 }
 
 static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 {
 	struct afb_arg arg;
-	struct json_object *value;
+	struct json_object *value, *root;
 
-	if (json_object_object_get_ex(wsreq->request, name, &value)) {
+	root = wsreq_json(wsreq);
+	if (json_object_object_get_ex(root, name, &value)) {
 		arg.name = name;
 		arg.value = json_object_get_string(value);
-		arg.size = strlen(arg.value);
 	} else {
 		arg.name = NULL;
 		arg.value = NULL;
-		arg.size = 0;
 	}
 	arg.path = NULL;
 	return arg;
-}
-
-static void wsreq_iterate(struct afb_wsreq *wsreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
-{
-	struct afb_arg arg;
-	struct json_object_iterator it = json_object_iter_begin(wsreq->request);
-	struct json_object_iterator end = json_object_iter_end(wsreq->request);
-
-	arg.size = 0;
-	arg.path = NULL;
-	while(!json_object_iter_equal(&it, &end)) {
-		arg.name = json_object_iter_peek_name(&it);
-		arg.value = json_object_get_string(json_object_iter_peek_value(&it));
-		if (!iterator(closure, arg))
-			break;
-		json_object_iter_next(&it);
-	}
 }
 
 static int wsreq_session_create(struct afb_wsreq *wsreq)
@@ -259,17 +352,12 @@ static int wsreq_session_create(struct afb_wsreq *wsreq)
 
 static int wsreq_session_check(struct afb_wsreq *wsreq, int refresh)
 {
-	const char *token;
 	struct AFB_clientCtx *context = wsreq->aws->context;
 
-	if (wsreq->token == NULL)
+	if (wsreq->tok == NULL)
 		return 0;
 
-	token = json_object_get_string(wsreq->token);
-	if (token == NULL)
-		return 0;
-
-	if (!ctxTokenCheck (context, token))
+	if (!ctxTokenCheckLen (context, wsreq->tok, wsreq->toklen))
 		return 0;
 
 	if (refresh) {
@@ -305,7 +393,7 @@ static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status
 	/* make the reply */
 	reply = json_object_new_array();
 	json_object_array_add(reply, json_object_new_int(retcode));
-	json_object_array_add(reply, wsreq->id);
+	json_object_array_add(reply, json_object_new_string_len(wsreq->id, (int)wsreq->idlen));
 	json_object_array_add(reply, root);
 	json_object_array_add(reply, json_object_new_string(wsreq->aws->context->token));
 
@@ -319,11 +407,22 @@ static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status
 
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
 {
-	wsreq_reply(wsreq, 4, status, info, NULL);
+	wsreq_reply(wsreq, RETERR, status, info, NULL);
 }
 
 static void wsreq_success(struct afb_wsreq *wsreq, json_object *obj, const char *info)
 {
-	wsreq_reply(wsreq, 3, "success", info, obj);
+	wsreq_reply(wsreq, RETOK, "success", info, obj);
+}
+
+static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size)
+{
+	*size = wsreq->objlen;
+	return wsreq->obj;
+}
+
+static void wsreq_send(struct afb_wsreq *wsreq, char *buffer, size_t size)
+{
+	afb_ws_text(wsreq->aws->ws, buffer, size);
 }
 

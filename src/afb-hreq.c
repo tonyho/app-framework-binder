@@ -60,19 +60,23 @@ struct hreq_data {
 	char *path;
 };
 
+static struct json_object *req_json(struct afb_hreq *hreq);
 static struct afb_arg req_get(struct afb_hreq *hreq, const char *name);
-static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure);
 static void req_fail(struct afb_hreq *hreq, const char *status, const char *info);
 static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
+static const char *req_raw(struct afb_hreq *hreq, size_t *size);
+static void req_send(struct afb_hreq *hreq, char *buffer, size_t size);
 static int req_session_create(struct afb_hreq *hreq);
 static int req_session_check(struct afb_hreq *hreq, int refresh);
 static void req_session_close(struct afb_hreq *hreq);
 
 static const struct afb_req_itf afb_hreq_itf = {
+	.json = (void*)req_json,
 	.get = (void*)req_get,
-	.iterate = (void*)req_iterate,
-	.fail = (void*)req_fail,
 	.success = (void*)req_success,
+	.fail = (void*)req_fail,
+	.raw = (void*)req_raw,
+	.send = (void*)req_send,
 	.session_create = (void*)req_session_create,
 	.session_check = (void*)req_session_check,
 	.session_close = (void*)req_session_close
@@ -81,8 +85,6 @@ static const struct afb_req_itf afb_hreq_itf = {
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
 {
 	struct hreq_data *data = hreq->data;
-	if (key == NULL)
-		key = empty_string;
 	while (data != NULL) {
 		if (!strcasecmp(data->key, key))
 			return data;
@@ -465,7 +467,6 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 	ssize_t sz;
 	struct hreq_data *hdat = get_data(hreq, key, 1);
 
-fprintf(stderr, "%s=%s %s=%s %s\n",key,hdat->key,file,hdat->value,hdat->path);
 	if (hdat->value == NULL) {
 		hdat->value = strdup(file);
 		if (hdat->value == NULL)
@@ -503,51 +504,63 @@ static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
 		return (struct afb_arg){
 			.name = hdat->key,
 			.value = hdat->value,
-			.size = hdat->length,
 			.path = hdat->path
 		};
 		
 	return (struct afb_arg){
 		.name = name,
 		.value = MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name),
-		.size = 0,
 		.path = NULL
 	};
 }
 
-struct iterdata
+static int _iterargs_(struct json_object *obj, enum MHD_ValueKind kind, const char *key, const char *value)
 {
-	struct afb_hreq *hreq;
-	int (*iterator)(void *closure, struct afb_arg arg);
-	void *closure;
-};
-
-static int _iterargs_(struct iterdata *id, enum MHD_ValueKind kind, const char *key, const char *value)
-{
-	if (get_data(id->hreq, key, 0))
-		return 1;
-	return id->iterator(id->closure, (struct afb_arg){
-		.name = key,
-		.value = value ? : "",
-		.size = value ? strlen(value) : 0,
-		.path = NULL
-	});
+	json_object_object_add(obj, key, value ? json_object_new_string(value) : NULL);
+	return 1;
 }
 
-static void req_iterate(struct afb_hreq *hreq, int (*iterator)(void *closure, struct afb_arg arg), void *closure)
+static struct json_object *req_json(struct afb_hreq *hreq)
 {
-	struct iterdata id = { .hreq = hreq, .iterator = iterator, .closure = closure };
-	struct hreq_data *hdat = hreq->data;
-	while (hdat) {
-		if (!iterator(closure, (struct afb_arg){
-			.name = hdat->key,
-			.value = hdat->value,
-			.size = hdat->length,
-			.path = hdat->path}))
-			return;
-		hdat = hdat->next;
+	struct hreq_data *hdat;
+	struct json_object *obj, *val;
+
+	obj = hreq->json;
+	if (obj == NULL) {
+		hreq->json = obj = json_object_new_object();
+		if (obj == NULL) {
+		} else {
+			MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)_iterargs_, obj);
+			for (hdat = hreq->data ; hdat ; hdat = hdat->next) {
+				if (hdat->path == NULL)
+					val = hdat->value ? json_object_new_string(hdat->value) : NULL;
+				else {
+					val = json_object_new_object();
+					if (val == NULL) {
+					} else {
+						json_object_object_add(val, "file", json_object_new_string(hdat->value));
+						json_object_object_add(val, "path", json_object_new_string(hdat->path));
+					}
+				}
+				json_object_object_add(obj, hdat->key, val);
+			}
+		}
 	}
-	MHD_get_connection_values (hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)_iterargs_, &id);
+	return obj;
+}
+
+static const char *req_raw(struct afb_hreq *hreq, size_t *size)
+{
+	const char *result = json_object_get_string(req_json(hreq));
+	*size = result ? strlen(result) : 0;
+	return result;
+}
+
+static void req_send(struct afb_hreq *hreq, char *buffer, size_t size)
+{
+	struct MHD_Response *response = MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_MUST_FREE);
+	MHD_queue_response(hreq->connection, MHD_HTTP_OK, response);
+	MHD_destroy_response(response);
 }
 
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)

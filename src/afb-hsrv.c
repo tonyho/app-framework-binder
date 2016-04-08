@@ -162,7 +162,7 @@ static int access_handler(
 			if (!MHD_post_process (hreq->postform, upload_data, *upload_data_size))
 				goto internal_error;
 		} else {
-			if (!afb_hreq_post_add(hreq, NULL, upload_data, *upload_data_size))
+			if (!afb_hreq_post_add(hreq, "", upload_data, *upload_data_size))
 				goto internal_error;
 		}
 		*upload_data_size = 0;
