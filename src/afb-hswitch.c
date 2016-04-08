@@ -81,4 +81,3 @@ int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
 }
 
 
-

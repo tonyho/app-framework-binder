@@ -33,6 +33,7 @@
 #include "afb-hswitch.h"
 #include "afb-api-so.h"
 #include "afb-hsrv.h"
+#include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"
 #include "utils-upoll.h"
@@ -516,6 +517,10 @@ int main(int argc, char *argv[])  {
     afb_api_so_add_pathset(session->config->ldpaths);
 
   ctxStoreInit(CTX_NBCLIENTS, session->config->cntxTimeout, session->config->token);
+  if (!afb_hreq_init_cookie(session->config->httpdPort, session->config->rootapi, DEFLT_CNTX_TIMEOUT)) {
+    fprintf (stderr, "ERR: initialisation of cookies failed\n");
+     exit (1);
+  }
 
   install_error_handlers();
 

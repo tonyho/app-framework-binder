@@ -51,6 +51,8 @@ static const char token_header[] = "x-afb-token";
 static const char token_arg[] = "token";
 static const char token_cookie[] = "token";
 
+static char *cookie_name = NULL;
+static char *cookie_setter = NULL;
 
 struct hreq_data {
 	struct hreq_data *next;
@@ -148,6 +150,64 @@ static int validsubpath(const char *subpath)
 #if !defined(MAGIC_DB)
 #define MAGIC_DB "/usr/share/misc/magic.mgc"
 #endif
+
+static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_Response *response, va_list args)
+{
+	char *cookie;
+	const char *k, *v;
+	k = va_arg(args, const char *);
+	while (k != NULL) {
+		v = va_arg(args, const char *);
+		MHD_add_response_header(response, k, v);
+		k = va_arg(args, const char *);
+	}
+	if (hreq->context != NULL && asprintf(&cookie, cookie_setter, hreq->context->uuid)) {
+		MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, cookie);
+		free(cookie);
+	}
+	MHD_queue_response(hreq->connection, status, response);
+	MHD_destroy_response(response);
+}
+
+void afb_hreq_reply(struct afb_hreq *hreq, unsigned status, struct MHD_Response *response, ...)
+{
+	va_list args;
+	va_start(args, response);
+	afb_hreq_reply_v(hreq, status, response, args);
+	va_end(args);
+}
+
+void afb_hreq_reply_empty(struct afb_hreq *hreq, unsigned status, ...)
+{
+	va_list args;
+	va_start(args, status);
+	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT), args);
+	va_end(args);
+}
+
+void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...)
+{
+	va_list args;
+	va_start(args, buffer);
+	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_PERSISTENT), args);
+	va_end(args);
+}
+
+void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...)
+{
+	va_list args;
+	va_start(args, buffer);
+	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_MUST_COPY), args);
+	va_end(args);
+}
+
+void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...)
+{
+	va_list args;
+	va_start(args, buffer);
+	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_MUST_FREE), args);
+	va_end(args);
+}
 
 static magic_t lazy_libmagic()
 {
@@ -266,20 +326,7 @@ int afb_hreq_valid_tail(struct afb_hreq *hreq)
 
 void afb_hreq_reply_error(struct afb_hreq *hreq, unsigned int status)
 {
-	char *buffer;
-	int length;
-	struct MHD_Response *response;
-
-	length = asprintf(&buffer, "<html><body>error %u</body></html>", status);
-	if (length > 0)
-		response = MHD_create_response_from_buffer((unsigned)length, buffer, MHD_RESPMEM_MUST_FREE);
-	else {
-		buffer = "<html><body>error</body></html>";
-		response = MHD_create_response_from_buffer(strlen(buffer), buffer, MHD_RESPMEM_PERSISTENT);
-	}
-	if (!MHD_queue_response(hreq->connection, status, response))
-		fprintf(stderr, "Failed to reply error code %u", status);
-	MHD_destroy_response(response);
+	afb_hreq_reply_empty(hreq, status, NULL);
 }
 
 int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *filename)
@@ -387,10 +434,10 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	}
 
 	/* fills the value and send */
-	MHD_add_response_header(response, MHD_HTTP_HEADER_CACHE_CONTROL, hreq->cacheTimeout);
-	MHD_add_response_header(response, MHD_HTTP_HEADER_ETAG, etag);
-	MHD_queue_response(hreq->connection, status, response);
-	MHD_destroy_response(response);
+	afb_hreq_reply(hreq, status, response,
+			MHD_HTTP_HEADER_CACHE_CONTROL, hreq->cacheTimeout,
+			MHD_HTTP_HEADER_ETAG, etag,
+			NULL);
 	return 1;
 }
 
@@ -404,12 +451,8 @@ int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 
 int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
 {
-	struct MHD_Response *response;
-
-	response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
-	MHD_add_response_header(response, MHD_HTTP_HEADER_LOCATION, url);
-	MHD_queue_response(hreq->connection, MHD_HTTP_MOVED_PERMANENTLY, response);
-	MHD_destroy_response(response);
+	afb_hreq_reply_static(hreq, MHD_HTTP_MOVED_PERMANENTLY, 0, NULL,
+			MHD_HTTP_HEADER_LOCATION, url, NULL);
 	if (verbosity)
 		fprintf(stderr, "redirect from [%s] to [%s]\n", hreq->url, url);
 	return 1;
@@ -563,9 +606,7 @@ static const char *req_raw(struct afb_hreq *hreq, size_t *size)
 
 static void req_send(struct afb_hreq *hreq, char *buffer, size_t size)
 {
-	struct MHD_Response *response = MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_MUST_FREE);
-	MHD_queue_response(hreq->connection, MHD_HTTP_OK, response);
-	MHD_destroy_response(response);
+	afb_hreq_reply_free(hreq, MHD_HTTP_OK, size, buffer, NULL);
 }
 
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
@@ -594,8 +635,7 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 	}
 
 	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, SIZE_RESPONSE_BUFFER, (void*)send_json_cb, root, (void*)json_object_put);
-	MHD_queue_response(hreq->connection, retcode, response);
-	MHD_destroy_response(response);
+	afb_hreq_reply(hreq, retcode, response, NULL);
 }
 
 static void req_fail(struct afb_hreq *hreq, const char *status, const char *info)
@@ -617,7 +657,7 @@ struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
 		if (uuid == NULL)
 			uuid = afb_hreq_get_argument(hreq, uuid_arg);
 		if (uuid == NULL)
-			uuid = afb_hreq_get_cookie(hreq, uuid_cookie);
+			uuid = afb_hreq_get_cookie(hreq, cookie_name);
 		hreq->context = ctxClientGetForUuid(uuid);
 	}
 	return hreq->context;
@@ -667,5 +707,24 @@ static void req_session_close(struct afb_hreq *hreq)
 		ctxClientClose(context);
 }
 
+int afb_hreq_init_cookie(int port, const char *path, int maxage)
+{
+	int rc;
+
+	free(cookie_name);
+	free(cookie_setter);
+	cookie_name = NULL;
+	cookie_setter = NULL;
+
+	path = path ? : "/";
+	rc = asprintf(&cookie_name, "x-afb-uuid-%d", port);
+	if (rc < 0)
+		return 0;
+	rc = asprintf(&cookie_setter, "%s=%%s; Path=%s; Max-Age=%d; HttpOnly",
+			cookie_name, path, maxage);
+	if (rc < 0)
+		return 0;
+	return 1;
+}
 
 

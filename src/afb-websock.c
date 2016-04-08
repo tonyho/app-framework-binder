@@ -125,7 +125,6 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 	const char *connection, *upgrade, *key, *version, *protocols;
 	char acceptval[29];
 	int vernum;
-	struct MHD_Response *response;
 	const struct protodef *proto;
 	void *ws;
 
@@ -154,13 +153,8 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 	/* is a supported version ? */
 	vernum = atoi(version);
 	if (vernum != 13) {
-		response = MHD_create_response_from_buffer(0, NULL,
-						MHD_RESPMEM_PERSISTENT);
-		MHD_add_response_header (response, sec_websocket_version_s,
-						"13");
-		MHD_queue_response (hreq->connection, MHD_HTTP_BAD_REQUEST,
-						response);
-		MHD_destroy_response (response);
+		afb_hreq_reply_empty(hreq, MHD_HTTP_UPGRADE_REQUIRED,
+			sec_websocket_version_s, "13", NULL);
 		return 1;
 	}
 
@@ -185,18 +179,12 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 
 	/* send the accept connection */
 	make_accept_value(key, acceptval);
-	response = MHD_create_response_from_buffer(0, NULL,
-						MHD_RESPMEM_PERSISTENT);
-	MHD_add_response_header (response, sec_websocket_accept_s, acceptval);
-	MHD_add_response_header (response, sec_websocket_protocol_s, 
-								proto->name);
-	MHD_add_response_header (response, MHD_HTTP_HEADER_CONNECTION,
-						MHD_HTTP_HEADER_UPGRADE);
-	MHD_add_response_header (response, MHD_HTTP_HEADER_UPGRADE,
-								websocket_s);
-	MHD_queue_response (hreq->connection, MHD_HTTP_SWITCHING_PROTOCOLS,
-								response);
-	MHD_destroy_response (response);
+	afb_hreq_reply_empty(hreq, MHD_HTTP_SWITCHING_PROTOCOLS,
+				sec_websocket_accept_s, acceptval,
+				sec_websocket_protocol_s, proto->name,
+				MHD_HTTP_HEADER_CONNECTION, MHD_HTTP_HEADER_UPGRADE,
+				MHD_HTTP_HEADER_UPGRADE, websocket_s,
+				NULL);
 
 	hreq->upgrade = 1;
 	return 1;
