@@ -223,11 +223,16 @@ void afb_hreq_free(struct afb_hreq *hreq)
 			MHD_destroy_post_processor(hreq->postform);
 		for (data = hreq->data; data; data = hreq->data) {
 			hreq->data = data->next;
+			if (data->path) {
+				unlink(data->path);
+				free(data->path);
+			}
 			free(data->key);
 			free(data->value);
 			free(data);
 		}
 		ctxClientPut(hreq->context);
+		json_object_put(hreq->json);
 		free(hreq);
 	}
 }
