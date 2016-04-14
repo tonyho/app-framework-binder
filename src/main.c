@@ -17,19 +17,22 @@
  */
 
 #define _GNU_SOURCE
+
+#include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
-#include <getopt.h>
-#include <setjmp.h>
-#include <signal.h>
-#include <syslog.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "afb-plugin.h"
+#include <getopt.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <syslog.h>
 
-#include "local-def.h"
+#include "afb-config.h"
 #include "afb-hswitch.h"
 #include "afb-api-so.h"
 #include "afb-hsrv.h"
@@ -37,6 +40,8 @@
 #include "session.h"
 #include "verbose.h"
 #include "utils-upoll.h"
+
+#include "afb-plugin.h"
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"
@@ -69,7 +74,7 @@
 #define SET_MODE           18
 #define SET_READYFD        19
 
-static struct afb_hsrv *start(AFB_config * config);
+static struct afb_hsrv *start(struct afb_config * config);
 
 // Command line structure hold cli --command + help text
 typedef struct {
@@ -110,8 +115,6 @@ static  AFB_options cliOptions [] = {
   {0, 0, NULL, NULL}
  };
 
-static AFB_aliasdir aliasdir[MAX_ALIAS];
-static int aliascount = 0;
 
 
 /*----------------------------------------------------------
@@ -130,7 +133,7 @@ static void printVersion (void)
 }
 
 // load config from disk and merge with CLI option
-static void config_set_default (AFB_config * config)
+static void config_set_default (struct afb_config * config)
 {
    // default HTTP port
    if (config->httpdPort == 0)
@@ -218,17 +221,13 @@ static void config_set_default (AFB_config * config)
  |   Parse option and launch action
  +--------------------------------------------------------- */
 
-static void parse_arguments(int argc, char *argv[], AFB_session *session)
+static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 {
   char*          programName = argv [0];
   int            optionIndex = 0;
   int            optc, ind;
   int            nbcmd;
   struct option *gnuOptions;
-
-  // ------------- Build session handler & init config -------
-  memset(&aliasdir  ,0,sizeof(aliasdir));
-  session->config->aliasdir = aliasdir;
 
   // ------------------ Process Command Line -----------------------
 
@@ -260,48 +259,47 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
 
     case SET_TCP_PORT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &session->config->httpdPort)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &config->httpdPort)) goto notAnInteger;
        break;
        
     case SET_APITIMEOUT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &session->config->apiTimeout)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &config->apiTimeout)) goto notAnInteger;
        break;
 
     case SET_CNTXTIMEOUT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &session->config->cntxTimeout)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &config->cntxTimeout)) goto notAnInteger;
        break;
 
     case SET_ROOT_DIR:
        if (optarg == 0) goto needValueForOption;
-       session->config->rootdir   = optarg;
-       if (verbosity) fprintf(stderr, "Forcing Rootdir=%s\n",session->config->rootdir);
+       config->rootdir   = optarg;
+       if (verbosity) fprintf(stderr, "Forcing Rootdir=%s\n",config->rootdir);
        break;       
        
     case SET_ROOT_BASE:
        if (optarg == 0) goto needValueForOption;
-       session->config->rootbase   = optarg;
-       if (verbosity) fprintf(stderr, "Forcing Rootbase=%s\n",session->config->rootbase);
+       config->rootbase   = optarg;
+       if (verbosity) fprintf(stderr, "Forcing Rootbase=%s\n",config->rootbase);
        break;
 
     case SET_ROOT_API:
        if (optarg == 0) goto needValueForOption;
-       session->config->rootapi   = optarg;
-       if (verbosity) fprintf(stderr, "Forcing Rootapi=%s\n",session->config->rootapi);
+       config->rootapi   = optarg;
+       if (verbosity) fprintf(stderr, "Forcing Rootapi=%s\n",config->rootapi);
        break;
        
     case SET_ALIAS:
        if (optarg == 0) goto needValueForOption;
-       if (aliascount < MAX_ALIAS) {
-            aliasdir[aliascount].url  = strsep(&optarg,":");
+       if ((unsigned)config->aliascount < sizeof (config->aliasdir) / sizeof (config->aliasdir[0])) {
+            config->aliasdir[config->aliascount].url  = strsep(&optarg,":");
             if (optarg == NULL) {
-              fprintf(stderr, "missing ':' in alias %s, ignored\n", aliasdir[aliascount].url);
+              fprintf(stderr, "missing ':' in alias %s, ignored\n", config->aliasdir[config->aliascount].url);
             } else {
-              aliasdir[aliascount].path = optarg;
-              aliasdir[aliascount].len  = strlen(aliasdir[aliascount].url);
-              if (verbosity) fprintf(stderr, "Alias url=%s path=%s\n", aliasdir[aliascount].url, aliasdir[aliascount].path);
-              aliascount++;
+              config->aliasdir[config->aliascount].path = optarg;
+              if (verbosity) fprintf(stderr, "Alias url=%s path=%s\n", config->aliasdir[config->aliascount].url, config->aliasdir[config->aliascount].path);
+              config->aliascount++;
             }
        } else {
            fprintf(stderr, "Too many aliases [max:%d] %s ignored\n", MAX_ALIAS, optarg);
@@ -310,45 +308,45 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
        
     case SET_AUTH_TOKEN:
        if (optarg == 0) goto needValueForOption;
-       session->config->token   = optarg;
+       config->token   = optarg;
        break;
 
     case SET_LDPATH:
        if (optarg == 0) goto needValueForOption;
-       session->config->ldpaths = optarg;
+       config->ldpaths = optarg;
        break;
 
     case SET_SESSION_DIR:
        if (optarg == 0) goto needValueForOption;
-       session->config->sessiondir   = optarg;
+       config->sessiondir   = optarg;
        break;
 
     case  SET_CACHE_TIMEOUT:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%d", &session->config->cacheTimeout)) goto notAnInteger;
+       if (!sscanf (optarg, "%d", &config->cacheTimeout)) goto notAnInteger;
        break;
 
     case SET_FORGROUND:
        if (optarg != 0) goto noValueForOption;
-       session->background  = 0;
+       config->background  = 0;
        break;
 
     case SET_BACKGROUND:
        if (optarg != 0) goto noValueForOption;
-       session->background  = 1;
+       config->background  = 1;
        break;
 
     case SET_MODE:
        if (optarg == 0) goto needValueForOption;
-       if (!strcmp(optarg, "local")) session->config->mode = AFB_MODE_LOCAL;
-       else if (!strcmp(optarg, "remote")) session->config->mode = AFB_MODE_REMOTE;
-       else if (!strcmp(optarg, "global")) session->config->mode = AFB_MODE_GLOBAL;
+       if (!strcmp(optarg, "local")) config->mode = AFB_MODE_LOCAL;
+       else if (!strcmp(optarg, "remote")) config->mode = AFB_MODE_REMOTE;
+       else if (!strcmp(optarg, "global")) config->mode = AFB_MODE_GLOBAL;
        else goto badMode;
        break;
 
     case SET_READYFD:
        if (optarg == 0) goto needValueForOption;
-       if (!sscanf (optarg, "%u", &session->readyfd)) goto notAnInteger;
+       if (!sscanf (optarg, "%u", &config->readyfd)) goto notAnInteger;
        break;
 
     case DISPLAY_VERSION:
@@ -364,7 +362,7 @@ static void parse_arguments(int argc, char *argv[], AFB_session *session)
   }
   free(gnuOptions);
  
-  config_set_default  (session->config);
+  config_set_default  (config);
   return;
 
 
@@ -394,7 +392,7 @@ badMode:
  |   try to close everything before leaving
  +--------------------------------------------------------- */
 static void closeSession (int status, void *data) {
-	/* AFB_session *session = data; */
+	/* struct afb_config *config = data; */
 }
 
 /*----------------------------------------------------------
@@ -445,13 +443,13 @@ static void install_error_handlers()
  | daemonize
  |   set the process in background
  +--------------------------------------------------------- */
-static void daemonize(AFB_session *session)
+static void daemonize(struct afb_config *config)
 {
   int            consoleFD;
   int            pid;
 
       // open /dev/console to redirect output messAFBes
-      consoleFD = open(session->config->console, O_WRONLY | O_APPEND | O_CREAT , 0640);
+      consoleFD = open(config->console, O_WRONLY | O_APPEND | O_CREAT , 0640);
       if (consoleFD < 0) {
   		fprintf (stderr,"\nERR: AFB-daemon cannot open /dev/console (use --foreground)\n\n");
   		exit (1);
@@ -470,7 +468,7 @@ static void daemonize(AFB_session *session)
       if (pid != 0) _exit (0);
 
       // son process get all data in standalone mode
-     fprintf (stderr, "\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
+     fprintf (stderr, "\nAFB: background mode [pid:%d console:%s]\n", getpid(),config->console);
 
       // redirect default I/O on console
       close (2); dup(consoleFD);  // redirect stderr
@@ -494,30 +492,29 @@ static void daemonize(AFB_session *session)
  +--------------------------------------------------------- */
 
 int main(int argc, char *argv[])  {
-  AFB_session    *session;
   struct afb_hsrv *hsrv;
+  struct afb_config *config;
 
   // open syslog if ever needed
   openlog("afb-daemon", 0, LOG_DAEMON);
 
   // ------------- Build session handler & init config -------
-  session = calloc (1, sizeof (AFB_session));
-  session->config = calloc (1, sizeof (AFB_config));
+  config = calloc (1, sizeof (struct afb_config));
 
-  on_exit(closeSession, session);
-  parse_arguments(argc, argv, session);
+  on_exit(closeSession, config);
+  parse_arguments(argc, argv, config);
 
   // ------------------ sanity check ----------------------------------------
-  if (session->config->httpdPort <= 0) {
+  if (config->httpdPort <= 0) {
     fprintf (stderr, "ERR: no port is defined\n");
      exit (1);
   }
 
-  if (session->config->ldpaths) 
-    afb_api_so_add_pathset(session->config->ldpaths);
+  if (config->ldpaths) 
+    afb_api_so_add_pathset(config->ldpaths);
 
-  ctxStoreInit(CTX_NBCLIENTS, session->config->cntxTimeout, session->config->token);
-  if (!afb_hreq_init_cookie(session->config->httpdPort, session->config->rootapi, DEFLT_CNTX_TIMEOUT)) {
+  ctxStoreInit(CTX_NBCLIENTS, config->cntxTimeout, config->token);
+  if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, DEFLT_CNTX_TIMEOUT)) {
     fprintf (stderr, "ERR: initialisation of cookies failed\n");
      exit (1);
   }
@@ -540,24 +537,24 @@ int main(int argc, char *argv[])  {
   if (verbosity) fprintf (stderr, "AFB: notice Init config done\n");
 
   // --------- run -----------
-  if (session->background) {
+  if (config->background) {
       // --------- in background mode -----------
       if (verbosity) fprintf (stderr, "AFB: Entering background mode\n");
-      daemonize(session);
+      daemonize(config);
   } else {
       // ---- in foreground mode --------------------
       if (verbosity) fprintf (stderr,"AFB: notice Foreground mode\n");
 
   }
 
-   hsrv = start (session->config);
+   hsrv = start (config);
    if (hsrv == NULL)
 	exit(1);
 
-   if (session->readyfd != 0) {
+   if (config->readyfd != 0) {
 		static const char readystr[] = "READY=1";
-		write(session->readyfd, readystr, sizeof(readystr) - 1);
-		close(session->readyfd);
+		write(config->readyfd, readystr, sizeof(readystr) - 1);
+		close(config->readyfd);
   }
 
    // infinite loop
@@ -570,7 +567,7 @@ int main(int argc, char *argv[])  {
   return 0;
 }
 
-static int init(struct afb_hsrv *hsrv, AFB_config * config)
+static int init(struct afb_hsrv *hsrv, struct afb_config * config)
 {
 	int idx;
 
@@ -580,7 +577,7 @@ static int init(struct afb_hsrv *hsrv, AFB_config * config)
 	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_apis, NULL, 10))
 		return 0;
 
-	for (idx = 0; config->aliasdir[idx].url != NULL; idx++)
+	for (idx = 0; idx < config->aliascount; idx++)
 		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0))
 			return 0;
 
@@ -593,7 +590,7 @@ static int init(struct afb_hsrv *hsrv, AFB_config * config)
 	return 1;
 }
 
-static struct afb_hsrv *start(AFB_config * config)
+static struct afb_hsrv *start(struct afb_config * config)
 {
 	int rc;
 	struct afb_hsrv *hsrv;

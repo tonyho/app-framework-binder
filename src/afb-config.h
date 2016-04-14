@@ -21,14 +21,10 @@
 #ifndef LOCAL_DEF_H
 #define LOCAL_DEF_H
 
-#include <json.h>
-#include <microhttpd.h>
-
 /* other definitions --------------------------------------------------- */
 
 // Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default
 #define MAX_ALIAS 10           // max number of aliases
-#define COOKIE_NAME   "afb-session"
 
 #define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
 #define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout [0=NoLimit for Debug Only]
@@ -38,15 +34,8 @@
 
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 
-
-typedef struct {
-  char  *url;
-  char  *path;
-  size_t len;
-} AFB_aliasdir;
-
 // main config structure
-struct AFB_config
+struct afb_config
 {
   char *console;           // console device name (can be a file or a tty)
   int   httpdPort;
@@ -56,23 +45,17 @@ struct AFB_config
   char *rootapi;           // Base URL for REST APIs
   char *sessiondir;        // where to store mixer session files
   char *token;             // initial authentication token [default NULL no session]
+  int  background;        // run in backround mode
+  int  readyfd;           // a #fd to signal when ready to serve
   int  cacheTimeout;
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
   int mode;           // mode of listening
-  AFB_aliasdir *aliasdir;  // alias mapping for icons,apps,...
+  int aliascount;
+  struct {
+         char  *url;
+         char  *path;
+       } aliasdir[MAX_ALIAS];  // alias mapping for icons,apps,...
 };
-
-struct AFB_session
-{
-  struct AFB_config  *config;   // pointer to current config
-  // List of commands to execute
-  int  background;        // run in backround mode
-  int  readyfd;           // a #fd to signal when ready to serve
-};
-
-
-typedef struct AFB_config AFB_config;
-typedef struct AFB_session AFB_session;
 
 #endif /* LOCAL_DEF_H */
