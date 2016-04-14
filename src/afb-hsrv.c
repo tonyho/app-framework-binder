@@ -336,7 +336,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		MHD_OPTION_END);	/* options-end */
 
 	if (httpd == NULL) {
-		printf("Error: httpStart invalid httpd port: %d", (int)port);
+		fprintf(stderr, "Error: httpStart invalid httpd port: %d", (int)port);
 		return 0;
 	}
 

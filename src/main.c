@@ -470,7 +470,7 @@ static void daemonize(AFB_session *session)
       if (pid != 0) _exit (0);
 
       // son process get all data in standalone mode
-     printf ("\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
+     fprintf (stderr, "\nAFB: background mode [pid:%d console:%s]\n", getpid(),session->config->console);
 
       // redirect default I/O on console
       close (2); dup(consoleFD);  // redirect stderr
@@ -542,7 +542,7 @@ int main(int argc, char *argv[])  {
   // --------- run -----------
   if (session->background) {
       // --------- in background mode -----------
-      if (verbosity) printf ("AFB: Entering background mode\n");
+      if (verbosity) fprintf (stderr, "AFB: Entering background mode\n");
       daemonize(session);
   } else {
       // ---- in foreground mode --------------------
@@ -606,19 +606,19 @@ static struct afb_hsrv *start(AFB_config * config)
 
 	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
 	|| !init(hsrv, config)) {
-		printf("Error: initialisation of httpd failed");
+		fprintf (stderr, "Error: initialisation of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}
 
 	if (verbosity) {
-		printf("AFB:notice Waiting port=%d rootdir=%s\n", config->httpdPort, config->rootdir);
-		printf("AFB:notice Browser URL= http:/*localhost:%d\n", config->httpdPort);
+		fprintf (stderr, "AFB:notice Waiting port=%d rootdir=%s\n", config->httpdPort, config->rootdir);
+		fprintf (stderr, "AFB:notice Browser URL= http:/*localhost:%d\n", config->httpdPort);
 	}
 
 	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
 	if (!rc) {
-		printf("Error: starting of httpd failed");
+		fprintf (stderr, "Error: starting of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}

@@ -219,7 +219,7 @@ static magic_t lazy_libmagic()
 		/* MAGIC_MIME tells magic to return a mime of the file,
 			 but you can specify different things */
 		if (verbosity)
-			printf("Loading mimetype default magic database\n");
+			fprintf(stderr, "Loading mimetype default magic database\n");
 
 		result = magic_open(MAGIC_MIME_TYPE);
 		if (result == NULL) {
