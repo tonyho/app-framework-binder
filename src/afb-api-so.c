@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 "IoT.bzh"
- * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
  * This program is free software: you can redistribute it and/or modify

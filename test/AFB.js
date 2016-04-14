@@ -13,17 +13,19 @@ var AFB_context;
 	var UUID = undefined;
 	var TOKEN = initialtoken;
 
-	AFB_context = function(token, uuid) {
+	var context = function(token, uuid) {
 		this.token = token;
 		this.uuid = uuid;
 	}
 
-	AFB_context.prototype = {
+	context.prototype = {
 		get token() {return TOKEN;},
 		set token(tok) {if(tok) TOKEN=tok;},
 		get uuid() {return UUID;},
 		set uuid(id) {if(id) UUID=id;}
 	};
+
+	AFB_context = new context();
 }
 /*********************************************/
 /****                                     ****/
@@ -38,11 +40,10 @@ var AFB_websocket;
 
 	var PROTO1 = "x-afb-ws-json1";
 
-	AFB_websocket = function(onopen, onabort, ctx) {
+	AFB_websocket = function(onopen, onabort) {
 		this.ws = new WebSocket(urlws, [ PROTO1 ]);
 		this.pendings = {};
 		this.counter = 0;
-		this.ctx = ctx || new AFB_context();
 		this.ws.onopen = onopen.bind(this);
 		this.ws.onerror = onerror.bind(this);
 		this.ws.onclose = onclose.bind(this);
@@ -82,7 +83,7 @@ var AFB_websocket;
 		var code = obj[0];
 		var id = obj[1];
 		var ans = obj[2];
-		this.ctx.token = obj[3];
+		AFB_context.token = obj[3];
 		var pend;
 		if (id && id in this.pendings) {
 			pend = this.pendings[id];
@@ -107,7 +108,7 @@ var AFB_websocket;
 		var id = String(++this.counter);
 		this.pendings[id] = { onsuccess: onsuccess, onerror: onerror };
 		var arr = [CALL, id, api+"/"+verb, request ];
-		if (this.ctx.token) arr.push(this.ctx.token);
+		if (AFB_context.token) arr.push(AFB_context.token);
 		this.ws.send(JSON.stringify(arr));
 	}
 
