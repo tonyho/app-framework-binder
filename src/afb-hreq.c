@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#define USE_MAGIC_MIME_TYPE
 #define _GNU_SOURCE
 
 #include <stdlib.h>
@@ -145,12 +144,6 @@ static int validsubpath(const char *subpath)
 	return 1;
 }
 
-#if defined(USE_MAGIC_MIME_TYPE)
-
-#if !defined(MAGIC_DB)
-#define MAGIC_DB "/usr/share/misc/magic.mgc"
-#endif
-
 static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_Response *response, va_list args)
 {
 	char *cookie;
@@ -209,6 +202,12 @@ void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t size, ch
 	va_end(args);
 }
 
+#if defined(USE_MAGIC_MIME_TYPE)
+
+#if !defined(MAGIC_DB)
+#define MAGIC_DB "/usr/share/misc/magic.mgc"
+#endif
+
 static magic_t lazy_libmagic()
 {
 	static int done = 0;
@@ -254,8 +253,9 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	const char *extension = strrchr(filename, '.');
 	if (extension) {
 		static const char *const known[][2] = {
-			{ ".js", "text/javascript" },
+			{ ".js",   "text/javascript" },
 			{ ".html", "text/html" },
+			{ ".css",  "text/css" },
 			{ NULL, NULL }
 		};
 		int i = 0;
