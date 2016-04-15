@@ -16,43 +16,15 @@
  limitations under the License.
 */
 
-struct jreq;
-struct jbus;
-struct pollfd;
+#pragma once
 
-extern struct jbus *create_jbus(const char *path, int session);
-extern struct jbus *create_jbus_session(const char *path);
-extern struct jbus *create_jbus_system(const char *path);
+struct sbusmsg;
+struct jbus;
+
+extern struct jbus *create_jbus(struct sbus *sbus, const char *path);
 
 extern void jbus_addref(struct jbus *jbus);
 extern void jbus_unref(struct jbus *jbus);
-
-extern int jbus_fill_pollfds(
-		struct jbus **jbuses,
-		int njbuses,
-		struct pollfd *fds);
-
-extern int jbus_dispatch_pollfds(
-		struct jbus **jbuses,
-		 int njbuses,
-		 struct pollfd *fds,
-		 int maxcount);
-
-extern int jbus_read_write_dispatch_multiple(
-		struct jbus **jbuses,
-		int njbuses,
-		int toms,
-		int maxcount);
-
-extern int jbus_dispatch_multiple(
-		struct jbus **jbuses,
-		int njbuses,
-		int maxcount);
-
-extern int jbus_read_write_dispatch(
-		struct jbus *jbus,
-		int toms);
-
 
 /* verbs for the clients */
 extern int jbus_call_ss(
@@ -117,31 +89,31 @@ extern int jbus_on_signal_j(
 
 /* verbs for servers */
 extern int jbus_reply_s(
-		struct jreq *jreq,
+		struct sbusmsg *smsg,
 		const char *reply);
 
 extern int jbus_reply_j(
-		struct jreq *jreq,
+		struct sbusmsg *smsg,
 		struct json_object *reply);
 
 extern int jbus_reply_error_s(
-		struct jreq *jreq,
+		struct sbusmsg *smsg,
 		const char *reply);
 
 extern int jbus_reply_error_j(
-		struct jreq *jreq,
+		struct sbusmsg *smsg,
 		struct json_object *reply);
 
 extern int jbus_add_service_s(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall) (struct jreq *, const char *, void *),
+		void (*oncall) (struct sbusmsg *, const char *, void *),
 		void *data);
 
 extern int jbus_add_service_j(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall) (struct jreq *, struct json_object *, void *),
+		void (*oncall) (struct sbusmsg *, struct json_object *, void *),
 		void *data);
 
 extern int jbus_start_serving(

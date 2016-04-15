@@ -21,6 +21,8 @@
 #ifndef LOCAL_DEF_H
 #define LOCAL_DEF_H
 
+#pragma once
+
 /* other definitions --------------------------------------------------- */
 
 // Note: because of a bug in libmagic MAGIC_DB NULL should not be used for default

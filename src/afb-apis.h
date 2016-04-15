@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct afb_req;
 struct AFB_clientCtx;
 

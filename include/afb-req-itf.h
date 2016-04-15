@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct json_object;
 
 struct afb_arg {

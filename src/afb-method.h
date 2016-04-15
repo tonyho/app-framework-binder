@@ -16,6 +16,8 @@
  */
 
 
+#pragma once
+
 enum afb_method {
 	afb_method_none = 0,
 	afb_method_get = 1,

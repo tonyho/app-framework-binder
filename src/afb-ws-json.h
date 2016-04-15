@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct afb_ws_json;
 struct AFB_clientCtx;
 

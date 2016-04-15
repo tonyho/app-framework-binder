@@ -15,17 +15,15 @@
  * limitations under the License.
  */
 
-struct afb_poll_itf
-{
-	int (*on_readable)(void *, void (*cb)(void *));
-	int (*on_writable)(void *, void (*cb)(void *));
-	int (*on_hangup)(void *, void (*cb)(void *));
-	void (*close)(void *data);
-};
+#pragma once
 
-struct afb_poll
+struct afb_pollitf
 {
-	const struct afb_poll_itf *itf;
-	void *data;
+	int (*wait)(int timeout, void *pollclosure);
+	void *(*open)(int fd, void *closure, void *pollclosure);
+	int (*on_readable)(void *hndl, void (*cb)(void *closure));
+	int (*on_writable)(void *hndl, void (*cb)(void *closure));
+	void (*on_hangup)(void *hndl, void (*cb)(void *closure));
+	void (*close)(void *hndl);
 };
 

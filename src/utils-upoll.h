@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct upoll;
 
 extern int upoll_is_valid(struct upoll *upoll);
@@ -28,5 +30,7 @@ extern void upoll_on_hangup(struct upoll *upoll, void (*process)(void *closure))
 
 extern void upoll_close(struct upoll *upoll);
 
-extern void upoll_wait(int timeout);
+extern int upoll_wait(int timeout);
+
+
 

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct afb_req;
 
 /* Plugin Type */
@@ -61,13 +63,12 @@ enum AFB_Mode {
 	AFB_MODE_GLOBAL
 };
 
-struct afb_poll;
-
 struct AFB_interface
 {
 	int verbosity;
 	enum AFB_Mode mode;
-	struct afb_poll (*poll_open)(int fd, void *closure);
+	const struct afb_pollitf *pollitf;
+	void *pollclosure;
 };
 
 extern const struct AFB_plugin *pluginRegister (const struct AFB_interface *interface);

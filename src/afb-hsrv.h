@@ -16,6 +16,8 @@
  limitations under the License.
 */
 
+#pragma once
+
 struct afb_hsrv;
 struct afb_hreq;
 

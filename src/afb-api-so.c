@@ -56,20 +56,14 @@ static int api_timeout = 15;
 
 static const char plugin_register_function[] = "pluginRegister";
 
-static const struct afb_poll_itf upoll_itf = {
+static const struct afb_pollitf upollitf = {
+	.wait = (void*)upoll_wait,
+	.open = (void*)upoll_open,
 	.on_readable = (void*)upoll_on_readable,
 	.on_writable = (void*)upoll_on_writable,
 	.on_hangup = (void*)upoll_on_hangup,
 	.close = (void*)upoll_close
 };
-
-static struct afb_poll itf_poll_open(int fd, void *closure)
-{
-	struct afb_poll result;
-	result.data = upoll_open(fd, closure);
-	result.itf = result.data ? &upoll_itf : NULL;
-	return result;
-}
 
 static void free_context(struct api_so_desc *desc, void *context)
 {
@@ -198,7 +192,8 @@ int afb_api_so_add_plugin(const char *path)
 	/* init the interface */
 	desc->interface.verbosity = 0;
 	desc->interface.mode = AFB_MODE_LOCAL;
-	desc->interface.poll_open = itf_poll_open;
+	desc->interface.pollitf = &upollitf;
+	desc->interface.pollclosure = NULL;
 
 	/* init the plugin */
 	desc->plugin = pluginRegisterFct(&desc->interface);

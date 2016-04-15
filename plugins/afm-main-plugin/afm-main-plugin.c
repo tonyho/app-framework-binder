@@ -23,7 +23,9 @@
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
+#include "afb-poll-itf.h"
 
+#include "utils-sbus.h"
 #include "utils-jbus.h"
 
 static const char _auto_[]      = "auto";
@@ -276,14 +278,33 @@ static const struct AFB_plugin plug_desc = {
 	.apis = plug_apis
 };
 
+static struct sbus_itf sbusitf;
+
 const struct AFB_plugin *pluginRegister(const struct AFB_interface *itf)
 {
-	interface = itf;
+	struct sbus *sbus;
 
-	jbus = create_jbus_session("/org/AGL/afm/user");
+	if (interface != NULL)
+		return NULL;
+
+	interface = itf;
+	sbusitf.wait = itf->pollitf->wait;
+	sbusitf.open = itf->pollitf->open;
+	sbusitf.on_readable = itf->pollitf->on_readable;
+	sbusitf.on_writable = itf->pollitf->on_writable;
+	sbusitf.on_hangup = itf->pollitf->on_hangup;
+	sbusitf.close = itf->pollitf->close;
+
+	sbus = sbus_session(&sbusitf, itf->pollclosure);
+	if (sbus == NULL) {
+		fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
+		return NULL;
+	}
+
+	jbus = create_jbus(sbus, "/org/AGL/afm/user");
         if (jbus)
 		return &plug_desc;
-	fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
+	sbus_unref(sbus);
 	return NULL;
 }
 

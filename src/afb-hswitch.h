@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct afb_hreq;
 extern int afb_hswitch_apis(struct afb_hreq *hreq, void *data);
 extern int afb_hswitch_one_page_api_redirect(struct afb_hreq *hreq, void *data);

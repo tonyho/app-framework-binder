@@ -21,6 +21,8 @@
  *   Copyright 2010-2012 self.disconnect (APACHE-2)
  */
 
+#pragma once
+
 struct iovec;
 
 #define WEBSOCKET_CODE_OK                1000

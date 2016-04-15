@@ -16,6 +16,8 @@
  */
 // User Client Session Context
 
+#pragma once
+
 struct AFB_clientCtx
 {
 	time_t expiration;    // expiration time of the token

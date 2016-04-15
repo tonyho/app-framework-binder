@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 struct afb_hreq;
 extern int afb_websock_check_upgrade(struct afb_hreq *hreq);
 

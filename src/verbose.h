@@ -16,6 +16,8 @@
  limitations under the License.
 */
 
+#pragma once
+
 #if !defined(NDEBUG)
 #include <syslog.h>
 extern int verbosity;

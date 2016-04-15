@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-struct AFB_session;
+#pragma once
+
 struct AFB_clientCtx;
 struct json_object;
 
