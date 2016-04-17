@@ -74,8 +74,6 @@
 #define SET_MODE           18
 #define SET_READYFD        19
 
-static struct afb_hsrv *start(struct afb_config * config);
-
 // Command line structure hold cli --command + help text
 typedef struct {
   int  val;        // command number within application
@@ -487,6 +485,67 @@ static void daemonize(struct afb_config *config)
 }
 
 /*---------------------------------------------------------
+ | http server
+ |   Handles the HTTP server
+ +--------------------------------------------------------- */
+static int init_http_server(struct afb_hsrv *hsrv, struct afb_config * config)
+{
+	int idx;
+
+	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_websocket_switch, NULL, 20))
+		return 0;
+
+	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_apis, NULL, 10))
+		return 0;
+
+	for (idx = 0; idx < config->aliascount; idx++)
+		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0))
+			return 0;
+
+	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10))
+		return 0;
+
+	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL, -20))
+		return 0;
+
+	return 1;
+}
+
+static struct afb_hsrv *start_http_server(struct afb_config * config)
+{
+	int rc;
+	struct afb_hsrv *hsrv;
+
+	hsrv = afb_hsrv_create();
+	if (hsrv == NULL) {
+		fprintf(stderr, "memory allocation failure\n");
+		return NULL;
+	}
+
+	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
+	|| !init_http_server(hsrv, config)) {
+		fprintf (stderr, "Error: initialisation of httpd failed");
+		afb_hsrv_put(hsrv);
+		return NULL;
+	}
+
+	if (verbosity) {
+		fprintf (stderr, "AFB:notice Waiting port=%d rootdir=%s\n", config->httpdPort, config->rootdir);
+		fprintf (stderr, "AFB:notice Browser URL= http:/*localhost:%d\n", config->httpdPort);
+	}
+
+	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
+	if (!rc) {
+		fprintf (stderr, "Error: starting of httpd failed");
+		afb_hsrv_put(hsrv);
+		return NULL;
+	}
+
+	return hsrv;
+}
+
+
+/*---------------------------------------------------------
  | main
  |   Parse option and launch action
  +--------------------------------------------------------- */
@@ -547,7 +606,7 @@ int main(int argc, char *argv[])  {
 
   }
 
-   hsrv = start (config);
+   hsrv = start_http_server(config);
    if (hsrv == NULL)
 	exit(1);
 
@@ -566,61 +625,4 @@ int main(int argc, char *argv[])  {
 
   return 0;
 }
-
-static int init(struct afb_hsrv *hsrv, struct afb_config * config)
-{
-	int idx;
-
-	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_websocket_switch, NULL, 20))
-		return 0;
-
-	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_apis, NULL, 10))
-		return 0;
-
-	for (idx = 0; idx < config->aliascount; idx++)
-		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0))
-			return 0;
-
-	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10))
-		return 0;
-
-	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL, -20))
-		return 0;
-
-	return 1;
-}
-
-static struct afb_hsrv *start(struct afb_config * config)
-{
-	int rc;
-	struct afb_hsrv *hsrv;
-
-	hsrv = afb_hsrv_create();
-	if (hsrv == NULL) {
-		fprintf(stderr, "memory allocation failure\n");
-		return NULL;
-	}
-
-	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
-	|| !init(hsrv, config)) {
-		fprintf (stderr, "Error: initialisation of httpd failed");
-		afb_hsrv_put(hsrv);
-		return NULL;
-	}
-
-	if (verbosity) {
-		fprintf (stderr, "AFB:notice Waiting port=%d rootdir=%s\n", config->httpdPort, config->rootdir);
-		fprintf (stderr, "AFB:notice Browser URL= http:/*localhost:%d\n", config->httpdPort);
-	}
-
-	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
-	if (!rc) {
-		fprintf (stderr, "Error: starting of httpd failed");
-		afb_hsrv_put(hsrv);
-		return NULL;
-	}
-
-	return hsrv;
-}
-
 
