@@ -52,6 +52,7 @@ static const char token_cookie[] = "token";
 
 static char *cookie_name = NULL;
 static char *cookie_setter = NULL;
+static char *tmp_pattern = NULL;
 
 struct hreq_data {
 	struct hreq_data *next;
@@ -492,12 +493,53 @@ int afb_hreq_post_add(struct afb_hreq *hreq, const char *key, const char *data, 
 	return 1;
 }
 
+int afb_hreq_init_download_path(const char *directory)
+{
+	struct stat st;
+	size_t n;
+	char *p;
+
+	if (access(directory, R_OK|W_OK)) {
+		/* no read/write access */
+		return -1;
+	}
+	if (stat(directory, &st)) {
+		/* can't get info */
+		return -1;
+	}
+	if (!S_ISDIR(st.st_mode)) {
+		/* not a directory */
+		errno = ENOTDIR;
+		return -1;
+	}
+	n = strlen(directory);
+	while(n > 1 && directory[n-1] == '/') n--;
+	p = malloc(n + 8);
+	if (p == NULL) {
+		/* can't allocate memory */
+		errno = ENOMEM;
+		return -1;
+	}
+	memcpy(p, directory, n);
+	p[n++] = '/';
+	p[n++] = 'X';
+	p[n++] = 'X';
+	p[n++] = 'X';
+	p[n++] = 'X';
+	p[n++] = 'X';
+	p[n++] = 'X';
+	p[n] = 0;
+	free(tmp_pattern);
+	tmp_pattern = p;
+	return 0;
+}
+
 static int opentempfile(char **path)
 {
 	int fd;
 	char *fname;
 
-	fname = strdup("XXXXXX"); /* TODO improve the path */
+	fname = strdup(tmp_pattern ? : "XXXXXX"); /* TODO improve the path */
 	if (fname == NULL)
 		return -1;
 

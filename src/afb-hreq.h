@@ -74,3 +74,4 @@ extern void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t s
 
 extern void afb_hreq_reply_empty(struct afb_hreq *hreq, unsigned status, ...);
 
+extern int afb_hreq_init_download_path(const char *directory);

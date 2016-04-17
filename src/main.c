@@ -516,6 +516,11 @@ static struct afb_hsrv *start_http_server(struct afb_config * config)
 	int rc;
 	struct afb_hsrv *hsrv;
 
+	if (afb_hreq_init_download_path("/tmp")) { /* TODO: sessiondir? */
+		fprintf(stderr, "unable to set the tmp directory\n");
+		return NULL;
+	}
+
 	hsrv = afb_hsrv_create();
 	if (hsrv == NULL) {
 		fprintf(stderr, "memory allocation failure\n");
