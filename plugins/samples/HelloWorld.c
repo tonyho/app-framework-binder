@@ -20,7 +20,6 @@
 #include <json.h>
 
 #include "afb-plugin.h"
-#include "afb-req-itf.h"
 
 // Sample Generic Ping Debug API
 static void ping(struct afb_req request, json_object *jresp, const char *tag)

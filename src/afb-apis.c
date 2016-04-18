@@ -18,28 +18,14 @@
 
 #define _GNU_SOURCE
 
+#include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <string.h>
-#include <dirent.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <limits.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/syscall.h>
-#include <setjmp.h>
-
-#include "afb-plugin.h"
-#include "afb-req-itf.h"
-#include "afb-poll-itf.h"
 
 #include "session.h"
-#include "afb-apis.h"
 #include "verbose.h"
-#include "utils-upoll.h"
+#include "afb-apis.h"
+#include "afb-req-itf.h"
 
 struct api_desc {
 	struct afb_api api;

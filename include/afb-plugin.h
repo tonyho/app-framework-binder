@@ -17,7 +17,9 @@
 
 #pragma once
 
-struct afb_req;
+#include "afb-req-itf.h"
+#include "afb-pollmgr-itf.h"
+#include "afb-evmgr-itf.h"
 
 /* Plugin Type */
 enum  AFB_pluginE
@@ -63,13 +65,33 @@ enum AFB_Mode {
 	AFB_MODE_GLOBAL
 };
 
+struct afb_daemon_itf {
+	struct afb_evmgr (*get_evmgr)(void *closure);
+	struct afb_pollmgr (*get_pollmgr)(void *closure);
+};
+
+struct afb_daemon {
+	const struct afb_daemon_itf *itf;
+	void *closure;
+};
+
 struct AFB_interface
 {
 	int verbosity;
 	enum AFB_Mode mode;
-	const struct afb_pollitf *pollitf;
-	void *pollclosure;
+	struct afb_daemon daemon;
 };
 
 extern const struct AFB_plugin *pluginRegister (const struct AFB_interface *interface);
+
+static inline struct afb_evmgr afb_daemon_get_evmgr(struct afb_daemon daemon)
+{
+	return daemon.itf->get_evmgr(daemon.closure);
+}
+
+static inline struct afb_pollmgr afb_daemon_get_pollmgr(struct afb_daemon daemon)
+{
+	return daemon.itf->get_pollmgr(daemon.closure);
+}
+
 

@@ -33,7 +33,8 @@
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
-#include "afb-poll-itf.h"
+#include "afb-pollmgr-itf.h"
+#include "afb-evmgr-itf.h"
 
 #include "session.h"
 #include "afb-apis.h"
@@ -41,23 +42,48 @@
 #include "verbose.h"
 #include "utils-upoll.h"
 
+extern __thread sigjmp_buf *error_handler;
+
 struct api_so_desc {
-	struct AFB_plugin *plugin;	 /* descriptor */
-	void *handle;		         /* context of dlopen */
-	struct AFB_interface interface;
+	struct AFB_plugin *plugin;	/* descriptor */
+	void *handle;			/* context of dlopen */
+	struct AFB_interface interface;	/* interface */
 };
 
 static int api_timeout = 15;
 
 static const char plugin_register_function[] = "pluginRegister";
 
-static const struct afb_pollitf upollitf = {
+static const struct afb_pollmgr_itf pollmgr_itf = {
 	.wait = (void*)upoll_wait,
 	.open = (void*)upoll_open,
 	.on_readable = (void*)upoll_on_readable,
 	.on_writable = (void*)upoll_on_writable,
 	.on_hangup = (void*)upoll_on_hangup,
 	.close = (void*)upoll_close
+};
+
+static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, struct json_object *object)
+{
+}
+
+static const struct afb_evmgr_itf evmgr_itf = {
+	.push = (void*)afb_api_so_evmgr_push
+};
+
+static struct afb_evmgr afb_api_so_get_evmgr(struct api_so_desc *desc)
+{
+	return (struct afb_evmgr){ .itf = &evmgr_itf, .closure = desc };
+}
+
+static struct afb_pollmgr afb_api_so_get_pollmgr(struct api_so_desc *desc)
+{
+	return (struct afb_pollmgr){ .itf = &pollmgr_itf, .closure = NULL };
+}
+
+static const struct afb_daemon_itf daemon_itf = {
+	.get_evmgr = (void*)afb_api_so_get_evmgr,
+	.get_pollmgr = (void*)afb_api_so_get_pollmgr
 };
 
 static void free_context(struct api_so_desc *desc, void *context)
@@ -71,9 +97,6 @@ static void free_context(struct api_so_desc *desc, void *context)
 		free(context);
 }
 
-
-// Check of apiurl is declare in this plugin and call it
-extern __thread sigjmp_buf *error_handler;
 static void trapping_call(struct afb_req req, void(*cb)(struct afb_req))
 {
 	volatile int signum, timerset;
@@ -82,7 +105,6 @@ static void trapping_call(struct afb_req req, void(*cb)(struct afb_req))
 	struct sigevent sevp;
 	struct itimerspec its;
 
-	// save context before calling the API
 	timerset = 0;
 	older = error_handler;
 	signum = setjmp(jmpbuf);
@@ -155,8 +177,6 @@ static void call(struct api_so_desc *desc, struct afb_req req, const char *verb,
 		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->plugin->prefix);
 }
 
-
-
 int afb_api_so_add_plugin(const char *path)
 {
 	struct api_so_desc *desc;
@@ -187,8 +207,8 @@ int afb_api_so_add_plugin(const char *path)
 	/* init the interface */
 	desc->interface.verbosity = 0;
 	desc->interface.mode = AFB_MODE_LOCAL;
-	desc->interface.pollitf = &upollitf;
-	desc->interface.pollclosure = NULL;
+	desc->interface.daemon.itf = &daemon_itf;
+	desc->interface.daemon.closure = desc;
 
 	/* init the plugin */
 	desc->plugin = pluginRegisterFct(&desc->interface);
@@ -326,24 +346,4 @@ int afb_api_so_add_pathset(const char *pathset)
 		afb_api_so_add_path(p);
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

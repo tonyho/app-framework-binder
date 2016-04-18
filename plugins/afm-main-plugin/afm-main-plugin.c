@@ -18,17 +18,17 @@
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include <json.h>
 
 #include "afb-plugin.h"
-#include "afb-req-itf.h"
-#include "afb-poll-itf.h"
 
 #include "utils-sbus.h"
 #include "utils-jbus.h"
 
 static const char _auto_[]      = "auto";
 static const char _continue_[]  = "continue";
+static const char _changed_[]   = "changed";
 static const char _detail_[]    = "detail";
 static const char _id_[]        = "id";
 static const char _install_[]   = "install";
@@ -46,8 +46,14 @@ static const char _uninstall_[] = "uninstall";
 static const char _uri_[]       = "uri";
 
 static const struct AFB_interface *interface;
+static struct afb_evmgr evmgr;
 
 static struct jbus *jbus;
+
+static void application_list_changed(const char *data, void *closure)
+{
+	afb_evmgr_push(evmgr, "application-list-changed", NULL);
+}
 
 static struct json_object *embed(const char *tag, struct json_object *obj)
 {
@@ -285,19 +291,24 @@ static struct sbus_itf sbusitf;
 
 const struct AFB_plugin *pluginRegister(const struct AFB_interface *itf)
 {
+	int rc;
+	struct afb_pollmgr pollmgr;
 	struct sbus *sbus;
 
 	/* records the interface */
 	assert (interface == NULL);
+	interface = itf;
+	evmgr = afb_daemon_get_evmgr(itf->daemon);
 
 	/* creates the sbus for session */
-	sbusitf.wait = itf->pollitf->wait;
-	sbusitf.open = itf->pollitf->open;
-	sbusitf.on_readable = itf->pollitf->on_readable;
-	sbusitf.on_writable = itf->pollitf->on_writable;
-	sbusitf.on_hangup = itf->pollitf->on_hangup;
-	sbusitf.close = itf->pollitf->close;
-	sbus = sbus_session(&sbusitf, itf->pollclosure);
+	pollmgr = afb_daemon_get_pollmgr(itf->daemon);
+	sbusitf.wait = pollmgr.itf->wait;
+	sbusitf.open = pollmgr.itf->open;
+	sbusitf.on_readable = pollmgr.itf->on_readable;
+	sbusitf.on_writable = pollmgr.itf->on_writable;
+	sbusitf.on_hangup = pollmgr.itf->on_hangup;
+	sbusitf.close = pollmgr.itf->close;
+	sbus = sbus_session(&sbusitf, pollmgr.closure);
 	if (sbus == NULL) {
 		fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
 		return NULL;
@@ -310,7 +321,13 @@ const struct AFB_plugin *pluginRegister(const struct AFB_interface *itf)
 		return NULL;
 	}
 
-	
+	/* records the signal handler */
+	rc = jbus_on_signal_s(jbus, _changed_, application_list_changed, NULL);
+	if (rc < 0) {
+		jbus_unref(jbus);
+		return NULL;
+	}
+
 	return &plug_desc;
 }
 

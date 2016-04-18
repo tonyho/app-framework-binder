@@ -17,13 +17,19 @@
 
 #pragma once
 
-struct afb_pollitf
-{
-	int (*wait)(int timeout, void *pollclosure);
-	void *(*open)(int fd, void *closure, void *pollclosure);
-	int (*on_readable)(void *hndl, void (*cb)(void *closure));
-	int (*on_writable)(void *hndl, void (*cb)(void *closure));
-	void (*on_hangup)(void *hndl, void (*cb)(void *closure));
-	void (*close)(void *hndl);
+struct json_object;
+
+struct afb_evmgr_itf {
+	void (*push)(void *evmgr, const char *name, struct json_object *object);
 };
+
+struct afb_evmgr {
+	const struct afb_evmgr_itf *itf;
+	void *closure;
+};
+
+static inline void afb_evmgr_push(struct afb_evmgr mgr, const char *name, struct json_object *object)
+{
+	return mgr.itf->push(mgr.closure, name, object);
+}
 

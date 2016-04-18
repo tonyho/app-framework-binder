@@ -20,7 +20,6 @@
 #include <json.h>
 
 #include "afb-plugin.h"
-#include "afb-req-itf.h"
 
 // Dummy sample of Client Application Context
 typedef struct {

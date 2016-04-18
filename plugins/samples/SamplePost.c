@@ -21,7 +21,6 @@
 #include <json.h>
 
 #include "afb-plugin.h"
-#include "afb-req-itf.h"
 
 
 // Sample Generic Ping Debug API
