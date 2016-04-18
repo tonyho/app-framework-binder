@@ -75,7 +75,8 @@ static void embed_call_void(struct afb_req request, const char *method)
 {
 	struct json_object *obj = jbus_call_sj_sync(jbus, method, "true");
 	if (interface->verbosity)
-		fprintf(stderr, "(afm-main-plugin) %s(true) -> %s\n", method, obj ? json_object_to_json_string(obj) : "NULL");
+		fprintf(stderr, "(afm-main-plugin) %s(true) -> %s\n", method,
+			obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
 		afb_req_fail(request, "failed", "framework daemon failure");
 		return;
@@ -103,7 +104,8 @@ static void call_appid(struct afb_req request, const char *method)
 	}
 	obj = jbus_call_sj_sync(jbus, method, sid);
 	if (interface->verbosity)
-		fprintf(stderr, "(afm-main-plugin) %s(%s) -> %s\n", method, sid, obj ? json_object_to_json_string(obj) : "NULL");
+		fprintf(stderr, "(afm-main-plugin) %s(%s) -> %s\n", method, sid,
+			obj ? json_object_to_json_string(obj) : "NULL");
 	free(sid);
 	if (obj == NULL) {
 		afb_req_fail(request, "failed", "framework daemon failure");
@@ -173,7 +175,8 @@ static void start(struct afb_req request)
 	/* calls the service */
 	obj = jbus_call_sj_sync(jbus, _start_, query);
 	if (interface->verbosity)
-		fprintf(stderr, "(afm-main-plugin) start(%s) -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
+		fprintf(stderr, "(afm-main-plugin) start(%s) -> %s\n", query,
+			obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
 
 	/* check status */
@@ -236,7 +239,8 @@ static void install(struct afb_req request)
 
 	obj = jbus_call_sj_sync(jbus, _install_, query);
 	if (interface->verbosity)
-		fprintf(stderr, "(afm-main-plugin) install(%s) -> %s\n", query, obj ? json_object_to_json_string(obj) : "NULL");
+		fprintf(stderr, "(afm-main-plugin) install(%s) -> %s\n", query,
+			obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
 
 	/* check status */
@@ -283,27 +287,30 @@ const struct AFB_plugin *pluginRegister(const struct AFB_interface *itf)
 {
 	struct sbus *sbus;
 
-	if (interface != NULL)
-		return NULL;
+	/* records the interface */
+	assert (interface == NULL);
 
-	interface = itf;
+	/* creates the sbus for session */
 	sbusitf.wait = itf->pollitf->wait;
 	sbusitf.open = itf->pollitf->open;
 	sbusitf.on_readable = itf->pollitf->on_readable;
 	sbusitf.on_writable = itf->pollitf->on_writable;
 	sbusitf.on_hangup = itf->pollitf->on_hangup;
 	sbusitf.close = itf->pollitf->close;
-
 	sbus = sbus_session(&sbusitf, itf->pollclosure);
 	if (sbus == NULL) {
 		fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
 		return NULL;
 	}
 
+	/* creates the jbus for accessing afm-user-daemon */
 	jbus = create_jbus(sbus, "/org/AGL/afm/user");
-        if (jbus)
-		return &plug_desc;
-	sbus_unref(sbus);
-	return NULL;
+        if (jbus == NULL) {
+		sbus_unref(sbus);
+		return NULL;
+	}
+
+	
+	return &plug_desc;
 }
 
