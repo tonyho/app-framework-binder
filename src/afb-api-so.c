@@ -46,6 +46,7 @@ extern __thread sigjmp_buf *error_handler;
 
 struct api_so_desc {
 	struct AFB_plugin *plugin;	/* descriptor */
+	size_t apilength;
 	void *handle;			/* context of dlopen */
 	struct AFB_interface interface;	/* interface */
 };
@@ -65,6 +66,16 @@ static const struct afb_pollmgr_itf pollmgr_itf = {
 
 static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
+	size_t length;
+	char *event;
+
+	assert(desc->plugin != NULL);
+	length = strlen(name);
+	event = alloca(length + 2 + desc->apilength);
+	memcpy(event, desc->plugin->prefix, desc->apilength);
+	event[desc->apilength] = '/';
+	memcpy(event + desc->apilength + 1, name, length + 1);
+	ctxClientEventSend(NULL, event, object);
 }
 
 static const struct afb_evmgr_itf evmgr_itf = {
@@ -224,6 +235,7 @@ int afb_api_so_add_plugin(const char *path)
 	}
 
 	/* records the plugin */
+	desc->apilength = strlen(desc->plugin->prefix);
 	if (afb_apis_add(desc->plugin->prefix, (struct afb_api){
 			.closure = desc,
 			.call = (void*)call}) < 0) {

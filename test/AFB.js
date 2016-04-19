@@ -37,12 +37,14 @@ var AFB_websocket;
 	var CALL = 2;
 	var RETOK = 3;
 	var RETERR = 4;
+	var EVENT = 5;
 
 	var PROTO1 = "x-afb-ws-json1";
 
 	AFB_websocket = function(onopen, onabort) {
 		this.ws = new WebSocket(urlws, [ PROTO1 ]);
 		this.pendings = {};
+		this.awaitens = {};
 		this.counter = 0;
 		this.ws.onopen = onopen.bind(this);
 		this.ws.onerror = onerror.bind(this);
@@ -90,6 +92,10 @@ var AFB_websocket;
 			delete this.pendings[id];
 		}
 		switch (code) {
+		case EVENT:
+			var a = this.awaitens[id];
+			if (a)
+				a.forEach(function(handler){handler(ans);});
 		case RETOK:
 			pend && pend.onsuccess && pend.onsuccess(ans, this);
 			break; 
@@ -112,9 +118,16 @@ var AFB_websocket;
 		this.ws.send(JSON.stringify(arr));
 	}
 
+	function onevent(api, name, handler) {
+		var id = api+"/"+name;
+		var list = this.awaitens[id] || (this.awaitens[id] = []);
+		list.push(handler);
+	}
+
 	AFB_websocket.prototype = {
 		close: close,
-		call: call
+		call: call,
+		onevent: onevent
 	};
 }
 /*********************************************/

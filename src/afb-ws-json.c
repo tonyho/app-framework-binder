@@ -52,7 +52,14 @@ struct afb_ws_json
 	struct afb_ws *ws;
 };
 
-struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *closure)
+
+static void aws_send_event(struct afb_ws_json *ws, const char *event, struct json_object *object);
+
+static const struct afb_event_sender_itf event_sender_itf = {
+	.send = (void*)aws_send_event
+};
+
+struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *cleanup_closure)
 {
 	struct afb_ws_json *result;
 
@@ -64,7 +71,7 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, vo
 		goto error;
 
 	result->cleanup = cleanup;
-	result->cleanup_closure = closure;
+	result->cleanup_closure = cleanup_closure;
 	result->requests = NULL;
 	result->context = ctxClientGet(context);
 	if (result->context == NULL)
@@ -78,8 +85,13 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, vo
 	if (result->ws == NULL)
 		goto error4;
 
+	if (0 > ctxClientEventSenderAdd(result->context, (struct afb_event_sender){ .itf = &event_sender_itf, .closure = result }))
+		goto error5;
+
 	return result;
 
+error5:
+	/* TODO */
 error4:
 	json_tokener_free(result->tokener);
 error3:
@@ -100,6 +112,7 @@ static void aws_on_close(struct afb_ws_json *ws, uint16_t code, char *text, size
 #define CALL 2
 #define RETOK 3
 #define RETERR 4
+#define EVENT 5
 
 struct afb_wsreq
 {
@@ -320,8 +333,8 @@ static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
 		json_tokener_reset(wsreq->aws->tokener);
 		root = json_tokener_parse_ex(wsreq->aws->tokener, wsreq->obj, (int)wsreq->objlen);
 		if (root == NULL) {
-			/* lazy discovering !!!! not good TODO improve*/
-			root = json_object_new_object();
+			/* lazy error detection of json request. Is it to improve? */
+			root = json_object_new_string_len(wsreq->obj, (int)wsreq->objlen);
 		}
 		wsreq->root = root;
 	}
@@ -427,5 +440,30 @@ static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size)
 static void wsreq_send(struct afb_wsreq *wsreq, char *buffer, size_t size)
 {
 	afb_ws_text(wsreq->aws->ws, buffer, size);
+}
+
+static void aws_send_event(struct afb_ws_json *aws, const char *event, struct json_object *object)
+{
+	json_object *root, *reply;
+	const char *message;
+
+	/* builds the answering structure */
+	root = json_object_new_object();
+	json_object_object_add(root, "jtype", json_object_new_string("afb-event"));
+	json_object_object_add(root, "event", json_object_new_string(event));
+	if (object)
+		json_object_object_add(root, "data", object);
+
+	/* make the reply */
+	reply = json_object_new_array();
+	json_object_array_add(reply, json_object_new_int(EVENT));
+	json_object_array_add(reply, json_object_new_string(event));
+	json_object_array_add(reply, root);
+	json_object_array_add(reply, json_object_new_string(aws->context->token));
+
+	/* emits the reply */
+	message = json_object_to_json_string(reply);
+	afb_ws_text(aws->ws, message, strlen(message));
+	json_object_put(reply);
 }
 

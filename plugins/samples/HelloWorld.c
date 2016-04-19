@@ -21,13 +21,14 @@
 
 #include "afb-plugin.h"
 
+const struct AFB_interface *interface;
+
 // Sample Generic Ping Debug API
 static void ping(struct afb_req request, json_object *jresp, const char *tag)
 {
-    static int pingcount = 0;
-    json_object *query = afb_req_json(request);
-
-    afb_req_success_f(request, jresp, "Ping Binder Daemon tag=%s count=%d query=%s", tag, ++pingcount, json_object_to_json_string(query));
+	static int pingcount = 0;
+	json_object *query = afb_req_json(request);
+	afb_req_success_f(request, jresp, "Ping Binder Daemon tag=%s count=%d query=%s", tag, ++pingcount, json_object_to_json_string(query));
 }
 
 static void pingSample (struct afb_req request)
@@ -48,6 +49,13 @@ static void pingNull (struct afb_req request)
 static void pingBug (struct afb_req request)
 {
 	ping((struct afb_req){NULL,NULL,NULL}, NULL, "pingBug");
+}
+
+static void pingEvent(struct afb_req request)
+{
+	json_object *query = afb_req_json(request);
+	afb_evmgr_push(afb_daemon_get_evmgr(interface->daemon), "event", json_object_get(query));
+	ping(request, json_object_get(query), "event");
 }
 
 
@@ -76,6 +84,7 @@ static const struct AFB_restapi pluginApis[]= {
   {"pingnull" , AFB_SESSION_NONE, pingNull    , "Return NULL"},
   {"pingbug"  , AFB_SESSION_NONE, pingBug     , "Do a Memory Violation"},
   {"pingJson" , AFB_SESSION_NONE, pingJson    , "Return a JSON object"},
+  {"pingevent", AFB_SESSION_NONE, pingEvent   , "Send an event"},
   {NULL}
 };
 
@@ -88,5 +97,6 @@ static const struct AFB_plugin plugin_desc = {
 
 const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
 {
+	interface = itf;
 	return &plugin_desc;
 }

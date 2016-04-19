@@ -23,6 +23,7 @@
 #include <string.h>
 #include <uuid/uuid.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "session.h"
 
@@ -113,7 +114,7 @@ static int ctxStoreDel (struct AFB_clientCtx *client)
 
     for (idx=0; idx < sessions.max; idx++) {
         if (sessions.store[idx] == client) {
-	        sessions.store[idx]=NULL;
+	        sessions.store[idx] = NULL;
         	sessions.count--;
 	        status = 1;
 		goto deleted;
@@ -138,7 +139,7 @@ static int ctxStoreAdd (struct AFB_clientCtx *client)
 
     for (idx=0; idx < sessions.max; idx++) {
         if (NULL == sessions.store[idx]) {
-        	sessions.store[idx]= client;
+        	sessions.store[idx] = client;
 	        sessions.count++;
         	status = 1;
 		goto added;
@@ -287,5 +288,97 @@ void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 
 	// keep track of time for session timeout and further clean up
 	clientCtx->expiration = NOW + sessions.timeout;
+}
+
+struct afb_event_sender_list
+{
+	struct afb_event_sender_list *next;
+	struct afb_event_sender sender;
+	int refcount;
+};
+
+int ctxClientEventSenderAdd(struct AFB_clientCtx *clientCtx, struct afb_event_sender sender)
+{
+	struct afb_event_sender_list *iter, **prv;
+
+	prv = &clientCtx->senders;
+	for (;;) {
+		iter = *prv;
+		if (iter == NULL) {
+			iter = calloc(1, sizeof *iter);
+			if (iter == NULL) {
+				errno = ENOMEM;
+				return -1;
+			}
+			iter->sender = sender;
+			iter->refcount = 1;
+			*prv = iter;
+			return 0;
+		}
+		if (iter->sender.itf == sender.itf && iter->sender.closure == sender.closure) {
+			iter->refcount++;
+			return 0;
+		}
+		prv = &iter->next;
+	}
+}
+
+void ctxClientEventSenderRemove(struct AFB_clientCtx *clientCtx, struct afb_event_sender sender)
+{
+	struct afb_event_sender_list *iter, **prv;
+
+	prv = &clientCtx->senders;
+	for (;;) {
+		iter = *prv;
+		if (iter == NULL)
+			return;
+		if (iter->sender.itf == sender.itf && iter->sender.closure == sender.closure) {
+			if (!--iter->refcount) {
+				*prv = iter->next;
+				free(iter);
+			}
+			return;
+		}
+		prv = &iter->next;
+	}
+}
+
+static int send(struct AFB_clientCtx *clientCtx, const char *event, struct json_object *object)
+{
+	struct afb_event_sender_list *iter;
+	int result;
+
+	result = 0;
+	iter = clientCtx->senders;
+	while (iter != NULL) {
+		iter->sender.itf->send(iter->sender.closure, event, object);
+		result++;
+		iter = iter->next;
+	}
+
+	return result;
+}
+
+int ctxClientEventSend(struct AFB_clientCtx *clientCtx, const char *event, struct json_object *object)
+{
+	long idx;
+	time_t now;
+	int result;
+
+	if (clientCtx != NULL)
+		result = send(clientCtx, event, object);
+	else {
+		result = 0;
+		now = NOW;
+		for (idx=0; idx < sessions.max; idx++) {
+			clientCtx = sessions.store[idx];
+			if (clientCtx != NULL && !ctxStoreTooOld(clientCtx, now)) {
+				clientCtx = ctxClientGet(clientCtx);
+				result += send(clientCtx, event, object);
+				ctxClientPut(clientCtx);
+			}
+		}
+	}
+	return result;
 }
 
