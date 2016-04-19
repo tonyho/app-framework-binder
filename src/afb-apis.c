@@ -41,13 +41,6 @@ int afb_apis_count()
 	return apis_count;
 }
 
-void afb_apis_free_context(int apiidx, void *context)
-{
-	const struct afb_api *api;
-	api = &apis_array[apiidx].api;
-	api->free_context(api->closure, context);
-}
-
 int afb_apis_add(const char *name, struct afb_api api)
 {
 	struct api_desc *apis;
@@ -98,7 +91,7 @@ void afb_apis_call(struct afb_req req, struct AFB_clientCtx *context, const char
 	a = apis_array;
 	for (i = 0 ; i < apis_count ; i++, a++) {
 		if (a->namelen == lenapi && !strncasecmp(a->name, api, lenapi)) {
-			req.context = &context->contexts[i];
+			req.ctx_closure = &context->contexts[i];
 			a->api.call(a->api.closure, req, verb, lenverb);
 			return;
 		}

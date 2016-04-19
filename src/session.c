@@ -24,7 +24,6 @@
 #include <uuid/uuid.h>
 #include <assert.h>
 
-#include "afb-apis.h"
 #include "session.h"
 
 #define NOW (time(NULL))
@@ -40,6 +39,20 @@ static struct {
   const char *initok;
 } sessions;
 
+void *afb_context_get(struct afb_context *actx)
+{
+	return actx->context;
+}
+
+void afb_context_set(struct afb_context *actx, void *context, void (*free_context)(void*))
+{
+fprintf(stderr, "afb_context_set(%p,%p) was (%p,%p)\n",context, free_context, actx->context, actx->free_context);
+	if (actx->context != NULL && actx->free_context != NULL)
+		actx->free_context(actx->context);
+	actx->context = context;
+	actx->free_context = free_context;
+}
+
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 {
@@ -49,22 +62,18 @@ static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 	assert (client->contexts != NULL);
 
 	// Free client handle with a standard Free function, with app callback or ignore it
-	for (idx=0; idx < sessions.apicount; idx ++) {
-		if (client->contexts[idx] != NULL) {
-			afb_apis_free_context(idx, client->contexts[idx]);
-			client->contexts[idx] = NULL;
-		}
-	}
+	for (idx=0; idx < sessions.apicount; idx ++)
+		afb_context_set(&client->contexts[idx], NULL, NULL);
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
-void ctxStoreInit (int nbSession, int timeout, const char *initok)
+void ctxStoreInit (int max_session_count, int timeout, const char *initok, int context_count)
 {
 	// let's create as store as hashtable does not have any
-	sessions.store = calloc (1 + (unsigned)nbSession, sizeof(struct AFB_clientCtx));
-	sessions.max = nbSession;
+	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof(struct AFB_clientCtx));
+	sessions.max = max_session_count;
 	sessions.timeout = timeout;
-	sessions.apicount = afb_apis_count();
+	sessions.apicount = context_count;
 	if (strlen(initok) >= 37) {
 		fprintf(stderr, "Error: initial token '%s' too long (max length 36)", initok);
 		exit(1);
@@ -191,7 +200,7 @@ TODO remove? not remove?
 	/* returns a new one */
         clientCtx = calloc(1, sizeof(struct AFB_clientCtx)); // init NULL clientContext
 	if (clientCtx != NULL) {
-	        clientCtx->contexts = calloc ((unsigned)sessions.apicount, sizeof (void*));
+	        clientCtx->contexts = calloc ((unsigned)sessions.apicount, sizeof(*clientCtx->contexts));
 		if (clientCtx->contexts != NULL) {
 			/* generate the uuid */
 			if (uuid == NULL) {

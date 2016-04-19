@@ -23,19 +23,6 @@
 
 typedef struct {
   /* 
-   * In case your plugin is implemented on multiple files or used share routines
-   * with other plugins, it might not be possible to use global static variable.
-   * In this case you can attach a static handle to your plugin. This handle
-   * is passed within each API call under request->handle
-   * 
-   */  
-  void *anythingYouWant;
-
-  
-} MyPluginHandleT;
-
-typedef struct {
-  /* 
    * client context is attached a session but private to a each plugin.
    * Context is passed to each API under request->context
    * 
@@ -57,24 +44,19 @@ typedef struct {
   
 } MyClientContextT;
 
-
-// Plugin handle should not be in stack (malloc or static)
-static MyPluginHandleT global_handle;
-    
 // This function is call at session open time. Any client trying to 
 // call it with an already open session will be denied.
 // Ex: http://localhost:1234/api/context/create?token=123456789
 static void myCreate (struct afb_req request)
 {
     MyClientContextT *ctx = malloc (sizeof (MyClientContextT));
-    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
 
     // store something in our plugin private client context
     ctx->count = 0;
     ctx->abcd  = "SomeThingUseful";        
 
-    *request.context = ctx;
-    afb_req_success_f(request, NULL, "SUCCESS: create client context for plugin [%s]", handle->anythingYouWant);
+    afb_req_context_set(request, ctx, free);
+    afb_req_success_f(request, NULL, "SUCCESS: create client context for plugin [%s]", ctx->abcd);
 }
 
 // This function can only be called with a valid token. Token should be renew before
@@ -83,12 +65,11 @@ static void myCreate (struct afb_req request)
 // ex: http://localhost:1234/api/context/action?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
 static void myAction (struct afb_req request)
 {
-    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    MyClientContextT *ctx = (MyClientContextT*) *request.context;
+    MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
     
     // store something in our plugin private client context
     ctx->count++;
-    afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Check=[%d]\n", handle->anythingYouWant, ctx->count);
+    afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Check=[%d]\n", ctx->abcd, ctx->count);
 }
 
 // After execution of this function, client session will be close and if they
@@ -97,20 +78,11 @@ static void myAction (struct afb_req request)
 // ex: http://localhost:1234/api/context/close?token=xxxxxx-xxxxxx-xxxxx-xxxxx-xxxxxx
 static void myClose (struct afb_req request)
 {
-    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    MyClientContextT *ctx = (MyClientContextT*) *request.context;
+    MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
     
     // store something in our plugin private client context
     ctx->count++;
-    afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Close=[%d]\n", handle->anythingYouWant, ctx->count);
-}
-
-static void freeCtxCB (MyClientContextT *ctx) {
-    MyPluginHandleT  *handle = (MyPluginHandleT*) &global_handle;
-    fprintf (stderr, "FreeCtxCB Plugin=[%s]  count=[%d]", (char*)handle->anythingYouWant, ctx->count);
-    free (ctx);
-    
-    // Note: handle should be free it is a static resource attached to plugin and not to session
+    afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Close=[%d]\n", ctx->abcd, ctx->count);
 }
 
 // NOTE: this sample does not use session to keep test a basic as possible
@@ -127,12 +99,10 @@ static const struct AFB_plugin plugin_desc = {
 	.info = "Sample of Client Context Usage",
 	.prefix = "context",
 	.apis = pluginApis,
-	.freeCtxCB = (void*)freeCtxCB
 };
 
 const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
 {
-	global_handle.anythingYouWant = "anythingYouWant";
 	return &plugin_desc;
 }
 

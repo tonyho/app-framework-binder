@@ -24,7 +24,6 @@ struct afb_api
 {
 	void *closure;
 	void (*call)(void *closure, struct afb_req req, const char *verb, size_t lenverb);
-	void (*free_context)(void *closure, void *context);
 };
 
 
@@ -32,5 +31,4 @@ extern int afb_apis_count();
 extern int afb_apis_add(const char *name, struct afb_api api);
 extern void afb_apis_call(struct afb_req req, struct AFB_clientCtx *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 
-extern void afb_apis_free_context(int apiidx, void *context);
 

@@ -55,7 +55,6 @@ struct AFB_plugin
 	const char *info;
 	const char *prefix;
 	const struct AFB_restapi *apis;
-	void (*freeCtxCB)(void*);  // callback to free application context [null for standard free]
 };
 
 /* config mode */

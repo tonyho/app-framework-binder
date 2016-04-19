@@ -18,17 +18,26 @@
 
 #pragma once
 
+struct afb_context
+{
+	void *context;
+	void (*free_context)(void*);
+};
+
+extern void *afb_context_get(struct afb_context *actx);
+extern void afb_context_set(struct afb_context *actx, void *context, void (*free_context)(void*));
+
 struct AFB_clientCtx
 {
 	time_t expiration;    // expiration time of the token
 	int created;
 	unsigned refcount;
-	void **contexts;      // application specific context [one per plugin]
+	struct afb_context *contexts;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
 };
 
-extern void ctxStoreInit (int nbSession, int timeout, const char *initok);
+extern void ctxStoreInit (int max_session_count, int timeout, const char *initok, int context_count);
 
 extern struct AFB_clientCtx *ctxClientGetForUuid (const char *uuid);
 extern struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx);

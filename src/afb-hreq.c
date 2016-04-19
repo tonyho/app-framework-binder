@@ -81,7 +81,9 @@ static const struct afb_req_itf afb_hreq_itf = {
 	.send = (void*)req_send,
 	.session_create = (void*)req_session_create,
 	.session_check = (void*)req_session_check,
-	.session_close = (void*)req_session_close
+	.session_close = (void*)req_session_close,
+	.context_get = (void*)afb_context_get,
+	.context_set = (void*)afb_context_set
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
@@ -584,7 +586,7 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 
 struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
 {
-	return (struct afb_req){ .itf = &afb_hreq_itf, .data = hreq };
+	return (struct afb_req){ .itf = &afb_hreq_itf, .req_closure = hreq };
 }
 
 static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)

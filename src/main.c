@@ -34,6 +34,7 @@
 
 #include "afb-config.h"
 #include "afb-hswitch.h"
+#include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-hsrv.h"
 #include "afb-hreq.h"
@@ -577,7 +578,7 @@ int main(int argc, char *argv[])  {
   if (config->ldpaths) 
     afb_api_so_add_pathset(config->ldpaths);
 
-  ctxStoreInit(CTX_NBCLIENTS, config->cntxTimeout, config->token);
+  ctxStoreInit(CTX_NBCLIENTS, config->cntxTimeout, config->token, afb_apis_count());
   if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, DEFLT_CNTX_TIMEOUT)) {
     fprintf (stderr, "ERR: initialisation of cookies failed\n");
      exit (1);

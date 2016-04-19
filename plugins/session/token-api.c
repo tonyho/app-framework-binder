@@ -28,13 +28,20 @@ typedef struct {
 } MyClientApplicationHandle;
 
 
+// This function is call when Client Session Context is removed
+// Note: when freeCtxCB==NULL standard free/malloc is called
+static void clientContextFree(void *context) {
+    fprintf (stderr,"Plugin[token] Closing Session\n");
+    free (context);
+}
+
 // Request Creation of new context if it does not exist
 static void clientContextCreate (struct afb_req request)
 {
     json_object *jresp;
 
     // add an application specific client context to session
-    request.context = malloc (sizeof (MyClientApplicationHandle));
+    afb_req_context_set(request, malloc (sizeof (MyClientApplicationHandle)), clientContextFree);
     
     // Send response to UI
     jresp = json_object_new_object();               
@@ -92,13 +99,6 @@ static void clientGetPing (struct afb_req request) {
 }
 
 
-// This function is call when Client Session Context is removed
-// Note: when freeCtxCB==NULL standard free/malloc is called
-static void clientContextFree(void *context) {
-    fprintf (stderr,"Plugin[token] Closing Session\n");
-    free (context);
-}
-
 static const struct AFB_restapi pluginApis[]= {
   {"ping"    , AFB_SESSION_NONE  , clientGetPing       ,"Ping Rest Test Service"},
   {"create"  , AFB_SESSION_CREATE, clientContextCreate ,"Request Client Context Creation"},
@@ -112,8 +112,7 @@ static const struct AFB_plugin plugin_desc = {
 	.type = AFB_PLUGIN_JSON,
 	.info = "Application Framework Binder Service",
 	.prefix = "token",
-	.apis = pluginApis,
-	.freeCtxCB = clientContextFree
+	.apis = pluginApis
 };
 
 const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)

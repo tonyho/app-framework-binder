@@ -86,17 +86,6 @@ static const struct afb_daemon_itf daemon_itf = {
 	.get_pollmgr = (void*)afb_api_so_get_pollmgr
 };
 
-static void free_context(struct api_so_desc *desc, void *context)
-{
-	void (*cb)(void*);
-
-	cb = desc->plugin->freeCtxCB;
-	if (cb)
-		cb(context);
-	else
-		free(context);
-}
-
 static void trapping_call(struct afb_req req, void(*cb)(struct afb_req))
 {
 	volatile int signum, timerset;
@@ -159,7 +148,6 @@ static void call_check(struct afb_req req, const struct AFB_restapi *verb)
 		break;
 	}
 	trapping_call(req, verb->callback);
-
 	if (verb->session == AFB_SESSION_CLOSE)
 		afb_req_session_close(req);
 }
@@ -238,8 +226,7 @@ int afb_api_so_add_plugin(const char *path)
 	/* records the plugin */
 	if (afb_apis_add(desc->plugin->prefix, (struct afb_api){
 			.closure = desc,
-			.call = (void*)call,
-			.free_context = (void*)free_context}) < 0) {
+			.call = (void*)call}) < 0) {
 		fprintf(stderr, "ERROR: plugin [%s] can't be registered...\n", path);
 		goto error3;
 	}

@@ -141,7 +141,10 @@ static const struct afb_req_itf wsreq_itf = {
 	.send = (void*)wsreq_send,
 	.session_create = (void*)wsreq_session_create,
 	.session_check = (void*)wsreq_session_check,
-	.session_close = (void*)wsreq_session_close
+	.session_close = (void*)wsreq_session_close,
+	.context_get = (void*)afb_context_get,
+	.context_set = (void*)afb_context_set
+
 };
 
 static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)
@@ -297,7 +300,7 @@ static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size)
 	wsreq->next = ws->requests;
 	ws->requests = wsreq;
 
-	r.data = wsreq;
+	r.req_closure = wsreq;
 	r.itf = &wsreq_itf;
 	afb_apis_call(r, ws->context, wsreq->api, wsreq->apilen, wsreq->verb, wsreq->verblen);
 	return;
