@@ -9,6 +9,7 @@
 	function onopen() {
 		document.getElementById("main").style.visibility = "visible";
 		document.getElementById("connected").innerHTML = "Connected to WebSocket server";
+		ws.onevent("*", gotevent);
 	}
 	function onabort() {
 		document.getElementById("main").style.visibility = "hidden";
@@ -23,10 +24,13 @@
 	function replyerr(obj) {
 		document.getElementById("output").innerHTML = "ERROR: "+JSON.stringify(obj);
 	}
+	function gotevent(obj) {
+		document.getElementById("outevt").innerHTML = JSON.stringify(obj);
+	}
 	function send(message) {
 		var api = document.getElementById("api").value;
 		var verb = document.getElementById("verb").value;
-		ws.call(api, verb, {data:message}, replyok, replyerr);
+		ws.call(api+"/"+verb, {data:message}).then(replyok, replyerr);
 	}
     </script>
 
@@ -38,5 +42,6 @@
     VERB: <input type="text" id="verb" value="ping" size="80"/><br/>
     Enter Message: <input type="text" name="message" value="" size="80" onchange="send(this.value)"/><br/>
     Server says... <div id="output"></div>
+    Events: <div id="outevt"></div>
     </div>
 

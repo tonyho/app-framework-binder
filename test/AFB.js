@@ -80,28 +80,46 @@ var AFB_websocket;
 		this.onclose && this.onclose();
 	}
 
+	function fire(awaitens, name, data) {
+		var a = awaitens[name];
+		if (a)
+			a.forEach(function(handler){handler(data);});
+		var i = name.indexOf("/");
+		if (i >= 0) {
+			a = awaitens[name.substring(0,i)];
+			if (a)
+				a.forEach(function(handler){handler(data);});
+		}
+		a = awaitens["*"];
+		if (a)
+			a.forEach(function(handler){handler(data);});
+	}
+
+	function reply(pendings, id, ans, offset) {
+		if (id in pendings) {
+			var p = pendings[id];
+			delete pendings[id];
+			var f = p[offset];
+			f(ans);
+		}
+	}
+
 	function onmessage(event) {
 		var obj = JSON.parse(event.data);
 		var code = obj[0];
 		var id = obj[1];
 		var ans = obj[2];
 		AFB_context.token = obj[3];
-		var pend;
-		if (id && id in this.pendings) {
-			pend = this.pendings[id];
-			delete this.pendings[id];
-		}
 		switch (code) {
-		case EVENT:
-			var a = this.awaitens[id];
-			if (a)
-				a.forEach(function(handler){handler(ans);});
 		case RETOK:
-			pend && pend.onsuccess && pend.onsuccess(ans, this);
+			reply(this.pendings, id, ans, 0);
 			break; 
 		case RETERR:
+			reply(this.pendings, id, ans, 1);
+			break; 
+		case EVENT:
 		default:
-			pend && pend.onerror && pend.onerror(ans, this);
+			fire(this.awaitens, id, ans);
 			break; 
 		}
 	}
@@ -110,16 +128,21 @@ var AFB_websocket;
 		this.ws.close();
 	}
 
-	function call(api, verb, request, onsuccess, onerror) {
-		var id = String(++this.counter);
-		this.pendings[id] = { onsuccess: onsuccess, onerror: onerror };
-		var arr = [CALL, id, api+"/"+verb, request ];
-		if (AFB_context.token) arr.push(AFB_context.token);
-		this.ws.send(JSON.stringify(arr));
+	function call(method, request) {
+		return new Promise((function(resolve, reject){
+			var id, arr;
+			do {
+				id = String(this.counter = 4095 & (this.counter + 1));
+			} while (id in this.pendings);
+			this.pendings[id] = [ resolve, reject ];
+			arr = [CALL, id, method, request ];
+			if (AFB_context.token) arr.push(AFB_context.token);
+			this.ws.send(JSON.stringify(arr));
+		}).bind(this));
 	}
 
-	function onevent(api, name, handler) {
-		var id = api+"/"+name;
+	function onevent(name, handler) {
+		var id = name;
 		var list = this.awaitens[id] || (this.awaitens[id] = []);
 		list.push(handler);
 	}
