@@ -256,15 +256,12 @@ int upoll_wait(int timeout)
 		while (u != NULL) {
 			if ((e.events & EPOLLIN) && u->read) {
 				u->read(u->closure);
-				break;
 			}
 			if ((e.events & EPOLLOUT) && u->write) {
 				u->write(u->closure);
-				break;
 			}
 			if ((e.events & EPOLLHUP) && u->hangup) {
 				u->hangup(u->closure);
-				break;
 			}
 			u = u->next;
 		}
