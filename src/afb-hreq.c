@@ -34,6 +34,7 @@
 
 #include "afb-method.h"
 #include "afb-req-itf.h"
+#include "afb-msg-json.h"
 #include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"
@@ -661,24 +662,19 @@ static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t ma
 
 static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
 {
-	json_object *root, *request;
+	struct json_object *reply;
+	const char *token, *uuid;
 	struct MHD_Response *response;
 
-	root = json_object_new_object();
-	json_object_object_add(root, "jtype", json_object_new_string("afb-reply"));
-	request = json_object_new_object();
-	json_object_object_add(root, "request", request);
-	json_object_object_add(request, "status", json_object_new_string(status));
-	if (info)
-		json_object_object_add(request, "info", json_object_new_string(info));
-	if (resp)
-		json_object_object_add(root, "response", resp);
-	if (hreq->context) {
-		json_object_object_add(request, uuid_arg, json_object_new_string(hreq->context->uuid));
-		json_object_object_add(request, token_arg, json_object_new_string(hreq->context->token));
+	if (hreq->context == NULL) {
+		token = uuid = NULL;
+	} else {
+		token = hreq->context->token;
+		uuid = hreq->context->uuid;
 	}
+	reply = afb_msg_json_reply(status, info, resp, token, uuid);
 
-	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, SIZE_RESPONSE_BUFFER, (void*)send_json_cb, root, (void*)json_object_put);
+	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
 	afb_hreq_reply(hreq, retcode, response, NULL);
 }
 

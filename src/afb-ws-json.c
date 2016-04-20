@@ -27,6 +27,7 @@
 
 #include "afb-ws.h"
 #include "afb-ws-json.h"
+#include "afb-msg-json.h"
 #include "session.h"
 #include "afb-req-itf.h"
 #include "afb-apis.h"
@@ -389,35 +390,30 @@ static void wsreq_session_close(struct afb_wsreq *wsreq)
 	ctxClientClose(context);
 }
 
+static void aws_emit(struct afb_ws_json *aws, int code, const char *id, size_t idlen, struct json_object *data)
+{
+	json_object *msg;
+	const char *token;
+	const char *txt;
+
+	/* pack the message */
+	msg = json_object_new_array();
+	json_object_array_add(msg, json_object_new_int(code));
+	json_object_array_add(msg, json_object_new_string_len(id, (int)idlen));
+	json_object_array_add(msg, data);
+	token = aws->context->token;
+	if (token)
+		json_object_array_add(msg, json_object_new_string(token));
+
+	/* emits the reply */
+	txt = json_object_to_json_string(msg);
+	afb_ws_text(aws->ws, txt, strlen(txt));
+	json_object_put(msg);
+}
 
 static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status, const char *info, json_object *resp)
 {
-	json_object *root, *request, *reply;
-	const char *message;
-
-	/* builds the answering structure */
-	root = json_object_new_object();
-	json_object_object_add(root, "jtype", json_object_new_string("afb-reply"));
-	request = json_object_new_object();
-	json_object_object_add(root, "request", request);
-	json_object_object_add(request, "status", json_object_new_string(status));
-	if (info)
-		json_object_object_add(request, "info", json_object_new_string(info));
-	if (resp)
-		json_object_object_add(root, "response", resp);
-
-	/* make the reply */
-	reply = json_object_new_array();
-	json_object_array_add(reply, json_object_new_int(retcode));
-	json_object_array_add(reply, json_object_new_string_len(wsreq->id, (int)wsreq->idlen));
-	json_object_array_add(reply, root);
-	json_object_array_add(reply, json_object_new_string(wsreq->aws->context->token));
-
-	/* emits the reply */
-	message = json_object_to_json_string(reply);
-	afb_ws_text(wsreq->aws->ws, message, strlen(message));
-	json_object_put(reply);
-
+	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, afb_msg_json_reply(status, info, resp, NULL, NULL));
 	/* TODO eliminates the wsreq */
 }
 
@@ -444,26 +440,6 @@ static void wsreq_send(struct afb_wsreq *wsreq, char *buffer, size_t size)
 
 static void aws_send_event(struct afb_ws_json *aws, const char *event, struct json_object *object)
 {
-	json_object *root, *reply;
-	const char *message;
-
-	/* builds the answering structure */
-	root = json_object_new_object();
-	json_object_object_add(root, "jtype", json_object_new_string("afb-event"));
-	json_object_object_add(root, "event", json_object_new_string(event));
-	if (object)
-		json_object_object_add(root, "data", object);
-
-	/* make the reply */
-	reply = json_object_new_array();
-	json_object_array_add(reply, json_object_new_int(EVENT));
-	json_object_array_add(reply, json_object_new_string(event));
-	json_object_array_add(reply, root);
-	json_object_array_add(reply, json_object_new_string(aws->context->token));
-
-	/* emits the reply */
-	message = json_object_to_json_string(reply);
-	afb_ws_text(aws->ws, message, strlen(message));
-	json_object_put(reply);
+	aws_emit(aws, EVENT, event, strlen(event), afb_msg_json_event(event, object));
 }
 

@@ -11,6 +11,7 @@ ADD_LIBRARY(src OBJECT
 	afb-websock.c
 	afb-ws.c
 	afb-ws-json.c
+	afb-msg-json.c
 	websock.c
 	verbose.c
 	utils-upoll.c
