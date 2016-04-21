@@ -40,7 +40,10 @@
 #define FRAME_GET_PAYLOAD_LEN(BYTE) ( (BYTE)       & 0x7F)
 
 #define FRAME_SET_FIN(BYTE)         (((BYTE) & 0x01) << 7)
-#define FRAME_SET_OPCODE(BYTE)       ((BYTE) & 0x0F)
+#define FRAME_SET_RSV1(BYTE)        (((BYTE) & 0x01) << 6)
+#define FRAME_SET_RSV2(BYTE)        (((BYTE) & 0x01) << 5)
+#define FRAME_SET_RSV3(BYTE)        (((BYTE) & 0x01) << 4)
+#define FRAME_SET_OPCODE(BYTE)      ((BYTE) & 0x0F)
 #define FRAME_SET_MASK(BYTE)        (((BYTE) & 0x01) << 7)
 #define FRAME_SET_LENGTH(X64, IDX)  (unsigned char)(((X64) >> ((IDX)*8)) & 0xFF)
 
@@ -55,7 +58,6 @@
 #define STATE_START   1
 #define STATE_LENGTH  2
 #define STATE_DATA    3
-#define STATE_CLOSED  4
 
 struct websock {
 	int state;
@@ -96,86 +98,109 @@ static ssize_t ws_read(struct websock *ws, void *buffer, size_t buffer_size)
 	return ws_readv(ws, &iov, 1);
 }
 
-static ssize_t websock_send(struct websock *ws, unsigned char opcode,
-			    const void *buffer, size_t buffer_size)
+static int websock_send_internal(struct websock *ws, unsigned char first, const void *buffer, size_t size)
 {
 	struct iovec iov[2];
 	size_t pos;
 	ssize_t rc;
 	unsigned char header[32];
 
-	if (ws->state == STATE_CLOSED)
-		return 0;
-
 	pos = 0;
-	header[pos++] = (unsigned char)(FRAME_SET_FIN(1) | FRAME_SET_OPCODE(opcode));
-	buffer_size = (uint64_t) buffer_size;
-	if (buffer_size < 126) {
-		header[pos++] =
-		    FRAME_SET_MASK(0) | FRAME_SET_LENGTH(buffer_size, 0);
+	header[pos++] = first;
+	size = (uint64_t) size;
+	if (size < 126) {
+		header[pos++] = FRAME_SET_MASK(0) | FRAME_SET_LENGTH(size, 0);
 	} else {
-		if (buffer_size < 65536) {
+		if (size < 65536) {
 			header[pos++] = FRAME_SET_MASK(0) | 126;
 		} else {
 			header[pos++] = FRAME_SET_MASK(0) | 127;
-			header[pos++] = FRAME_SET_LENGTH(buffer_size, 7);
-			header[pos++] = FRAME_SET_LENGTH(buffer_size, 6);
-			header[pos++] = FRAME_SET_LENGTH(buffer_size, 5);
-			header[pos++] = FRAME_SET_LENGTH(buffer_size, 4);
-			header[pos++] = FRAME_SET_LENGTH(buffer_size, 3);
-			header[pos++] = FRAME_SET_LENGTH(buffer_size, 2);
+			header[pos++] = FRAME_SET_LENGTH(size, 7);
+			header[pos++] = FRAME_SET_LENGTH(size, 6);
+			header[pos++] = FRAME_SET_LENGTH(size, 5);
+			header[pos++] = FRAME_SET_LENGTH(size, 4);
+			header[pos++] = FRAME_SET_LENGTH(size, 3);
+			header[pos++] = FRAME_SET_LENGTH(size, 2);
 		}
-		header[pos++] = FRAME_SET_LENGTH(buffer_size, 1);
-		header[pos++] = FRAME_SET_LENGTH(buffer_size, 0);
+		header[pos++] = FRAME_SET_LENGTH(size, 1);
+		header[pos++] = FRAME_SET_LENGTH(size, 0);
 	}
 
 	iov[0].iov_base = header;
 	iov[0].iov_len = pos;
 	iov[1].iov_base = (void *)buffer;	/* const cast */
-	iov[1].iov_len = buffer_size;
+	iov[1].iov_len = size;
 
-	rc = ws_writev(ws, iov, 1 + !!buffer_size);
+	rc = ws_writev(ws, iov, 1 + !!size);
 
-	if (opcode == OPCODE_CLOSE) {
-		ws->length = 0;
-		ws->state = STATE_CLOSED;
-		ws->itf->disconnect(ws->closure);
+	return rc < 0 ? -1 : 0;
+}
+
+static inline int websock_send(struct websock *ws, int last, int rsv1, int rsv2, int rsv3, int opcode, const void *buffer, size_t size)
+{
+	unsigned char first = (unsigned char)(FRAME_SET_FIN(last)
+				| FRAME_SET_RSV1(rsv1)
+				| FRAME_SET_RSV1(rsv2)
+				| FRAME_SET_RSV1(rsv3)
+				| FRAME_SET_OPCODE(opcode));
+	return websock_send_internal(ws, first, buffer, size);
+}
+
+int websock_close(struct websock *ws)
+{
+	return websock_send(ws, 1, 0, 0, 0, OPCODE_CLOSE, NULL, 0);
+}
+
+int websock_close_code(struct websock *ws, uint16_t code, const void *data, size_t length)
+{
+	unsigned char buffer[125];
+
+	/* checks the length */
+	if (length > 123) {
+		errno = EINVAL;
+		return -1;
 	}
-	return rc;
-}
 
-void websock_close(struct websock *ws)
-{
-	websock_send(ws, OPCODE_CLOSE, NULL, 0);
-}
-
-void websock_close_code(struct websock *ws, uint16_t code)
-{
-	unsigned char buffer[2];
-	/* Send server-side closing handshake */
+	/* prepare the buffer */
 	buffer[0] = (unsigned char)((code >> 8) & 0xFF);
 	buffer[1] = (unsigned char)(code & 0xFF);
-	websock_send(ws, OPCODE_CLOSE, buffer, 2);
+	if (length != 0)
+		memcpy(&buffer[2], data, length);
+
+	/* Send server-side closing handshake */
+	return websock_send(ws, 1, 0, 0, 0, OPCODE_CLOSE, buffer, 2 + length);
 }
 
-void websock_ping(struct websock *ws)
+int websock_ping(struct websock *ws, const void *data, size_t length)
 {
-	websock_send(ws, OPCODE_PING, NULL, 0);
+	/* checks the length */
+	if (length > 125) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return websock_send(ws, 1, 0, 0, 0, OPCODE_PING, data, length);
 }
 
-void websock_pong(struct websock *ws)
+int websock_pong(struct websock *ws, const void *data, size_t length)
 {
-	websock_send(ws, OPCODE_PONG, NULL, 0);
+	/* checks the length */
+	if (length > 125) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return websock_send(ws, 1, 0, 0, 0, OPCODE_PONG, data, length);
 }
 
-void websock_text(struct websock *ws, const char *text, size_t length)
+int websock_text(struct websock *ws, int last, const char *text, size_t length)
 {
-	websock_send(ws, OPCODE_TEXT, text, length);
+	return websock_send(ws, last, 0, 0, 0, OPCODE_TEXT, text, length);
 }
 
-void websock_binary(struct websock *ws, const void *data, size_t length)
+int websock_binary(struct websock *ws, int last, const void *data, size_t length)
 {
-	websock_send(ws, OPCODE_BINARY, data, length);
+	return websock_send(ws, last, 0, 0, 0, OPCODE_BINARY, data, length);
 }
 
 static int read_header(struct websock *ws)
@@ -199,15 +224,16 @@ static int check_control_header(struct websock *ws)
 		return 0;
 	if (FRAME_GET_RSV3(ws->header[0]) != 0)
 		return 0;
+	if (FRAME_GET_PAYLOAD_LEN(ws->header[1]) > 125)
+		return 0;
 	if (FRAME_GET_OPCODE(ws->header[0]) == OPCODE_CLOSE)
 		return FRAME_GET_PAYLOAD_LEN(ws->header[1]) != 1;
-	if (FRAME_GET_MASK(ws->header[1]))
-		return 0;
-	return FRAME_GET_PAYLOAD_LEN(ws->header[1]) == 0;
+	return 1;
 }
 
 int websock_dispatch(struct websock *ws)
 {
+	uint16_t code;
 loop:
 	switch (ws->state) {
 	case STATE_INIT:
@@ -234,21 +260,9 @@ loop:
 				ws->szhead += 2;
 			break;
 		case OPCODE_PING:
-			if (!check_control_header(ws))
-				goto protocol_error;
-			if (ws->itf->on_ping)
-				ws->itf->on_ping(ws->closure);
-			else
-				websock_pong(ws);
-			ws->state = STATE_INIT;
-			goto loop;
 		case OPCODE_PONG:
 			if (!check_control_header(ws))
 				goto protocol_error;
-			if (ws->itf->on_pong)
-				ws->itf->on_pong(ws->closure);
-			ws->state = STATE_INIT;
-			goto loop;
 		default:
 			break;
 		}
@@ -269,7 +283,8 @@ loop:
 			return -1;
 		else if (ws->lenhead < ws->szhead)
 			return 0;
-		/* compute header values */
+
+		/* compute length */
 		switch (FRAME_GET_PAYLOAD_LEN(ws->header[1])) {
 		case 127:
 			ws->length = (((uint64_t) ws->header[2]) << 56)
@@ -289,8 +304,12 @@ loop:
 			ws->length = FRAME_GET_PAYLOAD_LEN(ws->header[1]);
 			break;
 		}
+		if (FRAME_GET_OPCODE(ws->header[0]) == OPCODE_CLOSE && ws->length != 0)
+			ws->length -= 2;
 		if (ws->length > ws->maxlength)
 			goto too_long_error;
+
+		/* compute mask */
 		if (FRAME_GET_MASK(ws->header[1])) {
 			((unsigned char *)&ws->mask)[0] = ws->header[ws->szhead - 4];
 			((unsigned char *)&ws->mask)[1] = ws->header[ws->szhead - 3];
@@ -339,16 +358,31 @@ loop:
 					   (size_t) ws->length);
 			break;
 		case OPCODE_CLOSE:
-			ws->state = STATE_CLOSED;
-			if (ws->length)
-				ws->itf->on_close(ws->closure,
-						  (uint16_t)((((uint16_t) ws-> header[2]) << 8) | ((uint16_t) ws->header[3])),
-						  (size_t) ws->length);
-			else
-				ws->itf->on_close(ws->closure,
-						  WEBSOCKET_CODE_NOT_SET, 0);
-			ws->itf->disconnect(ws->closure);
+			if (ws->length == 0)
+				code = WEBSOCKET_CODE_NOT_SET;
+			else {
+				code = (uint16_t)(ws->header[ws->szhead - 2] & 0xff);
+				code = (uint16_t)(code << 8);
+				code = (uint16_t)(code | (uint16_t)(ws->header[ws->szhead - 1] & 0xff));
+			}
+			ws->itf->on_close(ws->closure, code, (size_t) ws->length);
 			return 0;
+		case OPCODE_PING:
+			if (ws->itf->on_ping)
+				ws->itf->on_ping(ws->closure, ws->length);
+			else {
+				websock_drop(ws);
+				websock_pong(ws, NULL, 0);
+			}
+			ws->state = STATE_INIT;
+			break;
+		case OPCODE_PONG:
+			if (ws->itf->on_pong)
+				ws->itf->on_pong(ws->closure, ws->length);
+			else
+				websock_drop(ws);
+			ws->state = STATE_INIT;
+			break;
 		default:
 			goto protocol_error;
 		}
@@ -359,18 +393,15 @@ loop:
 			return 0;
 		ws->state = STATE_INIT;
 		break;
-
-	case STATE_CLOSED:
-		return 0;
 	}
 	goto loop;
 
  too_long_error:
-	websock_close_code(ws, WEBSOCKET_CODE_MESSAGE_TOO_LARGE);
+	websock_close_code(ws, WEBSOCKET_CODE_MESSAGE_TOO_LARGE, NULL, 0);
 	return 0;
 
  protocol_error:
-	websock_close_code(ws, WEBSOCKET_CODE_PROTOCOL_ERROR);
+	websock_close_code(ws, WEBSOCKET_CODE_PROTOCOL_ERROR, NULL, 0);
 	return 0;
 }
 
@@ -380,7 +411,7 @@ ssize_t websock_read(struct websock * ws, void *buffer, size_t size)
 	uint8_t m, *b8;
 	ssize_t rc;
 
-	if (ws->state != STATE_DATA && ws->state != STATE_CLOSED)
+	if (ws->state != STATE_DATA)
 		return 0;
 
 	if (size > ws->length)
@@ -424,11 +455,14 @@ ssize_t websock_read(struct websock * ws, void *buffer, size_t size)
 	return rc;
 }
 
-void websock_drop(struct websock *ws)
+int websock_drop(struct websock *ws)
 {
 	char buffer[8000];
 
-	while (ws->length && ws_read(ws, buffer, sizeof buffer) >= 0) ;
+	while (ws->length)
+		if (ws_read(ws, buffer, sizeof buffer) < 0)
+			return -1;
+	return 0;
 }
 
 struct websock *websock_create_v13(const struct websock_itf *itf, void *closure)

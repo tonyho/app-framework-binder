@@ -31,7 +31,6 @@
 
 static ssize_t aws_writev(struct afb_ws *ws, const struct iovec *iov, int iovcnt);
 static ssize_t aws_readv(struct afb_ws *ws, const struct iovec *iov, int iovcnt);
-static void aws_disconnect(struct afb_ws *ws);
 static void aws_on_close(struct afb_ws *ws, uint16_t code, size_t size);
 static void aws_on_text(struct afb_ws *ws, int last, size_t size);
 static void aws_on_binary(struct afb_ws *ws, int last, size_t size);
@@ -42,7 +41,6 @@ static void aws_on_hangup(struct afb_ws *ws);
 static struct websock_itf aws_itf = {
 	.writev = (void*)aws_writev,
 	.readv = (void*)aws_readv,
-	.disconnect = (void*)aws_disconnect,
 
 	.on_ping = NULL,
 	.on_pong = NULL,
@@ -122,17 +120,17 @@ void afb_ws_disconnect(struct afb_ws *ws)
 
 void afb_ws_close(struct afb_ws *ws, uint16_t code)
 {
-	websock_close_code(ws->ws, code);
+	websock_close_code(ws->ws, code, NULL, 0);
 }
 
 void afb_ws_text(struct afb_ws *ws, const char *text, size_t length)
 {
-	websock_text(ws->ws, text, length);
+	websock_text(ws->ws, 1, text, length);
 }
 
 void afb_ws_binary(struct afb_ws *ws, const void *data, size_t length)
 {
-	websock_binary(ws->ws, data, length);
+	websock_binary(ws->ws, 1, data, length);
 }
 
 static ssize_t aws_writev(struct afb_ws *ws, const struct iovec *iov, int iovcnt)
@@ -159,11 +157,6 @@ static void aws_on_readable(struct afb_ws *ws)
 }
 
 static void aws_on_hangup(struct afb_ws *ws)
-{
-	afb_ws_disconnect(ws);
-}
-
-static void aws_disconnect(struct afb_ws *ws)
 {
 	afb_ws_disconnect(ws);
 }
@@ -212,10 +205,10 @@ static void aws_on_text(struct afb_ws *ws, int last, size_t size)
 {
 	if (ws->type != none) {
 		websock_drop(ws->ws);
-		websock_close_code(ws->ws, WEBSOCKET_CODE_PROTOCOL_ERROR);
+		websock_close_code(ws->ws, WEBSOCKET_CODE_PROTOCOL_ERROR, NULL, 0);
 	} else if (ws->itf->on_text == NULL) {
 		websock_drop(ws->ws);
-		websock_close_code(ws->ws, WEBSOCKET_CODE_CANT_ACCEPT);
+		websock_close_code(ws->ws, WEBSOCKET_CODE_CANT_ACCEPT, NULL, 0);
 	} else {
 		ws->type = text;
 		aws_on_continue(ws, last, size);
@@ -226,10 +219,10 @@ static void aws_on_binary(struct afb_ws *ws, int last, size_t size)
 {
 	if (ws->type != none) {
 		websock_drop(ws->ws);
-		websock_close_code(ws->ws, WEBSOCKET_CODE_PROTOCOL_ERROR);
+		websock_close_code(ws->ws, WEBSOCKET_CODE_PROTOCOL_ERROR, NULL, 0);
 	} else if (ws->itf->on_binary == NULL) {
 		websock_drop(ws->ws);
-		websock_close_code(ws->ws, WEBSOCKET_CODE_CANT_ACCEPT);
+		websock_close_code(ws->ws, WEBSOCKET_CODE_CANT_ACCEPT, NULL, 0);
 	} else {
 		ws->type = text;
 		aws_on_continue(ws, last, size);
@@ -243,7 +236,7 @@ static void aws_on_continue(struct afb_ws *ws, int last, size_t size)
 
 	if (ws->type == none) {
 		websock_drop(ws->ws);
-		websock_close_code(ws->ws, WEBSOCKET_CODE_PROTOCOL_ERROR);
+		websock_close_code(ws->ws, WEBSOCKET_CODE_PROTOCOL_ERROR, NULL, 0);
 	} else {
 		if (!aws_read(ws, size)) {
 			aws_on_close(ws, WEBSOCKET_CODE_ABNORMAL, 0);

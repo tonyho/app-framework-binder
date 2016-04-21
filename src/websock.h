@@ -40,10 +40,9 @@ struct iovec;
 struct websock_itf {
 	ssize_t (*writev) (void *, const struct iovec *, int);
 	ssize_t (*readv) (void *, const struct iovec *, int);
-	void (*disconnect) (void *);
 
-	void (*on_ping) (void *); /* if not NULL, responsible of pong */
-	void (*on_pong) (void *);
+	void (*on_ping) (void *, size_t size); /* if not NULL, responsible of pong */
+	void (*on_pong) (void *, size_t size);
 	void (*on_close) (void *, uint16_t code, size_t size);
 	void (*on_text) (void *, int last, size_t size);
 	void (*on_binary) (void *, int last, size_t size);
@@ -53,16 +52,16 @@ struct websock_itf {
 
 struct websock;
 
-void websock_close(struct websock *ws);
-void websock_close_code(struct websock *ws, uint16_t code);
+int websock_close(struct websock *ws);
+int websock_close_code(struct websock *ws, uint16_t code, const void *data, size_t length);
 
-void websock_ping(struct websock *ws);
-void websock_pong(struct websock *ws);
-void websock_text(struct websock *ws, const char *text, size_t length);
-void websock_binary(struct websock *ws, const void *data, size_t length);
+int websock_ping(struct websock *ws, const void *data, size_t length);
+int websock_pong(struct websock *ws, const void *data, size_t length);
+int websock_text(struct websock *ws, int last, const char *text, size_t length);
+int websock_binary(struct websock *ws, int last, const void *data, size_t length);
 
 ssize_t websock_read(struct websock *ws, void *buffer, size_t size);
-void websock_drop(struct websock *ws);
+int websock_drop(struct websock *ws);
 
 int websock_dispatch(struct websock *ws);
 
