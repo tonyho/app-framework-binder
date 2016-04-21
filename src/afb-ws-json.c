@@ -32,13 +32,12 @@
 #include "afb-req-itf.h"
 #include "afb-apis.h"
 
-static void aws_on_close(struct afb_ws_json *ws, uint16_t code, char *text, size_t size);
+static void aws_on_hangup(struct afb_ws_json *ws);
 static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size);
 
 static struct afb_ws_itf aws_itf = {
-	.on_close = (void*)aws_on_close,
-	.on_text = (void*)aws_on_text,
-	.on_binary = NULL,
+	.on_hangup = (void*)aws_on_hangup,
+	.on_text = (void*)aws_on_text
 };
 
 struct afb_wsreq;
@@ -52,7 +51,6 @@ struct afb_ws_json
 	struct json_tokener *tokener;
 	struct afb_ws *ws;
 };
-
 
 static void aws_send_event(struct afb_ws_json *ws, const char *event, struct json_object *object);
 
@@ -104,10 +102,14 @@ error:
 	return NULL;
 }
 
-static void aws_on_close(struct afb_ws_json *ws, uint16_t code, char *text, size_t size)
+static void aws_on_hangup(struct afb_ws_json *ws)
 {
-	/* do nothing but free the text */
-	free(text);
+	ctxClientEventSenderRemove(ws->context, (struct afb_event_sender){ .itf = &event_sender_itf, .closure = ws });
+	afb_ws_destroy(ws->ws);
+	json_tokener_free(ws->tokener);
+	if (ws->cleanup != NULL)
+		ws->cleanup(ws->cleanup_closure);
+	free(ws);
 }
 
 #define CALL 2
@@ -281,14 +283,6 @@ static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)
 	/* done */
 	r->text = text;
 	r->size = size;
-fprintf(stderr, "\n\nONTEXT([%d, %.*s, %.*s/%.*s, %.*s, %.*s])\n\n",
-	r->code,
-	(int)r->idlen, r->id,
-	(int)r->apilen, r->api,
-	(int)r->verblen, r->verb,
-	(int)r->objlen, r->obj,
-	(int)r->toklen, r->tok
-);
 	return 1;
 
 bad_header:
@@ -323,7 +317,7 @@ bad_header:
 	free(wsreq);
 alloc_error:
 	free(text);
-	afb_ws_close(ws->ws, 1008);
+	afb_ws_close(ws->ws, 1008, NULL);
 	return;
 }
 

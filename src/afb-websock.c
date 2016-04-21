@@ -162,7 +162,7 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 	}
 
 	/* create the web socket */
-	ws = proto->create(dup(MHD_get_connection_info(con, MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd),
+	ws = proto->create(MHD_get_connection_info(con, MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd,
 			context,
 			(void*)MHD_resume_connection,
 			con);
