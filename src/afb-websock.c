@@ -94,15 +94,10 @@ static int headerhas(const char *header, const char *needle)
 struct protodef
 {
 	const char *name;
-	void *(*create)(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *closure);
+	void *(*create)(int fd, void *context, void (*cleanup)(void*), void *cleanup_closure);
 };
 
-static const struct protodef protodefs[] = {
-	{ "x-afb-ws-json1",	(void*)afb_ws_json_create },
-	{ NULL, NULL }
-};
-
-static const struct protodef *search_proto(const char *protocols)
+static const struct protodef *search_proto(const struct protodef *protodefs, const char *protocols)
 {
 	int i;
 	size_t len;
@@ -120,8 +115,9 @@ static const struct protodef *search_proto(const char *protocols)
 	}
 }
 
-int afb_websock_check_upgrade(struct afb_hreq *hreq)
+static int check_websocket_upgrade(struct MHD_Connection *con, const struct protodef *protodefs, void *context, void **websock)
 {
+	struct MHD_Response *response;
 	const char *connection, *upgrade, *key, *version, *protocols;
 	char acceptval[29];
 	int vernum;
@@ -129,64 +125,87 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 	void *ws;
 
 	/* is an upgrade to websocket ? */
-	upgrade = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_UPGRADE);
+	upgrade = MHD_lookup_connection_value(con, MHD_HEADER_KIND, MHD_HTTP_HEADER_UPGRADE);
 	if (upgrade == NULL || strcasecmp(upgrade, websocket_s))
 		return 0;
 
 	/* is a connection for upgrade ? */
-	connection = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_CONNECTION);
+	connection = MHD_lookup_connection_value(con, MHD_HEADER_KIND, MHD_HTTP_HEADER_CONNECTION);
 	if (connection == NULL
          || !headerhas (connection, MHD_HTTP_HEADER_UPGRADE))
 		return 0;
 
-	/* is a get ? */
-	if (hreq->method != afb_method_get
-	 || strcasecmp(hreq->version, MHD_HTTP_VERSION_1_1))
-		return 0;
-
 	/* has a key and a version ? */
-	key = afb_hreq_get_header(hreq, sec_websocket_key_s);
-	version = afb_hreq_get_header(hreq, sec_websocket_version_s);
+	key = MHD_lookup_connection_value(con, MHD_HEADER_KIND, sec_websocket_key_s);
+	version = MHD_lookup_connection_value(con, MHD_HEADER_KIND, sec_websocket_version_s);
 	if (key == NULL || version == NULL)
 		return 0;
 
 	/* is a supported version ? */
 	vernum = atoi(version);
 	if (vernum != 13) {
-		afb_hreq_reply_empty(hreq, MHD_HTTP_UPGRADE_REQUIRED,
-			sec_websocket_version_s, "13", NULL);
+		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+		MHD_add_response_header(response, sec_websocket_version_s, "13");
+		MHD_queue_response(con, MHD_HTTP_UPGRADE_REQUIRED, response);
+		MHD_destroy_response(response);
 		return 1;
 	}
 
 	/* is the protocol supported ? */
-	protocols = afb_hreq_get_header(hreq, sec_websocket_protocol_s);
-	proto = protocols == NULL ? NULL : search_proto(protocols);
+	protocols = MHD_lookup_connection_value(con, MHD_HEADER_KIND, sec_websocket_protocol_s);
+	proto = protocols == NULL ? NULL : search_proto(protodefs, protocols);
 	if (proto == NULL) {
-		afb_hreq_reply_error(hreq, MHD_HTTP_PRECONDITION_FAILED);
+		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+		MHD_queue_response(con, MHD_HTTP_PRECONDITION_FAILED, response);
+		MHD_destroy_response(response);
 		return 1;
 	}
 
 	/* create the web socket */
-	/* TODO fullfil ondisconnection and records!!! */
-	ws = proto->create(dup(MHD_get_connection_info(hreq->connection,MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd),
-			afb_hreq_context(hreq),
+	ws = proto->create(dup(MHD_get_connection_info(con, MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd),
+			context,
 			(void*)MHD_resume_connection,
-			hreq->connection);
+			con);
 	if (ws == NULL) {
-		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+		MHD_queue_response(con, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
+		MHD_destroy_response(response);
 		return 1;
 	}
 
 	/* send the accept connection */
 	make_accept_value(key, acceptval);
-	afb_hreq_reply_empty(hreq, MHD_HTTP_SWITCHING_PROTOCOLS,
-				sec_websocket_accept_s, acceptval,
-				sec_websocket_protocol_s, proto->name,
-				MHD_HTTP_HEADER_CONNECTION, MHD_HTTP_HEADER_UPGRADE,
-				MHD_HTTP_HEADER_UPGRADE, websocket_s,
-				NULL);
+	response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+	MHD_add_response_header(response, sec_websocket_accept_s, acceptval);
+	MHD_add_response_header(response, sec_websocket_protocol_s, proto->name);
+	MHD_add_response_header(response, MHD_HTTP_HEADER_CONNECTION, MHD_HTTP_HEADER_UPGRADE);
+	MHD_add_response_header(response, MHD_HTTP_HEADER_UPGRADE, websocket_s);
+	MHD_queue_response(con, MHD_HTTP_SWITCHING_PROTOCOLS, response);
+	MHD_destroy_response(response);
 
-	hreq->upgrade = 1;
+	*websock = ws;
 	return 1;
+}
+
+static const struct protodef protodefs[] = {
+	{ "x-afb-ws-json1",	(void*)afb_ws_json_create },
+	{ NULL, NULL }
+};
+
+int afb_websock_check_upgrade(struct afb_hreq *hreq)
+{
+	void *ws;
+	int rc;
+
+	/* is a get ? */
+	if (hreq->method != afb_method_get
+	 || strcasecmp(hreq->version, MHD_HTTP_VERSION_1_1))
+		return 0;
+
+	ws = NULL;
+	rc = check_websocket_upgrade(hreq->connection, protodefs, afb_hreq_context(hreq), &ws);
+	if (rc && ws != NULL)
+		hreq->upgrade = 1;
+	return rc;
 }
 
