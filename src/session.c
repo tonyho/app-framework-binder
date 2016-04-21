@@ -25,6 +25,8 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <json.h>
+
 #include "session.h"
 
 #define NOW (time(NULL))
@@ -351,7 +353,7 @@ static int send(struct AFB_clientCtx *clientCtx, const char *event, struct json_
 	result = 0;
 	iter = clientCtx->senders;
 	while (iter != NULL) {
-		iter->sender.itf->send(iter->sender.closure, event, object);
+		iter->sender.itf->send(iter->sender.closure, event, json_object_get(object));
 		result++;
 		iter = iter->next;
 	}

@@ -54,7 +54,7 @@ static void pingBug (struct afb_req request)
 static void pingEvent(struct afb_req request)
 {
 	json_object *query = afb_req_json(request);
-	afb_evmgr_push(afb_daemon_get_evmgr(interface->daemon), "event", json_object_get(query));
+	afb_evmgr_push(afb_daemon_get_evmgr(interface->daemon), "event", query);
 	ping(request, json_object_get(query), "event");
 }
 
