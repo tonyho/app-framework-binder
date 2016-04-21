@@ -21,13 +21,18 @@ struct afb_ws;
 
 struct afb_ws_itf
 {
-	void (*on_close) (void *, uint16_t code, char *, size_t size);
+	void (*on_close) (void *, uint16_t code, char *, size_t size); /* optional, if not set hangup is called */
 	void (*on_text) (void *, char *, size_t size);
 	void (*on_binary) (void *, char *, size_t size);
+	void (*on_error) (void *, uint16_t code, const void *, size_t size); /* optional, if not set hangup is called */
+	void (*on_hangup) (void *); /* optional, it is safe too call afb_ws_destroy within the callback */
 };
 
 extern struct afb_ws *afb_ws_create(int fd, const struct afb_ws_itf *itf, void *closure);
-extern void afb_ws_close(struct afb_ws *ws, uint16_t code);
-extern void afb_ws_text(struct afb_ws *ws, const char *text, size_t length);
-extern void afb_ws_binary(struct afb_ws *ws, const void *data, size_t length);
+extern void afb_ws_destroy(struct afb_ws *ws);
+extern void afb_ws_hangup(struct afb_ws *ws);
+extern int afb_ws_close(struct afb_ws *ws, uint16_t code, const char *reason);
+extern int afb_ws_error(struct afb_ws *ws, uint16_t code, const char *reason);
+extern int afb_ws_text(struct afb_ws *ws, const char *text, size_t length);
+extern int afb_ws_binary(struct afb_ws *ws, const void *data, size_t length);
 

@@ -146,14 +146,17 @@ static inline int websock_send(struct websock *ws, int last, int rsv1, int rsv2,
 	return websock_send_internal(ws, first, buffer, size);
 }
 
-int websock_close(struct websock *ws)
+int websock_close_empty(struct websock *ws)
 {
-	return websock_send(ws, 1, 0, 0, 0, OPCODE_CLOSE, NULL, 0);
+	return websock_close(ws, WEBSOCKET_CODE_NOT_SET, NULL, 0);
 }
 
-int websock_close_code(struct websock *ws, uint16_t code, const void *data, size_t length)
+int websock_close(struct websock *ws, uint16_t code, const void *data, size_t length)
 {
 	unsigned char buffer[125];
+
+	if (code == WEBSOCKET_CODE_NOT_SET && length == 0)
+		return websock_send(ws, 1, 0, 0, 0, OPCODE_CLOSE, NULL, 0);
 
 	/* checks the length */
 	if (length > 123) {
@@ -201,6 +204,14 @@ int websock_text(struct websock *ws, int last, const char *text, size_t length)
 int websock_binary(struct websock *ws, int last, const void *data, size_t length)
 {
 	return websock_send(ws, last, 0, 0, 0, OPCODE_BINARY, data, length);
+}
+
+int websock_error(struct websock *ws, uint16_t code, const void *data, size_t size)
+{
+	int rc = websock_close(ws, code, data, size);
+	if (ws->itf->on_error != NULL)
+		ws->itf->on_error(ws->closure, code, data, size);
+	return rc;
 }
 
 static int read_header(struct websock *ws)
@@ -397,11 +408,11 @@ loop:
 	goto loop;
 
  too_long_error:
-	websock_close_code(ws, WEBSOCKET_CODE_MESSAGE_TOO_LARGE, NULL, 0);
+	websock_error(ws, WEBSOCKET_CODE_MESSAGE_TOO_LARGE, NULL, 0);
 	return 0;
 
  protocol_error:
-	websock_close_code(ws, WEBSOCKET_CODE_PROTOCOL_ERROR, NULL, 0);
+	websock_error(ws, WEBSOCKET_CODE_PROTOCOL_ERROR, NULL, 0);
 	return 0;
 }
 
