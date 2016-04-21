@@ -148,12 +148,17 @@ static ssize_t aws_readv(struct afb_ws *ws, const struct iovec *iov, int iovcnt)
 	do {
 		rc = readv(ws->fd, iov, iovcnt);
 	} while(rc == -1 && errno == EINTR);
+	if (rc == 0) {
+		errno = EPIPE;
+		rc = -1;
+	}
 	return rc;
 }
 
 static void aws_on_readable(struct afb_ws *ws)
 {
-	websock_dispatch(ws->ws);
+	if (websock_dispatch(ws->ws) < 0 && errno == EPIPE)
+		afb_ws_disconnect(ws);
 }
 
 static void aws_on_hangup(struct afb_ws *ws)
