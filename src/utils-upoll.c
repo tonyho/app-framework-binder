@@ -47,6 +47,7 @@ struct upollfd
 
 static int pollfd = 0;
 static struct upollfd *head = NULL;
+static struct upoll *current = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int update(struct upollfd *ufd)
@@ -226,6 +227,8 @@ void upoll_close(struct upoll *upoll)
 
 	ufd = upoll->fd;
 	pthread_mutex_lock(&mutex);
+	if (current == upoll)
+		current = NULL;
 	it = &ufd->head;
 	while (*it != upoll)
 		it = &(*it)->next;
@@ -240,7 +243,6 @@ int upoll_wait(int timeout)
 	int rc;
 	struct epoll_event e;
 	struct upollfd *ufd;
-	struct upoll *u;
 
 	if (pollfd == 0) {
 		errno = ECANCELED;
@@ -252,18 +254,25 @@ int upoll_wait(int timeout)
 	} while (rc < 0 && errno == EINTR);
 	if (rc == 1) {
 		ufd = e.data.ptr;
-		u = ufd->head;
-		while (u != NULL) {
-			if ((e.events & EPOLLIN) && u->read) {
-				u->read(u->closure);
+		current = ufd->head;
+		e.events &= EPOLLIN | EPOLLOUT | EPOLLHUP;
+		while (current != NULL && e.events != 0) {
+			if ((e.events & EPOLLIN) && current->read) {
+				current->read(current->closure);
+				e.events &= (uint32_t)~EPOLLIN;
+				continue;
 			}
-			if ((e.events & EPOLLOUT) && u->write) {
-				u->write(u->closure);
+			if ((e.events & EPOLLOUT) && current->write) {
+				current->write(current->closure);
+				e.events &= (uint32_t)~EPOLLOUT;
+				continue;
 			}
-			if ((e.events & EPOLLHUP) && u->hangup) {
-				u->hangup(u->closure);
+			if ((e.events & EPOLLHUP) && current->hangup) {
+				current->hangup(current->closure);
+				if (current == NULL)
+					break;
 			}
-			u = u->next;
+			current = current->next;
 		}
 	}
 	return rc < 0 ? rc : 0;
