@@ -24,25 +24,48 @@
 
 #include "utils-upoll.h"
 
-
 struct upollfd;
 
+/*
+ * Structure describing one opened client
+ */
 struct upoll
 {
-	struct upollfd *fd;
-	void (*read)(void *);
-	void (*write)(void *);
-	void (*hangup)(void *);
-	void *closure;
-	struct upoll *next;
+	struct upollfd *fd;	/* structure handling the file descriptor */
+	void (*read)(void *);	/* callback for handling on_readable */
+	void (*write)(void *);	/* callback for handling on_writable */
+	void (*hangup)(void *);	/* callback for handling on_hangup */
+	void *closure;		/* closure for callbacks */
+	struct upoll *next; 	/* next client of the same file descriptor */
 };
 
+/*
+ * Structure describing a watched file descriptor
+ */
 struct upollfd
 {
-	int fd;
-	uint32_t events;
-	struct upollfd *next;
-	struct upoll *head;
+	int fd;			/* watch file descriptor */
+	uint32_t events;	/* watched events */
+	struct upollfd *next;	/* next watched file descriptor */
+	struct upoll *head;	/* first client watching the file descriptor */
+};
+
+/*
+ * Structure describing a upoll group
+ */
+struct upollgrp
+{
+	int pollfd;
+	struct upollfd *head;
+	struct upoll *current;
+	pthread_mutex_t mutex;
+};
+
+static struct upollgrp global = {
+	.pollfd = 0,
+	.head = NULL,
+	.current = NULL,
+	.mutex = PTHREAD_MUTEX_INITIALIZER
 };
 
 static int pollfd = 0;
@@ -50,6 +73,9 @@ static struct upollfd *head = NULL;
 static struct upoll *current = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/*
+ *
+ */
 static int update(struct upollfd *ufd)
 {
 	int rc;
@@ -92,6 +118,42 @@ static int update(struct upollfd *ufd)
 	rc = epoll_ctl(pollfd, EPOLL_CTL_MOD, ufd->fd, &e);
 	if (rc == 0)
 		ufd->events = events;
+	return rc;
+}
+
+/*
+ * Compute the events for the set of clients
+ */
+static int update_flags(struct upollfd *ufd)
+{
+	int rc;
+	struct upoll *u;
+	struct epoll_event e;
+	uint32_t events;
+	struct upollfd **prv;
+
+	/* compute expected events */
+	events = 0;
+	pthread_mutex_lock(&mutex);
+	u = ufd->head;
+	assert (u != NULL);
+	while (u != NULL) {
+		if (u->read != NULL)
+			events |= EPOLLIN;
+		if (u->write != NULL)
+			events |= EPOLLOUT;
+		u = u->next;
+	}
+	if (ufd->events == events)
+		rc = 0;
+	else {
+		e.events = events;
+		e.data.ptr = ufd;
+		rc = epoll_ctl(pollfd, EPOLL_CTL_MOD, ufd->fd, &e);
+		if (rc == 0)
+			ufd->events = events;
+	}
+	pthread_mutex_unlock(&mutex);
 	return rc;
 }
 
