@@ -26,6 +26,7 @@
 #include "utils-sbus.h"
 #include "utils-jbus.h"
 
+static const char _added_[]     = "added";
 static const char _auto_[]      = "auto";
 static const char _continue_[]  = "continue";
 static const char _changed_[]   = "changed";
@@ -87,6 +88,7 @@ static void embed_call_void(struct afb_req request, const char *method)
 		afb_req_fail(request, "failed", "framework daemon failure");
 		return;
 	}
+	obj = json_object_get(obj);
 	obj = embed(method, obj);
 	if (obj == NULL) {
 		afb_req_fail(request, "failed", "framework daemon failure");
@@ -117,6 +119,7 @@ static void call_appid(struct afb_req request, const char *method)
 		afb_req_fail(request, "failed", "framework daemon failure");
 		return;
 	}
+	obj = json_object_get(obj);
 	afb_req_success(request, obj, NULL);
 }
 
@@ -136,6 +139,7 @@ static void call_runid(struct afb_req request, const char *method)
 		afb_req_fail(request, "failed", "framework daemon failure");
 		return;
 	}
+	obj = json_object_get(obj);
 	afb_req_success(request, obj, NULL);
 }
 
@@ -186,6 +190,7 @@ static void start(struct afb_req request)
 	free(query);
 
 	/* check status */
+	obj = json_object_get(obj);
 	if (obj == NULL) {
 		afb_req_fail(request, "failed", "framework daemon failure");
 		return;
@@ -224,7 +229,7 @@ static void state(struct afb_req request)
 
 static void install(struct afb_req request)
 {
-	struct json_object *obj;
+	struct json_object *obj, *added;
 	char *query;
 	const char *filename;
 	struct afb_arg arg;
@@ -245,6 +250,7 @@ static void install(struct afb_req request)
 
 	obj = jbus_call_sj_sync(jbus, _install_, query);
 	if (interface->verbosity)
+;
 		fprintf(stderr, "(afm-main-plugin) install(%s) -> %s\n", query,
 			obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
@@ -256,6 +262,9 @@ static void install(struct afb_req request)
 	}
 
 	/* embed if needed */
+	if (json_object_object_get_ex(obj, _added_, &added))
+		obj = added;
+	obj = json_object_get(obj);
 	obj = embed(_id_, obj);
 	afb_req_success(request, obj, NULL);
 }
