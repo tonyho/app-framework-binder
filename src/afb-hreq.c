@@ -39,7 +39,7 @@
 #include "session.h"
 #include "verbose.h"
 
-#define SIZE_RESPONSE_BUFFER   8000
+#define SIZE_RESPONSE_BUFFER   8192
 
 static char empty_string[] = "";
 
@@ -657,7 +657,7 @@ static void req_send(struct afb_hreq *hreq, char *buffer, size_t size)
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
 {
 	ssize_t len = stpncpy(buf, json_object_to_json_string(obj)+pos, max) - buf;
-	return len ? : -1;
+	return len ? : MHD_CONTENT_READER_END_OF_STREAM;
 }
 
 static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
@@ -673,8 +673,7 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 		uuid = hreq->context->uuid;
 	}
 	reply = afb_msg_json_reply(status, info, resp, token, uuid);
-
-	response = MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
+	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string(reply)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
 	afb_hreq_reply(hreq, retcode, response, NULL);
 }
 
