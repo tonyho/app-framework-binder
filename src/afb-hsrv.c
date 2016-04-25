@@ -54,8 +54,15 @@ struct hsrv_alias {
 	int dirfd;
 };
 
+enum afb_hsrv_state {
+	hsrv_idle = 0,
+	hsrv_run,
+	hsrv_rerun
+};
+
 struct afb_hsrv {
 	unsigned refcount;
+	enum afb_hsrv_state state;
 	struct hsrv_handler *handlers;
 	struct MHD_Daemon *httpd;
 	struct upoll *upoll;
@@ -203,6 +210,19 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	afb_hreq_free(hreq);
 }
 
+static void handle_epoll_readable(struct afb_hsrv *hsrv)
+{
+	if (hsrv->state != hsrv_idle)
+		hsrv->state = hsrv_rerun;
+	else {
+		do {
+			hsrv->state = hsrv_run;
+			MHD_run(hsrv->httpd);
+		} while (hsrv->state == hsrv_rerun);
+		hsrv->state = hsrv_idle;
+	}
+};
+
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
 {
 	return MHD_YES;
@@ -347,13 +367,13 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		return 0;
 	}
 
-	upoll = upoll_open(info->listen_fd, httpd);
+	upoll = upoll_open(info->listen_fd, hsrv);
 	if (upoll == NULL) {
 		MHD_stop_daemon(httpd);
 		fprintf(stderr, "Error: connection to upoll of httpd failed");
 		return 0;
 	}
-	upoll_on_readable(upoll, (void*)MHD_run);
+	upoll_on_readable(upoll, (void*)handle_epoll_readable);
 
 	hsrv->httpd = httpd;
 	hsrv->upoll = upoll;
