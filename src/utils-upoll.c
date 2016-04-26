@@ -50,9 +50,9 @@ struct upollfd
 	struct upoll *head;	/* first client watching the file descriptor */
 };
 
+
 /*
  * Structure describing a upoll group
- */
 struct upollgrp
 {
 	int pollfd;
@@ -61,12 +61,14 @@ struct upollgrp
 	pthread_mutex_t mutex;
 };
 
+
 static struct upollgrp global = {
 	.pollfd = 0,
 	.head = NULL,
 	.current = NULL,
 	.mutex = PTHREAD_MUTEX_INITIALIZER
 };
+ */
 
 static int pollfd = 0;
 static struct upollfd *head = NULL;
@@ -74,69 +76,18 @@ static struct upoll *current = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
- *
- */
-static int update(struct upollfd *ufd)
-{
-	int rc;
-	struct upoll *u;
-	struct epoll_event e;
-	uint32_t events;
-	struct upollfd **prv;
-
-	events = 0;
-	pthread_mutex_lock(&mutex);
-	u = ufd->head;
-	if (u == NULL) {
-		/* no more watchers */
-		prv = &head;
-		while(*prv) {
-			if (*prv == ufd) {
-				*prv = ufd->next;
-				break;
-			}
-			prv = &(*prv)->next;
-		}
-		pthread_mutex_unlock(&mutex);
-		epoll_ctl(pollfd, EPOLL_CTL_DEL, ufd->fd, NULL);
-		free(ufd);
-		return 0;
-	}
-	/* compute the events for the watchers */
-	while (u != NULL) {
-		if (u->read != NULL)
-			events |= EPOLLIN;
-		if (u->write != NULL)
-			events |= EPOLLOUT;
-		u = u->next;
-	}
-	pthread_mutex_unlock(&mutex);
-	if (ufd->events == events)
-		return 0;
-	e.events = events;
-	e.data.ptr = ufd;
-	rc = epoll_ctl(pollfd, EPOLL_CTL_MOD, ufd->fd, &e);
-	if (rc == 0)
-		ufd->events = events;
-	return rc;
-}
-
-/*
  * Compute the events for the set of clients
  */
-static int update_flags(struct upollfd *ufd)
+static int update_flags_locked(struct upollfd *ufd)
 {
 	int rc;
 	struct upoll *u;
 	struct epoll_event e;
 	uint32_t events;
-	struct upollfd **prv;
 
 	/* compute expected events */
 	events = 0;
-	pthread_mutex_lock(&mutex);
 	u = ufd->head;
-	assert (u != NULL);
 	while (u != NULL) {
 		if (u->read != NULL)
 			events |= EPOLLIN;
@@ -155,6 +106,41 @@ static int update_flags(struct upollfd *ufd)
 	}
 	pthread_mutex_unlock(&mutex);
 	return rc;
+}
+
+/*
+ * Compute the events for the set of clients
+ */
+static int update_flags(struct upollfd *ufd)
+{
+	pthread_mutex_lock(&mutex);
+	return update_flags_locked(ufd);
+}
+
+/*
+ *
+ */
+static int update(struct upollfd *ufd)
+{
+	struct upollfd **prv;
+
+	pthread_mutex_lock(&mutex);
+	if (ufd->head != NULL)
+		return update_flags_locked(ufd);
+
+	/* no more watchers */
+	prv = &head;
+	while(*prv) {
+		if (*prv == ufd) {
+			*prv = ufd->next;
+			break;
+		}
+		prv = &(*prv)->next;
+	}
+	pthread_mutex_unlock(&mutex);
+	epoll_ctl(pollfd, EPOLL_CTL_DEL, ufd->fd, NULL);
+	free(ufd);
+	return 0;
 }
 
 static struct upollfd *get_fd(int fd)
@@ -259,7 +245,7 @@ int upoll_on_readable(struct upoll *upoll, void (*process)(void *))
 	assert(upoll_is_valid(upoll));
 
 	upoll->read = process;
-	return update(upoll->fd);
+	return update_flags(upoll->fd);
 }
 
 int upoll_on_writable(struct upoll *upoll, void (*process)(void *))
@@ -268,7 +254,7 @@ int upoll_on_writable(struct upoll *upoll, void (*process)(void *))
 	assert(upoll_is_valid(upoll));
 
 	upoll->write = process;
-	return update(upoll->fd);
+	return update_flags(upoll->fd);
 }
 
 void upoll_on_hangup(struct upoll *upoll, void (*process)(void *))
