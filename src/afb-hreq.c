@@ -657,7 +657,7 @@ static void req_send(struct afb_hreq *hreq, char *buffer, size_t size)
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
 {
 	ssize_t len = stpncpy(buf, json_object_to_json_string(obj)+pos, max) - buf;
-	return len ? : MHD_CONTENT_READER_END_OF_STREAM;
+	return len ? : (ssize_t)MHD_CONTENT_READER_END_OF_STREAM;
 }
 
 static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
