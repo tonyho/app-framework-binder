@@ -19,6 +19,7 @@
 
 struct AFB_clientCtx;
 struct json_object;
+struct hreq_data;
 
 struct afb_hreq {
 	const char *cacheTimeout;
