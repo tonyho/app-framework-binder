@@ -60,8 +60,12 @@ int websock_error(struct websock *ws, uint16_t code, const void *data, size_t le
 
 int websock_ping(struct websock *ws, const void *data, size_t length);
 int websock_pong(struct websock *ws, const void *data, size_t length);
-int websock_text(struct websock *ws, int last, const char *text, size_t length);
+int websock_text(struct websock *ws, int last, const void *text, size_t length);
+int websock_text_v(struct websock *ws, int last, const struct iovec *iovec, int count);
 int websock_binary(struct websock *ws, int last, const void *data, size_t length);
+int websock_binary_v(struct websock *ws, int last, const struct iovec *iovec, int count);
+int websock_continue(struct websock *ws, int last, const void *data, size_t length);
+int websock_continue_v(struct websock *ws, int last, const struct iovec *iovec, int count);
 
 ssize_t websock_read(struct websock *ws, void *buffer, size_t size);
 int websock_drop(struct websock *ws);
