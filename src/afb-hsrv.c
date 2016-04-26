@@ -54,15 +54,8 @@ struct hsrv_alias {
 	int dirfd;
 };
 
-enum afb_hsrv_state {
-	hsrv_idle = 0,
-	hsrv_run,
-	hsrv_rerun
-};
-
 struct afb_hsrv {
 	unsigned refcount;
-	enum afb_hsrv_state state;
 	struct hsrv_handler *handlers;
 	struct MHD_Daemon *httpd;
 	struct upoll *upoll;
@@ -212,15 +205,9 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 
 static void handle_epoll_readable(struct afb_hsrv *hsrv)
 {
-	if (hsrv->state != hsrv_idle)
-		hsrv->state = hsrv_rerun;
-	else {
-		do {
-			hsrv->state = hsrv_run;
-			MHD_run(hsrv->httpd);
-		} while (hsrv->state == hsrv_rerun);
-		hsrv->state = hsrv_idle;
-	}
+	upoll_on_readable(hsrv->upoll, NULL);
+	MHD_run(hsrv->httpd);
+	upoll_on_readable(hsrv->upoll, (void*)handle_epoll_readable);
 };
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
