@@ -120,12 +120,28 @@ static inline void afb_req_session_close(struct afb_req req)
 	req.itf->session_close(req.req_closure);
 }
 
+#include <stdlib.h>
+
+static inline struct afb_req *afb_req_store(struct afb_req req)
+{
+	struct afb_req *result = malloc(sizeof *result);
+	if (result != NULL)
+		*result = req;
+	return result;
+}
+
+static inline struct afb_req afb_req_unstore(struct afb_req *req)
+{
+	struct afb_req result = *req;
+	free(req);
+	return result;
+}
+
 #if !defined(_GNU_SOURCE)
 # error "_GNU_SOURCE must be defined for using vasprintf"
 #endif
 
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdio.h>
 
 static inline void afb_req_fail_v(struct afb_req req, const char *status, const char *info, va_list args)
