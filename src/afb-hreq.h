@@ -20,11 +20,17 @@
 struct AFB_clientCtx;
 struct json_object;
 struct hreq_data;
+struct afb_hsrv;
 
 struct afb_hreq {
+	struct afb_hsrv *hsrv;
 	const char *cacheTimeout;
 	struct MHD_Connection *connection;
 	int method;
+	int reqid;
+	int scanned;
+	int suspended;
+	int replied;
 	const char *version;
 	const char *url;
 	size_t lenurl;

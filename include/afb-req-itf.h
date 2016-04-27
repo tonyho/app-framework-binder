@@ -44,6 +44,7 @@ struct afb_req {
 	void *req_closure;
 	void *ctx_closure;
 };
+
 static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
 {
 	return req.itf->get(req.req_closure, name);

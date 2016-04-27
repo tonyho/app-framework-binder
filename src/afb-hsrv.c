@@ -59,9 +59,11 @@ struct afb_hsrv {
 	struct hsrv_handler *handlers;
 	struct MHD_Daemon *httpd;
 	struct upoll *upoll;
+	int in_run;
 	char *cache_to;
 };
 
+static int global_reqids = 0;
 
 static void reply_error(struct MHD_Connection *connection, unsigned int status)
 {
@@ -107,25 +109,34 @@ static int access_handler(
 	hsrv = cls;
 	hreq = *recordreq;
 	if (hreq == NULL) {
-		/* create the request */
-		hreq = calloc(1, sizeof *hreq);
-		if (hreq == NULL)
-			goto internal_error;
-		*recordreq = hreq;
-
 		/* get the method */
 		method = get_method(methodstr);
 		method &= afb_method_get | afb_method_post;
-		if (method == afb_method_none)
-			goto bad_request;
+		if (method == afb_method_none) {
+			reply_error(connection, MHD_HTTP_BAD_REQUEST);
+			return MHD_YES;
+		}
+
+		/* create the request */
+		hreq = calloc(1, sizeof *hreq);
+		if (hreq == NULL) {
+			reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
+			return MHD_YES;
+		}
 
 		/* init the request */
+		hreq->hsrv = hsrv;
 		hreq->cacheTimeout = hsrv->cache_to;
+		hreq->reqid = ++global_reqids;
+		hreq->scanned = 0;
+		hreq->suspended = 0;
+		hreq->replied = 0;
 		hreq->connection = connection;
 		hreq->method = method;
 		hreq->version = version;
 		hreq->tail = hreq->url = url;
 		hreq->lentail = hreq->lenurl = strlen(url);
+		*recordreq = hreq;
 
 		/* init the post processing */
 		if (method == afb_method_post) {
@@ -136,10 +147,10 @@ static int access_handler(
 			} else if (strcasestr(type, FORM_CONTENT) != NULL) {
 				hreq->postform = MHD_create_post_processor (connection, 65500, postproc, hreq);
 				if (hreq->postform == NULL)
-					goto internal_error;
+					afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 				return MHD_YES;
 			} else if (strcasestr(type, JSON_CONTENT) == NULL) {
-				reply_error(connection, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
+				afb_hreq_reply_error(hreq, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
 				return MHD_YES;
 			}
 		}
@@ -148,30 +159,50 @@ static int access_handler(
 	/* process further data */
 	if (*upload_data_size) {
 		if (hreq->postform != NULL) {
-			if (!MHD_post_process (hreq->postform, upload_data, *upload_data_size))
-				goto internal_error;
+			if (!MHD_post_process (hreq->postform, upload_data, *upload_data_size)) {
+				afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+				return MHD_YES;
+			}
 		} else {
-			if (!afb_hreq_post_add(hreq, "", upload_data, *upload_data_size))
-				goto internal_error;
+			if (!afb_hreq_post_add(hreq, "", upload_data, *upload_data_size)) {
+				afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+				return MHD_YES;
+			}
 		}
 		*upload_data_size = 0;
-		return MHD_YES;		
+		return MHD_YES;
 	}
 
 	/* flush the data */
 	if (hreq->postform != NULL) {
 		rc = MHD_destroy_post_processor(hreq->postform);
 		hreq->postform = NULL;
-		if (rc == MHD_NO)
-			goto bad_request;
+		if (rc == MHD_NO) {
+			afb_hreq_reply_error(hreq, MHD_HTTP_BAD_REQUEST);
+			return MHD_YES;
+		}
+	}
+
+	if (hreq->scanned != 0) {
+		if (hreq->replied == 0 && hreq->suspended == 0) {
+			MHD_suspend_connection (connection);
+			hreq->suspended = 1;
+		}
+		return MHD_YES;
 	}
 
 	/* search an handler for the request */
+	hreq->scanned = 1;
 	iter = hsrv->handlers;
 	while (iter) {
 		if (afb_hreq_unprefix(hreq, iter->prefix, iter->length)) {
-			if (iter->handler(hreq, iter->data))
+			if (iter->handler(hreq, iter->data)) {
+				if (hreq->replied == 0 && hreq->suspended == 0) {
+					MHD_suspend_connection (connection);
+					hreq->suspended = 1;
+				}
 				return MHD_YES;
+			}
 			hreq->tail = hreq->url;
 			hreq->lentail = hreq->lenurl;
 		}
@@ -180,14 +211,6 @@ static int access_handler(
 
 	/* no handler */
 	afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
-	return MHD_YES;
-
-bad_request:
-	reply_error(connection, MHD_HTTP_BAD_REQUEST);
-	return MHD_YES;
-
-internal_error:
-	reply_error(connection, MHD_HTTP_INTERNAL_SERVER_ERROR);
 	return MHD_YES;
 }
 
@@ -203,11 +226,19 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	afb_hreq_free(hreq);
 }
 
-static void handle_epoll_readable(struct afb_hsrv *hsrv)
+void run_micro_httpd(struct afb_hsrv *hsrv)
 {
-	upoll_on_readable(hsrv->upoll, NULL);
-	MHD_run(hsrv->httpd);
-	upoll_on_readable(hsrv->upoll, (void*)handle_epoll_readable);
+	if (hsrv->in_run != 0)
+		hsrv->in_run = 2;
+	else {
+		upoll_on_readable(hsrv->upoll, NULL);
+		do {
+			hsrv->in_run = 1;
+			MHD_run(hsrv->httpd);
+		} while(hsrv->in_run == 2);
+		hsrv->in_run = 0;
+		upoll_on_readable(hsrv->upoll, (void*)run_micro_httpd);
+	}
 };
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
@@ -360,7 +391,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		fprintf(stderr, "Error: connection to upoll of httpd failed");
 		return 0;
 	}
-	upoll_on_readable(upoll, (void*)handle_epoll_readable);
+	upoll_on_readable(upoll, (void*)run_micro_httpd);
 
 	hsrv->httpd = httpd;
 	hsrv->upoll = upoll;

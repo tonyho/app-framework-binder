@@ -51,6 +51,22 @@ static struct afb_evmgr evmgr;
 
 static struct jbus *jbus;
 
+struct memo
+{
+	struct afb_req request;
+	const char *method;
+};
+
+static struct memo *make_memo(struct afb_req request, const char *method)
+{
+	struct memo *memo = malloc(sizeof *memo);
+	if (memo != NULL) {
+		memo->request = request;
+		memo->method = method;
+	}
+	return memo;
+}
+
 static void application_list_changed(const char *data, void *closure)
 {
 	afb_evmgr_push(evmgr, "application-list-changed", NULL);
@@ -78,49 +94,70 @@ static struct json_object *embed(const char *tag, struct json_object *obj)
 	return result;
 }
 
-static void embed_call_void(struct afb_req request, const char *method)
+static void embed_call_void_callback(int status, struct json_object *obj, struct memo *memo)
 {
-	struct json_object *obj = jbus_call_sj_sync(jbus, method, "true");
 	if (interface->verbosity)
-		fprintf(stderr, "(afm-main-plugin) %s(true) -> %s\n", method,
+		fprintf(stderr, "(afm-main-plugin) %s(true) -> %s\n", memo->method,
 			obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
-		afb_req_fail(request, "failed", "framework daemon failure");
-		return;
+		afb_req_fail(memo->request, "failed", "framework daemon failure");
+	} else {
+		obj = json_object_get(obj);
+		obj = embed(memo->method, obj);
+		if (obj == NULL) {
+			afb_req_fail(memo->request, "failed", "framework daemon failure");
+		} else {
+			afb_req_success(memo->request, obj, NULL);
+		}
 	}
-	obj = json_object_get(obj);
-	obj = embed(method, obj);
+	free(memo);
+}
+
+static void embed_call_void(struct afb_req request, const char *method)
+{
+	struct memo *memo = make_memo(request, method);
+	if (memo == NULL)
+		afb_req_fail(request, "failed", "out of memory");
+	else if (jbus_call_sj(jbus, method, "true", (void*)embed_call_void_callback, memo) < 0) {
+		afb_req_fail(request, "failed", "dbus failure");
+		free(memo);
+	}
+}
+
+static void call_appid_callback(int status, struct json_object *obj, struct memo *memo)
+{
+	if (interface->verbosity)
+		fprintf(stderr, "(afm-main-plugin) %s -> %s\n", memo->method, 
+			obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
-		afb_req_fail(request, "failed", "framework daemon failure");
-		return;
+		afb_req_fail(memo->request, "failed", "framework daemon failure");
+	} else {
+		obj = json_object_get(obj);
+		afb_req_success(memo->request, obj, NULL);
 	}
-	afb_req_success(request, obj, NULL);
+	free(memo);
 }
 
 static void call_appid(struct afb_req request, const char *method)
 {
-	struct json_object *obj;
+	struct memo *memo;
 	char *sid;
 	const char *id = afb_req_value(request, _id_);
 	if (id == NULL) {
 		afb_req_fail(request, "bad-request", "missing 'id'");
 		return;
 	}
-	if (asprintf(&sid, "\"%s\"", id) <= 0) {
+	memo = make_memo(request, method);
+	if (asprintf(&sid, "\"%s\"", id) <= 0 || memo == NULL) {
 		afb_req_fail(request, "server-error", "out of memory");
+		free(memo);
 		return;
 	}
-	obj = jbus_call_sj_sync(jbus, method, sid);
-	if (interface->verbosity)
-		fprintf(stderr, "(afm-main-plugin) %s(%s) -> %s\n", method, sid,
-			obj ? json_object_to_json_string(obj) : "NULL");
+	if (jbus_call_sj(jbus, method, sid, (void*)call_appid_callback, memo) < 0) {
+		afb_req_fail(request, "failed", "dbus failure");
+		free(memo);
+	}
 	free(sid);
-	if (obj == NULL) {
-		afb_req_fail(request, "failed", "framework daemon failure");
-		return;
-	}
-	obj = json_object_get(obj);
-	afb_req_success(request, obj, NULL);
 }
 
 static void call_runid(struct afb_req request, const char *method)
@@ -142,7 +179,6 @@ static void call_runid(struct afb_req request, const char *method)
 	obj = json_object_get(obj);
 	afb_req_success(request, obj, NULL);
 }
-
 
 /************************** entries ******************************/
 
@@ -250,7 +286,6 @@ static void install(struct afb_req request)
 
 	obj = jbus_call_sj_sync(jbus, _install_, query);
 	if (interface->verbosity)
-;
 		fprintf(stderr, "(afm-main-plugin) install(%s) -> %s\n", query,
 			obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);

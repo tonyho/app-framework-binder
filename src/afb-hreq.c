@@ -152,6 +152,10 @@ static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_
 {
 	char *cookie;
 	const char *k, *v;
+
+	if (hreq->replied != 0)
+		return;
+
 	k = va_arg(args, const char *);
 	while (k != NULL) {
 		v = va_arg(args, const char *);
@@ -164,6 +168,14 @@ static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_
 	}
 	MHD_queue_response(hreq->connection, status, response);
 	MHD_destroy_response(response);
+
+	hreq->replied = 1;
+	if (hreq->suspended != 0) {
+		extern void run_micro_httpd(struct afb_hsrv *hsrv);
+		MHD_resume_connection (hreq->connection);
+		hreq->suspended = 0;
+		run_micro_httpd(hreq->hsrv);
+	}
 }
 
 void afb_hreq_reply(struct afb_hreq *hreq, unsigned status, struct MHD_Response *response, ...)
