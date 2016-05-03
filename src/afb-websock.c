@@ -204,8 +204,11 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 
 	ws = NULL;
 	rc = check_websocket_upgrade(hreq->connection, protodefs, afb_hreq_context(hreq), &ws);
-	if (rc && ws != NULL)
-		hreq->upgrade = 1;
+	if (rc == 1) {
+		hreq->replied = 1;
+		if (ws != NULL)
+			hreq->upgrade = 1;
+	}
 	return rc;
 }
 

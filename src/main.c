@@ -32,6 +32,8 @@
 #include <signal.h>
 #include <syslog.h>
 
+#include <systemd/sd-event.h>
+
 #include "afb-config.h"
 #include "afb-hswitch.h"
 #include "afb-apis.h"
@@ -40,7 +42,7 @@
 #include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"
-#include "utils-upoll.h"
+#include "afb-common.h"
 
 #include "afb-plugin.h"
 
@@ -559,6 +561,7 @@ static struct afb_hsrv *start_http_server(struct afb_config * config)
 int main(int argc, char *argv[])  {
   struct afb_hsrv *hsrv;
   struct afb_config *config;
+  struct sd_event *eventloop;
 
   // open syslog if ever needed
   openlog("afb-daemon", 0, LOG_DAEMON);
@@ -623,8 +626,9 @@ int main(int argc, char *argv[])  {
   }
 
    // infinite loop
+  eventloop = afb_common_get_event_loop();
   for(;;)
-    upoll_wait(30000); 
+    sd_event_run(eventloop, 30000000);
 
    if (verbosity)
        fprintf (stderr, "hoops returned from infinite loop [report bug]\n");

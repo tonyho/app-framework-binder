@@ -53,6 +53,7 @@ IF(CMAKE_BUILD_TYPE MATCHES Debug)
 ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
 INCLUDE(FindPkgConfig)
+PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd)
 PKG_CHECK_MODULES(json-c REQUIRED json-c)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.48)
 PKG_CHECK_MODULES(openssl REQUIRED openssl)
@@ -90,6 +91,7 @@ FIND_PACKAGE(Threads)
 SET(include_dirs
 	${INCLUDE_DIRS}
 	${CMAKE_SOURCE_DIR}/include
+	${libsystemd_INCLUDE_DIRS}
 	${json-c_INCLUDE_DIRS}
 	${libmicrohttpd_INCLUDE_DIRS}
 	${uuid_INCLUDE_DIRS}
@@ -102,6 +104,7 @@ SET(include_dirs
 )
 
 SET(link_libraries
+	${libsystemd_LIBRARIES}
 	${json-c_LIBRARIES}
 	${libmicrohttpd_LIBRARIES}
 	${uuid_LIBRARIES}

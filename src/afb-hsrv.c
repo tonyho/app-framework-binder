@@ -17,21 +17,26 @@
 
 #define _GNU_SOURCE
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 #include <microhttpd.h>
+#include <systemd/sd-event.h>
 
 #include "afb-method.h"
 #include "afb-hreq.h"
 #include "afb-hsrv.h"
 #include "afb-req-itf.h"
 #include "verbose.h"
-#include "utils-upoll.h"
+
+#include "afb-common.h"
+
 
 
 #define JSON_CONTENT  "application/json"
@@ -58,7 +63,7 @@ struct afb_hsrv {
 	unsigned refcount;
 	struct hsrv_handler *handlers;
 	struct MHD_Daemon *httpd;
-	struct upoll *upoll;
+	sd_event_source *evsrc;
 	int in_run;
 	char *cache_to;
 };
@@ -231,15 +236,21 @@ void run_micro_httpd(struct afb_hsrv *hsrv)
 	if (hsrv->in_run != 0)
 		hsrv->in_run = 2;
 	else {
-		upoll_on_readable(hsrv->upoll, NULL);
+		sd_event_source_set_io_events(hsrv->evsrc, 0);
 		do {
 			hsrv->in_run = 1;
 			MHD_run(hsrv->httpd);
 		} while(hsrv->in_run == 2);
 		hsrv->in_run = 0;
-		upoll_on_readable(hsrv->upoll, (void*)run_micro_httpd);
+		sd_event_source_set_io_events(hsrv->evsrc, EPOLLIN);
 	}
-};
+}
+
+static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *hsrv)
+{
+	run_micro_httpd(hsrv);
+	return 0;
+}
 
 static int new_client_handler(void *cls, const struct sockaddr *addr, socklen_t addrlen)
 {
@@ -360,7 +371,8 @@ int afb_hsrv_set_cache_timeout(struct afb_hsrv *hsrv, int duration)
 
 int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection_timeout)
 {
-	struct upoll *upoll;
+	sd_event_source *evsrc;
+	int rc;
 	struct MHD_Daemon *httpd;
 	const union MHD_DaemonInfo *info;
 
@@ -385,24 +397,25 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		return 0;
 	}
 
-	upoll = upoll_open(info->listen_fd, hsrv);
-	if (upoll == NULL) {
+	rc = sd_event_add_io(afb_common_get_event_loop(), &evsrc, info->listen_fd, EPOLLIN, io_event_callback, hsrv);
+	if (rc < 0) {
 		MHD_stop_daemon(httpd);
-		fprintf(stderr, "Error: connection to upoll of httpd failed");
+		errno = -rc;
+		fprintf(stderr, "Error: connection to events for httpd failed");
 		return 0;
 	}
-	upoll_on_readable(upoll, (void*)run_micro_httpd);
 
 	hsrv->httpd = httpd;
-	hsrv->upoll = upoll;
+	hsrv->evsrc = evsrc;
 	return 1;
 }
 
 void afb_hsrv_stop(struct afb_hsrv *hsrv)
 {
-	if (hsrv->upoll)
-		upoll_close(hsrv->upoll);
-	hsrv->upoll = NULL;
+	if (hsrv->evsrc != NULL) {
+		sd_event_source_unref(hsrv->evsrc);
+		hsrv->evsrc = NULL;
+	}
 	if (hsrv->httpd != NULL)
 		MHD_stop_daemon(hsrv->httpd);
 	hsrv->httpd = NULL;

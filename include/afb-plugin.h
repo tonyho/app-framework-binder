@@ -18,7 +18,6 @@
 #pragma once
 
 #include "afb-req-itf.h"
-#include "afb-pollmgr-itf.h"
 #include "afb-evmgr-itf.h"
 
 /* Plugin Type */
@@ -64,9 +63,14 @@ enum AFB_Mode {
 	AFB_MODE_GLOBAL
 };
 
+struct sd_event;
+struct sd_bus;
+
 struct afb_daemon_itf {
 	struct afb_evmgr (*get_evmgr)(void *closure);
-	struct afb_pollmgr (*get_pollmgr)(void *closure);
+	struct sd_event *(*get_event_loop)(void *closure);
+	struct sd_bus *(*get_user_bus)(void *closure);
+	struct sd_bus *(*get_system_bus)(void *closure);
 };
 
 struct afb_daemon {
@@ -88,9 +92,19 @@ static inline struct afb_evmgr afb_daemon_get_evmgr(struct afb_daemon daemon)
 	return daemon.itf->get_evmgr(daemon.closure);
 }
 
-static inline struct afb_pollmgr afb_daemon_get_pollmgr(struct afb_daemon daemon)
+static inline struct sd_event *afb_daemon_get_event_loop(struct afb_daemon daemon)
 {
-	return daemon.itf->get_pollmgr(daemon.closure);
+	return daemon.itf->get_event_loop(daemon.closure);
+}
+
+static inline struct sd_bus *afb_daemon_get_user_bus(struct afb_daemon daemon)
+{
+	return daemon.itf->get_user_bus(daemon.closure);
+}
+
+static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
+{
+	return daemon.itf->get_system_bus(daemon.closure);
 }
 
 

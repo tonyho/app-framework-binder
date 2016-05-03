@@ -1,6 +1,6 @@
-/*
- * Copyright 2016 IoT.bzh
- * Author: José Bollo <jose.bollo@iot.bzh>
+/* 
+ * Copyright (C) 2015 "IoT.bzh"
+ * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,10 @@
 
 #pragma once
 
-struct upoll;
+struct sd_event;
+struct sd_bus;
 
-extern int upoll_is_valid(struct upoll *upoll);
-
-extern struct upoll *upoll_open(int fd, void *closure);
-
-extern int upoll_on_readable(struct upoll *upoll, void (*process)(void *closure));
-extern int upoll_on_writable(struct upoll *upoll, void (*process)(void *closure));
-
-extern void upoll_on_hangup(struct upoll *upoll, void (*process)(void *closure));
-
-extern void upoll_close(struct upoll *upoll);
-
-extern int upoll_wait(int timeout);
-
-
+extern struct sd_event *afb_common_get_event_loop();
+extern struct sd_bus *afb_common_get_user_bus();
+extern struct sd_bus *afb_common_get_system_bus();
 

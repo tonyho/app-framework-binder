@@ -24,10 +24,12 @@
 #include <sys/uio.h>
 #include <string.h>
 
+#include <systemd/sd-event.h>
+
 #include "websock.h"
 #include "afb-ws.h"
 
-#include "utils-upoll.h"
+#include "afb-common.h"
 
 /*
  * declaration of the websock interface for afb-ws
@@ -85,7 +87,7 @@ struct afb_ws
 	const struct afb_ws_itf *itf; /* the callback interface */
 	void *closure;		/* closure when calling the callbacks */
 	struct websock *ws;	/* the websock handler */
-	struct upoll *up;	/* the upoll handler for the socket */
+	sd_event_source *evsrc;	/* the event source for the socket */
 	struct buf buffer;	/* the last read fragment */
 };
 
@@ -109,14 +111,23 @@ static void aws_disconnect(struct afb_ws *ws, int call_on_hangup)
 	struct websock *wsi = ws->ws;
 	if (wsi != NULL) {
 		ws->ws = NULL;
-		upoll_close(ws->up);
-		ws->up = NULL;
+		sd_event_source_unref(ws->evsrc);
+		ws->evsrc = NULL;
 		websock_destroy(wsi);
 		free(aws_pick_buffer(ws).buffer);
 		ws->state = waiting;
 		if (call_on_hangup && ws->itf->on_hangup)
 			ws->itf->on_hangup(ws->closure);
 	}
+}
+
+static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, void *ws)
+{
+	if ((revents & EPOLLIN) != 0)
+		aws_on_readable(ws);
+	if ((revents & EPOLLHUP) != 0)
+		afb_ws_hangup(ws);
+	return 0;
 }
 
 /*
@@ -128,6 +139,7 @@ static void aws_disconnect(struct afb_ws *ws, int call_on_hangup)
  */
 struct afb_ws *afb_ws_create(int fd, const struct afb_ws_itf *itf, void *closure)
 {
+	int rc;
 	struct afb_ws *result;
 
 	assert(fd >= 0);
@@ -150,15 +162,12 @@ struct afb_ws *afb_ws_create(int fd, const struct afb_ws_itf *itf, void *closure
 	if (result->ws == NULL)
 		goto error2;
 
-	/* creates the upoll */
-	result->up = upoll_open(result->fd, result);
-	if (result->up == NULL)
+	/* creates the evsrc */
+	rc = sd_event_add_io(afb_common_get_event_loop(), &result->evsrc, result->fd, EPOLLIN, io_event_callback, result);
+	if (rc < 0) {
+		errno = -rc;
 		goto error3;
-
-	/* init the upoll */
-	upoll_on_readable(result->up, (void*)aws_on_readable);
-	upoll_on_hangup(result->up, (void*)afb_ws_hangup);
-
+	}
 	return result;
 
 error3:

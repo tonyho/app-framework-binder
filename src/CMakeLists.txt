@@ -12,9 +12,9 @@ ADD_LIBRARY(src OBJECT
 	afb-ws.c
 	afb-ws-json.c
 	afb-msg-json.c
+	afb-common.c
 	websock.c
 	verbose.c
-	utils-upoll.c
 )
 
 INCLUDE_DIRECTORIES(${include_dirs})

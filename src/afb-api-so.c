@@ -33,14 +33,13 @@
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
-#include "afb-pollmgr-itf.h"
 #include "afb-evmgr-itf.h"
 
 #include "session.h"
+#include "afb-common.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "verbose.h"
-#include "utils-upoll.h"
 
 extern __thread sigjmp_buf *error_handler;
 
@@ -54,15 +53,6 @@ struct api_so_desc {
 static int api_timeout = 15;
 
 static const char plugin_register_function[] = "pluginRegister";
-
-static const struct afb_pollmgr_itf pollmgr_itf = {
-	.wait = (void*)upoll_wait,
-	.open = (void*)upoll_open,
-	.on_readable = (void*)upoll_on_readable,
-	.on_writable = (void*)upoll_on_writable,
-	.on_hangup = (void*)upoll_on_hangup,
-	.close = (void*)upoll_close
-};
 
 static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
@@ -87,15 +77,13 @@ static struct afb_evmgr afb_api_so_get_evmgr(struct api_so_desc *desc)
 	return (struct afb_evmgr){ .itf = &evmgr_itf, .closure = desc };
 }
 
-static struct afb_pollmgr afb_api_so_get_pollmgr(struct api_so_desc *desc)
-{
-	return (struct afb_pollmgr){ .itf = &pollmgr_itf, .closure = NULL };
-}
-
 static const struct afb_daemon_itf daemon_itf = {
 	.get_evmgr = (void*)afb_api_so_get_evmgr,
-	.get_pollmgr = (void*)afb_api_so_get_pollmgr
+	.get_event_loop = (void*)afb_common_get_event_loop,
+	.get_user_bus = (void*)afb_common_get_user_bus,
+	.get_system_bus = (void*)afb_common_get_system_bus
 };
+
 
 static void trapping_call(struct afb_req req, void(*cb)(struct afb_req))
 {
