@@ -23,7 +23,6 @@
 
 #include "afb-plugin.h"
 
-#include "utils-sbus.h"
 #include "utils-jbus.h"
 
 static const char _added_[]     = "added";
@@ -331,39 +330,23 @@ static const struct AFB_plugin plug_desc = {
 	.apis = plug_apis
 };
 
-static struct sbus_itf sbusitf;
-
 const struct AFB_plugin *pluginRegister(const struct AFB_interface *itf)
 {
 	int rc;
-	struct afb_pollmgr pollmgr;
-	struct sbus *sbus;
+	struct sd_bus *sbus;
 
 	/* records the interface */
 	assert (interface == NULL);
 	interface = itf;
 	evmgr = afb_daemon_get_evmgr(itf->daemon);
 
-	/* creates the sbus for session */
-	pollmgr = afb_daemon_get_pollmgr(itf->daemon);
-	sbusitf.wait = pollmgr.itf->wait;
-	sbusitf.open = pollmgr.itf->open;
-	sbusitf.on_readable = pollmgr.itf->on_readable;
-	sbusitf.on_writable = pollmgr.itf->on_writable;
-	sbusitf.on_hangup = pollmgr.itf->on_hangup;
-	sbusitf.close = pollmgr.itf->close;
-	sbus = sbus_session(&sbusitf, pollmgr.closure);
-	if (sbus == NULL) {
-		fprintf(stderr, "ERROR: %s:%d: can't connect to DBUS session\n", __FILE__, __LINE__);
-		return NULL;
-	}
-
 	/* creates the jbus for accessing afm-user-daemon */
-	jbus = create_jbus(sbus, "/org/AGL/afm/user");
-        if (jbus == NULL) {
-		sbus_unref(sbus);
+	sbus = afb_daemon_get_user_bus(itf->daemon);
+	if (sbus == NULL)
 		return NULL;
-	}
+	jbus = create_jbus(sbus, "/org/AGL/afm/user");
+        if (jbus == NULL)
+		return NULL;
 
 	/* records the signal handler */
 	rc = jbus_on_signal_s(jbus, _changed_, application_list_changed, NULL);

@@ -18,10 +18,12 @@
 
 #pragma once
 
-struct sbusmsg;
+struct sd_bus;
+
+struct sd_bus_message;
 struct jbus;
 
-extern struct jbus *create_jbus(struct sbus *sbus, const char *path);
+extern struct jbus *create_jbus(struct sd_bus *sdbus, const char *path);
 
 extern void jbus_addref(struct jbus *jbus);
 extern void jbus_unref(struct jbus *jbus);
@@ -89,31 +91,31 @@ extern int jbus_on_signal_j(
 
 /* verbs for servers */
 extern int jbus_reply_s(
-		struct sbusmsg *smsg,
+		struct sd_bus_message *smsg,
 		const char *reply);
 
 extern int jbus_reply_j(
-		struct sbusmsg *smsg,
+		struct sd_bus_message *smsg,
 		struct json_object *reply);
 
 extern int jbus_reply_error_s(
-		struct sbusmsg *smsg,
+		struct sd_bus_message *smsg,
 		const char *reply);
 
 extern int jbus_reply_error_j(
-		struct sbusmsg *smsg,
+		struct sd_bus_message *smsg,
 		struct json_object *reply);
 
 extern int jbus_add_service_s(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall) (struct sbusmsg *, const char *, void *),
+		void (*oncall) (struct sd_bus_message *, const char *, void *),
 		void *data);
 
 extern int jbus_add_service_j(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall) (struct sbusmsg *, struct json_object *, void *),
+		void (*oncall) (struct sd_bus_message *, struct json_object *, void *),
 		void *data);
 
 extern int jbus_start_serving(

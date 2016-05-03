@@ -25,8 +25,8 @@
 #include <assert.h>
 
 #include <json.h>
+#include <systemd/sd-bus.h>
 
-#include "utils-sbus.h"
 #include "utils-jbus.h"
 
 /*
@@ -45,9 +45,9 @@ static const char out_of_memory_string[] = "out of memory";
 struct jservice {
 	struct jservice *next;	/* link to the next service */
 	char *method;		/* method name for the service */
-	void (*oncall_s) (struct sbusmsg *, const char *, void *);
+	void (*oncall_s) (struct sd_bus_message *, const char *, void *);
 				/* string callback */
-	void (*oncall_j) (struct sbusmsg *, struct json_object *, void *);
+	void (*oncall_j) (struct sd_bus_message *, struct json_object *, void *);
 				/* json callback */
 	void *data;		/* closure data for the callbacks */
 };
@@ -70,7 +70,9 @@ struct jsignal {
  */
 struct jrespw {
 	struct jbus *jbus;
-	void (*onresp) (int, struct json_object *, void *);
+	void (*onresp_s) (int, const char *, void *);
+				/* string callback */
+	void (*onresp_j) (int, struct json_object *, void *);
 				/* json callback */
 	void *data;		/* closure data for the callbacks */
 };
@@ -80,9 +82,9 @@ struct jrespw {
  */
 struct jbus {
 	int refcount;			/* referenced how many time */
-	struct sbus *sbus;
-	struct sbus_service *sservice;
-	struct sbus_signal *ssignal;
+	struct sd_bus *sdbus;
+	struct sd_bus_slot *sservice;
+	struct sd_bus_slot *ssignal;
 	struct json_tokener *tokener;	/* string to json tokenizer */
 	struct jservice *services;	/* first service */
 	struct jsignal *signals;	/* first signal */
@@ -92,13 +94,21 @@ struct jbus {
 
 /*********************** STATIC COMMON METHODS *****************/
 
+static int mkerrno(int rc)
+{
+	if (rc >= 0)
+		return rc;
+	errno = -rc;
+	return -1;
+}
+
 /*
  * Replies the error "out of memory".
  * This function is intended to be used in services when an
  * allocation fails. Thus, it set errno to ENOMEM and
  * returns -1.
  */
-static inline int reply_out_of_memory(struct sbusmsg *smsg)
+static inline int reply_out_of_memory(struct sd_bus_message *smsg)
 {
 	jbus_reply_error_s(smsg, out_of_memory_string);
 	errno = ENOMEM;
@@ -124,13 +134,21 @@ static int jparse(struct jbus *jbus, const char *msg, struct json_object **obj)
 	return 0;
 }
 
-static void on_service_call(struct sbusmsg *smsg, const char *content, struct jbus *jbus)
+static int on_service_call(struct sd_bus_message *smsg, struct jbus *jbus, sd_bus_error *error)
 {
 	struct jservice *service;
-	const char *member;
+	const char *member, *content;
 	struct json_object *obj;
 
-	member = sbus_member(smsg);
+	/* check the type */
+	if (!sd_bus_message_has_signature(smsg, "s")
+	  || sd_bus_message_read_basic(smsg, 's', &content) < 0) {
+		sd_bus_error_set_const(error, "bad signature", "");
+		return 1;
+	}
+
+	/* dispatch */
+	member = sd_bus_message_get_member(smsg);
 	service = jbus->services;
 	while (service != NULL) {
 		if (!strcmp(service->method, member)) {
@@ -142,9 +160,11 @@ static void on_service_call(struct sbusmsg *smsg, const char *content, struct jb
 				service->oncall_j(smsg, obj, service->data);
 				json_object_put(obj);
 			}
+			return 1;
 		}
 		service = service->next;
 	}
+	return 0;
 }
 
 /*
@@ -158,19 +178,20 @@ static void on_service_call(struct sbusmsg *smsg, const char *content, struct jb
 static int add_service(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall_s) (struct sbusmsg *, const char *, void *),
-		void (*oncall_j) (struct sbusmsg *, struct json_object *, void *),
+		void (*oncall_s) (struct sd_bus_message *, const char *, void *),
+		void (*oncall_j) (struct sd_bus_message *, struct json_object *, void *),
 		void *data)
 {
+	int rc;
 	struct jservice *srv;
 
 	/* connection of the service */
 	if (jbus->sservice == NULL) {
-		jbus->sservice = sbus_add_service(jbus->sbus,
-				NULL, jbus->path, jbus->name, NULL,
-				(void*)on_service_call, jbus);
-		if (jbus->sservice == NULL)
+		rc = sd_bus_add_object(jbus->sdbus, &jbus->sservice, jbus->path, (void*)on_service_call, jbus);
+		if (rc < 0) {
+			errno = -rc;
 			goto error;
+		}
 	}
 
 	/* allocation */
@@ -197,17 +218,22 @@ static int add_service(
  error2:
 	free(srv);
  error:
-	errno = ENOMEM;
 	return -1;
 }
 
-static void on_signal_event(const struct sbusmsg *smsg, const char *content, struct jbus *jbus)
+static int on_signal_event(struct sd_bus_message *smsg, struct jbus *jbus, sd_bus_error *error)
 {
 	struct jsignal *signal;
-	const char *member;
+	const char *member, *content;
 	struct json_object *obj;
 
-	member = sbus_member(smsg);
+	/* check the type */
+	if (!sd_bus_message_has_signature(smsg, "s")
+	  || sd_bus_message_read_basic(smsg, 's', &content) < 0)
+		return 0;
+
+	/* dispatch */
+	member = sd_bus_message_get_member(smsg);
 	signal = jbus->signals;
 	while (signal != NULL) {
 		if (!strcmp(signal->name, member)) {
@@ -222,6 +248,7 @@ static void on_signal_event(const struct sbusmsg *smsg, const char *content, str
 		}
 		signal = signal->next;
 	}
+	return 0;
 }
 
 /*
@@ -241,24 +268,36 @@ static int add_signal(
 		void (*onsignal_j) (struct json_object *, void *),
 		void *data)
 {
+	int rc;
 	struct jsignal *sig;
+	char *match;
 
 	/* connection of the signal */
 	if (jbus->ssignal == NULL) {
-		jbus->ssignal = sbus_add_signal(jbus->sbus,
-				NULL, jbus->path, jbus->name, NULL,
-				(void*)on_signal_event, jbus);
-		if (jbus->ssignal == NULL)
+		rc = asprintf(&match, "type='signal',path='%s',interface='%s'", jbus->path, jbus->name);
+		if (rc < 0) {
+			errno = ENOMEM;
 			goto error;
+		}
+		rc = sd_bus_add_match(jbus->sdbus, &jbus->ssignal, match, (void*)on_signal_event, jbus);
+		free(match);
+		if (rc < 0) {
+			errno = -rc;
+			goto error;
+		}
 	}
 
 	/* allocation */
 	sig = malloc(sizeof *sig);
-	if (sig == NULL)
+	if (sig == NULL) {
+		errno = ENOMEM;
 		goto error;
+	}
 	sig->name = strdup(name);
-	if (!sig->name)
+	if (!sig->name) {
+		errno = ENOMEM;
 		goto error2;
+	}
 
 	/* record the signal */
 	sig->onsignal_s = onsignal_s;
@@ -272,19 +311,38 @@ static int add_signal(
  error2:
 	free(sig);
  error:
-	errno = ENOMEM;
 	return -1;
 }
 
-static void on_reply_j(int status, const char *reply, struct jrespw *jrespw)
+static int on_reply(struct sd_bus_message *smsg, struct jrespw *jrespw, sd_bus_error *error)
 {
 	struct json_object *obj;
+	const char *reply;
+	int iserror;
 
+	/* check the type */
+	if (!sd_bus_message_has_signature(smsg, "s")
+	  || sd_bus_message_read_basic(smsg, 's', &reply) < 0) {
+		sd_bus_error_set_const(error, "bad signature", "");
+		goto end;
+	}
+	iserror = sd_bus_message_is_method_error(smsg, NULL);
+
+	/* dispatch string? */
+	if (jrespw->onresp_s != NULL) {
+		jrespw->onresp_s(iserror, reply, jrespw->data);
+		goto end;
+	}
+
+	/* dispatch json */
 	if (!jparse(jrespw->jbus, reply, &obj))
 		obj = json_object_new_string(reply);
-	jrespw->onresp(status, obj, jrespw->data);
+	jrespw->onresp_j(iserror, obj, jrespw->data);
 	json_object_put(obj);
+
+ end:
 	free(jrespw);
+	return 1;
 }
 
 /*
@@ -304,31 +362,33 @@ static int call(
 		void (*onresp_j) (int, struct json_object *, void *),
 		void *data)
 {
+	int rc;
 	struct jrespw *resp;
-
-	if (onresp_j == NULL)
-		return sbus_call(jbus->sbus, jbus->name, jbus->path, jbus->name,
-				method, query, onresp_s, data);
 
 	/* allocates the response structure */
 	resp = malloc(sizeof *resp);
-	if (resp == NULL)
+	if (resp == NULL) {
+		errno = ENOMEM;
 		goto error;
+	}
 
 	/* fulfill the response structure */
 	resp->jbus = jbus;
-	resp->onresp = onresp_j;
+	resp->onresp_s = onresp_s;
+	resp->onresp_j = onresp_j;
 	resp->data = data;
-	if (sbus_call(jbus->sbus, jbus->name, jbus->path, jbus->name,
-				method, query, (void*)on_reply_j, resp))
+
+	rc = sd_bus_call_method_async(jbus->sdbus, NULL, jbus->name, jbus->path, jbus->name, method, (void*)on_reply, resp, "s", query);
+	if (rc < 0) {
+		errno = -rc;
 		goto error2;
+	}
 
 	return 0;
 
  error2:
 	free(resp);
  error:
-	errno = ENOMEM;
 	return -1;
 }
 
@@ -351,7 +411,7 @@ static int call(
  *
  * Returns the created jbus or NULL in case of error.
  */
-struct jbus *create_jbus(struct sbus *sbus, const char *path)
+struct jbus *create_jbus(struct sd_bus *sdbus, const char *path)
 {
 	struct jbus *jbus;
 	char *name;
@@ -400,7 +460,7 @@ struct jbus *create_jbus(struct sbus *sbus, const char *path)
 	}
 
 	/* connect and init */
-	jbus->sbus = sbus;
+	jbus->sdbus = sd_bus_ref(sdbus);
 
 	return jbus;
 
@@ -438,12 +498,12 @@ void jbus_unref(struct jbus *jbus)
 			free(sig);
 		}
 		if (jbus->sservice != NULL)
-			sbus_remove_service(jbus->sbus, jbus->sservice);
+			sd_bus_slot_unref(jbus->sservice);
 		if (jbus->ssignal != NULL)
-			sbus_remove_signal(jbus->sbus, jbus->ssignal);
+			sd_bus_slot_unref(jbus->ssignal);
 		if (jbus->tokener != NULL)
 			json_tokener_free(jbus->tokener);
-		sbus_unref(jbus->sbus);
+		sd_bus_unref(jbus->sdbus);
 		free(jbus->name);
 		free(jbus->path);
 		free(jbus);
@@ -456,9 +516,9 @@ void jbus_unref(struct jbus *jbus)
  *
  * Returns 0 in case of success or -1 in case of error.
  */
-int jbus_reply_error_s(struct sbusmsg *smsg, const char *error)
+int jbus_reply_error_s(struct sd_bus_message *smsg, const char *error)
 {
-	return sbus_reply_error(smsg, error);
+	return mkerrno(sd_bus_reply_method_errorf(smsg, "error", "%s", error));
 }
 
 /*
@@ -467,7 +527,7 @@ int jbus_reply_error_s(struct sbusmsg *smsg, const char *error)
  *
  * Returns 0 in case of success or -1 in case of error.
  */
-int jbus_reply_error_j(struct sbusmsg *smsg, struct json_object *reply)
+int jbus_reply_error_j(struct sd_bus_message *smsg, struct json_object *reply)
 {
 	const char *str = json_object_to_json_string(reply);
 	return str ? jbus_reply_error_s(smsg, str) : reply_out_of_memory(smsg);
@@ -479,9 +539,9 @@ int jbus_reply_error_j(struct sbusmsg *smsg, struct json_object *reply)
  *
  * Returns 0 in case of success or -1 in case of error.
  */
-int jbus_reply_s(struct sbusmsg *smsg, const char *reply)
+int jbus_reply_s(struct sd_bus_message *smsg, const char *reply)
 {
-	return sbus_reply(smsg, reply);
+	return mkerrno(sd_bus_reply_method_return(smsg, "s", reply));
 }
 
 /*
@@ -490,7 +550,7 @@ int jbus_reply_s(struct sbusmsg *smsg, const char *reply)
  *
  * Returns 0 in case of success or -1 in case of error.
  */
-int jbus_reply_j(struct sbusmsg *smsg, struct json_object *reply)
+int jbus_reply_j(struct sd_bus_message *smsg, struct json_object *reply)
 {
 	const char *str = json_object_to_json_string(reply);
 	return str ? jbus_reply_s(smsg, str) : reply_out_of_memory(smsg);
@@ -503,7 +563,7 @@ int jbus_reply_j(struct sbusmsg *smsg, struct json_object *reply)
  */
 int jbus_send_signal_s(struct jbus *jbus, const char *name, const char *content)
 {
-	return sbus_send_signal(jbus->sbus, jbus->name, jbus->path, jbus->name, name, content);
+	return mkerrno(sd_bus_emit_signal(jbus->sdbus, jbus->path, jbus->name, name, "s", content));
 }
 
 /*
@@ -528,7 +588,7 @@ int jbus_send_signal_j(struct jbus *jbus, const char *name,
  *
  * The callback 'oncall' is invoked for handling incoming method
  * calls. It receives 3 parameters:
- *   1. struct sbusmsg *: a handler to data to be used for replying
+ *   1. struct sd_bus_message *: a handler to data to be used for replying
  *   2. const char *: the received string
  *   3. void *: the closure 'data' set by this function
  *
@@ -537,7 +597,7 @@ int jbus_send_signal_j(struct jbus *jbus, const char *name,
 int jbus_add_service_s(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall) (struct sbusmsg *, const char *, void *),
+		void (*oncall) (struct sd_bus_message *, const char *, void *),
 		void *data)
 {
 	return add_service(jbus, method, oncall, NULL, data);
@@ -549,7 +609,7 @@ int jbus_add_service_s(
  *
  * The callback 'oncall' is invoked for handling incoming method
  * calls. It receives 3 parameters:
- *   1. struct sbusmsg *: a handler to data to be used for replying
+ *   1. struct sd_bus_message *: a handler to data to be used for replying
  *   2. struct json_object *: the received json
  *   3. void *: the closure 'data' set by this function
  *
@@ -558,7 +618,7 @@ int jbus_add_service_s(
 int jbus_add_service_j(
 		struct jbus *jbus,
 		const char *method,
-		void (*oncall) (struct sbusmsg *, struct json_object *, void *),
+		void (*oncall) (struct sd_bus_message *, struct json_object *, void *),
 		void *data)
 {
 	return add_service(jbus, method, NULL, oncall, data);
@@ -575,7 +635,7 @@ int jbus_add_service_j(
  */
 int jbus_start_serving(struct jbus *jbus)
 {
-	return sbus_add_name(jbus->sbus, jbus->name);
+	return mkerrno(sd_bus_request_name(jbus->sdbus, jbus->name, 0));
 }
 
 /*
@@ -683,8 +743,31 @@ char *jbus_call_ss_sync(
 		const char *method,
 		const char *query)
 {
-	return sbus_call_sync(jbus->sbus, jbus->name, jbus->path, jbus->name,
-			method, query);
+	sd_bus_message *smsg = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+	char *result = NULL;
+	const char *reply;
+
+	/* makes the call */
+	if (mkerrno(sd_bus_call_method(jbus->sdbus, jbus->name, jbus->path, jbus->name, method, &error, &smsg, "s", query)) < 0)
+		goto error;
+
+	/* check if error */
+	if (sd_bus_message_is_method_error(smsg, NULL))
+		goto error;
+
+	/* check the returned type */
+	if (!sd_bus_message_has_signature(smsg, "s")
+	  || sd_bus_message_read_basic(smsg, 's', &reply) < 0)
+		goto error;
+
+	/* get the result */
+	result = strdup(reply);
+
+error:
+	sd_bus_message_unref(smsg);
+	sd_bus_error_free(&error);
+	return result;
 }
 
 /*
@@ -788,33 +871,37 @@ int jbus_on_signal_j(
 #if defined(SERVER)||defined(CLIENT)
 #include <stdio.h>
 #include <unistd.h>
-#include "utils-upoll.h"
+
+static struct sd_bus *msbus()
+{
+	static struct sd_bus *r = NULL;
+	if (r == NULL) {
+		static sd_event *e;
+		sd_event_default(&e);
+		sd_bus_open_user(&r);
+		sd_bus_attach_event(r, e, 0);
+	}
+	return r;
+}
+
+static sd_event *events()
+{
+	static sd_event *ev = NULL;
+	if (ev == NULL)
+		ev = sd_bus_get_event(msbus());
+	return ev;
+}
 
 static int mwait(int timeout, void *closure)
 {
-	upoll_wait(-1);
+	sd_event_run(events(), -1);
 	return 0;
 }
 
-static const struct sbus_itf uitf = {
-	.wait = (void*)mwait,
-	.open = (void*)upoll_open,
-	.on_readable = (void*)upoll_on_readable,
-	.on_writable = (void*)upoll_on_writable,
-	.on_hangup = (void*)upoll_on_hangup,
-	.close = (void*)upoll_close
-};
-
-static struct sbus *sbus;
 static struct jbus *jbus;
 
-static struct sbus *msbus()
-{
-	return sbus ? : (sbus = sbus_session(&uitf, NULL));
-}
-
 #ifdef SERVER
-void ping(struct sbusmsg *smsg, struct json_object *request, void *unused)
+void ping(struct sd_bus_message *smsg, struct json_object *request, void *unused)
 {
 	printf("ping(%s) -> %s\n", json_object_to_json_string(request),
 	       json_object_to_json_string(request));
@@ -822,7 +909,7 @@ void ping(struct sbusmsg *smsg, struct json_object *request, void *unused)
 	json_object_put(request);
 }
 
-void incr(struct sbusmsg *smsg, struct json_object *request, void *unused)
+void incr(struct sd_bus_message *smsg, struct json_object *request, void *unused)
 {
 	static int counter = 0;
 	struct json_object *res = json_object_new_int(++counter);
@@ -862,7 +949,7 @@ void signaled(const char *content, void *data)
 
 int main()
 {
-	int i = 10;
+	int i = 1;
 	jbus = create_jbus(msbus(), "/bzh/iot/jdbus");
 	jbus_on_signal_s(jbus, "incremented", signaled, "closure-signal");
 	while (i--) {
