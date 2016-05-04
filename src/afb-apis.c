@@ -83,6 +83,11 @@ error:
 	return -1;
 }
 
+void afb_apis_call_(struct afb_req req, struct AFB_clientCtx *context, const char *api, const char *verb)
+{
+	afb_apis_call(req, context, api, strlen(api), verb, strlen(verb));
+}
+
 void afb_apis_call(struct afb_req req, struct AFB_clientCtx *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
 	int i;
