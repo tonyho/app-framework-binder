@@ -18,24 +18,10 @@
 
 #pragma once
 
-#if !defined(NDEBUG)
-#include <syslog.h>
+#include <systemd/sd-journal.h>
 extern int verbosity;
-#define LOGUSER(app) openlog(app,LOG_PERROR,LOG_USER)
-#define LOGAUTH(app) openlog(app,LOG_PERROR,LOG_AUTH)
-#define ERROR(...)   syslog(LOG_ERR,__VA_ARGS__)
-#define WARNING(...) do{if(verbosity)syslog(LOG_WARNING,__VA_ARGS__);}while(0)
-#define NOTICE(...)  do{if(verbosity)syslog(LOG_NOTICE,__VA_ARGS__);}while(0)
-#define INFO(...)    do{if(verbosity>1)syslog(LOG_INFO,__VA_ARGS__);}while(0)
-#define DEBUG(...)   do{if(verbosity>2)syslog(LOG_DEBUG,__VA_ARGS__);}while(0)
-#else
-#include <syslog.h>
-#define LOGUSER(app) openlog(app,LOG_PERROR,LOG_USER)
-#define LOGAUTH(app) openlog(app,LOG_PERROR,LOG_AUTH)
-extern void verbose_error(const char *file, int line);
-#define ERROR(...)   verbose_error(__FILE__,__LINE__)
-#define WARNING(...) do{/*nothing*/}while(0)
-#define NOTICE(...)  do{/*nothing*/}while(0)
-#define INFO(...)    do{/*nothing*/}while(0)
-#define DEBUG(...)   do{/*nothing*/}while(0)
-#endif
+#define ERROR(...)   do{if(verbosity>=0)sd_journal_print(LOG_ERR,__VA_ARGS__);}while(0)
+#define WARNING(...) do{if(verbosity>=1)sd_journal_print(LOG_WARNING,__VA_ARGS__);}while(0)
+#define NOTICE(...)  do{if(verbosity>=0)sd_journal_print(LOG_NOTICE,__VA_ARGS__);}while(0)
+#define INFO(...)    do{if(verbosity>=2)sd_journal_print(LOG_INFO,__VA_ARGS__);}while(0)
+#define DEBUG(...)   do{if(verbosity>=3)sd_journal_print(LOG_DEBUG,__VA_ARGS__);}while(0)
