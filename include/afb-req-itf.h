@@ -31,7 +31,7 @@ struct afb_req_itf {
 	void (*success)(void *req_closure, struct json_object *obj, const char *info);
 	void (*fail)(void *req_closure, const char *status, const char *info);
 	const char *(*raw)(void *req_closure, size_t *size);
-	void (*send)(void *req_closure, char *buffer, size_t size);
+	void (*send)(void *req_closure, const char *buffer, size_t size);
 	void *(*context_get)(void *ctx_closure);
 	void (*context_set)(void *ctx_closure, void *context, void (*free_context)(void*));
 	int (*session_create)(void *req_closure);
@@ -80,7 +80,7 @@ static inline const char *afb_req_raw(struct afb_req req, size_t *size)
 	return req.itf->raw(req.req_closure, size);
 }
 
-static inline void afb_req_send(struct afb_req req, char *buffer, size_t size)
+static inline void afb_req_send(struct afb_req req, const char *buffer, size_t size)
 {
 	req.itf->send(req.req_closure, buffer, size);
 }

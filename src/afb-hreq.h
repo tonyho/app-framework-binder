@@ -73,9 +73,9 @@ extern struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq);
 
 extern int afb_hreq_init_cookie(int port, const char *path, int maxage);
 
-extern void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...);
+extern void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, const char *buffer, ...);
 
-extern void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...);
+extern void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, const char *buffer, ...);
 
 extern void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...);
 

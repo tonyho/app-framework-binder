@@ -142,7 +142,7 @@ static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name);
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info);
 static void wsreq_success(struct afb_wsreq *wsreq, struct json_object *obj, const char *info);
 static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size);
-static void wsreq_send(struct afb_wsreq *wsreq, char *buffer, size_t size);
+static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size);
 static int wsreq_session_create(struct afb_wsreq *wsreq);
 static int wsreq_session_check(struct afb_wsreq *wsreq, int refresh);
 static void wsreq_session_close(struct afb_wsreq *wsreq);
@@ -427,7 +427,7 @@ static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size)
 	return wsreq->obj;
 }
 
-static void wsreq_send(struct afb_wsreq *wsreq, char *buffer, size_t size)
+static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size)
 {
 	afb_ws_text(wsreq->aws->ws, buffer, size);
 }

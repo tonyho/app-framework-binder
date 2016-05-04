@@ -68,7 +68,7 @@ static struct afb_arg req_get(struct afb_hreq *hreq, const char *name);
 static void req_fail(struct afb_hreq *hreq, const char *status, const char *info);
 static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
 static const char *req_raw(struct afb_hreq *hreq, size_t *size);
-static void req_send(struct afb_hreq *hreq, char *buffer, size_t size);
+static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size);
 static int req_session_create(struct afb_hreq *hreq);
 static int req_session_check(struct afb_hreq *hreq, int refresh);
 static void req_session_close(struct afb_hreq *hreq);
@@ -194,19 +194,19 @@ void afb_hreq_reply_empty(struct afb_hreq *hreq, unsigned status, ...)
 	va_end(args);
 }
 
-void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...)
+void afb_hreq_reply_static(struct afb_hreq *hreq, unsigned status, size_t size, const char *buffer, ...)
 {
 	va_list args;
 	va_start(args, buffer);
-	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_PERSISTENT), args);
+	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, (char*)buffer, MHD_RESPMEM_PERSISTENT), args);
 	va_end(args);
 }
 
-void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, char *buffer, ...)
+void afb_hreq_reply_copy(struct afb_hreq *hreq, unsigned status, size_t size, const char *buffer, ...)
 {
 	va_list args;
 	va_start(args, buffer);
-	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, buffer, MHD_RESPMEM_MUST_COPY), args);
+	afb_hreq_reply_v(hreq, status, MHD_create_response_from_buffer((unsigned)size, (char*)buffer, MHD_RESPMEM_MUST_COPY), args);
 	va_end(args);
 }
 
@@ -661,7 +661,7 @@ static const char *req_raw(struct afb_hreq *hreq, size_t *size)
 	return result;
 }
 
-static void req_send(struct afb_hreq *hreq, char *buffer, size_t size)
+static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size)
 {
 	afb_hreq_reply_free(hreq, MHD_HTTP_OK, size, buffer, NULL);
 }
