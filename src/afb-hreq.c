@@ -663,7 +663,7 @@ static const char *req_raw(struct afb_hreq *hreq, size_t *size)
 
 static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size)
 {
-	afb_hreq_reply_free(hreq, MHD_HTTP_OK, size, buffer, NULL);
+	afb_hreq_reply_copy(hreq, MHD_HTTP_OK, size, buffer, NULL);
 }
 
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
