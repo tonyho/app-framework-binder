@@ -53,7 +53,7 @@ IF(CMAKE_BUILD_TYPE MATCHES Debug)
 ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
 INCLUDE(FindPkgConfig)
-PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd)
+PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
 PKG_CHECK_MODULES(json-c REQUIRED json-c)
 PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.48)
 PKG_CHECK_MODULES(openssl REQUIRED openssl)
