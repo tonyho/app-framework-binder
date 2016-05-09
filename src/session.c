@@ -292,18 +292,18 @@ void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 	clientCtx->expiration = NOW + sessions.timeout;
 }
 
-struct afb_event_sender_list
+struct afb_event_listener_list
 {
-	struct afb_event_sender_list *next;
-	struct afb_event_sender sender;
+	struct afb_event_listener_list *next;
+	struct afb_event_listener listener;
 	int refcount;
 };
 
-int ctxClientEventSenderAdd(struct AFB_clientCtx *clientCtx, struct afb_event_sender sender)
+int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
 {
-	struct afb_event_sender_list *iter, **prv;
+	struct afb_event_listener_list *iter, **prv;
 
-	prv = &clientCtx->senders;
+	prv = &clientCtx->listeners;
 	for (;;) {
 		iter = *prv;
 		if (iter == NULL) {
@@ -312,12 +312,12 @@ int ctxClientEventSenderAdd(struct AFB_clientCtx *clientCtx, struct afb_event_se
 				errno = ENOMEM;
 				return -1;
 			}
-			iter->sender = sender;
+			iter->listener = listener;
 			iter->refcount = 1;
 			*prv = iter;
 			return 0;
 		}
-		if (iter->sender.itf == sender.itf && iter->sender.closure == sender.closure) {
+		if (iter->listener.itf == listener.itf && iter->listener.closure == listener.closure) {
 			iter->refcount++;
 			return 0;
 		}
@@ -325,16 +325,16 @@ int ctxClientEventSenderAdd(struct AFB_clientCtx *clientCtx, struct afb_event_se
 	}
 }
 
-void ctxClientEventSenderRemove(struct AFB_clientCtx *clientCtx, struct afb_event_sender sender)
+void ctxClientEventListenerRemove(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
 {
-	struct afb_event_sender_list *iter, **prv;
+	struct afb_event_listener_list *iter, **prv;
 
-	prv = &clientCtx->senders;
+	prv = &clientCtx->listeners;
 	for (;;) {
 		iter = *prv;
 		if (iter == NULL)
 			return;
-		if (iter->sender.itf == sender.itf && iter->sender.closure == sender.closure) {
+		if (iter->listener.itf == listener.itf && iter->listener.closure == listener.closure) {
 			if (!--iter->refcount) {
 				*prv = iter->next;
 				free(iter);
@@ -347,13 +347,13 @@ void ctxClientEventSenderRemove(struct AFB_clientCtx *clientCtx, struct afb_even
 
 static int send(struct AFB_clientCtx *clientCtx, const char *event, struct json_object *object)
 {
-	struct afb_event_sender_list *iter;
+	struct afb_event_listener_list *iter;
 	int result;
 
 	result = 0;
-	iter = clientCtx->senders;
+	iter = clientCtx->listeners;
 	while (iter != NULL) {
-		iter->sender.itf->send(iter->sender.closure, event, json_object_get(object));
+		iter->listener.itf->send(iter->listener.closure, event, json_object_get(object));
 		result++;
 		iter = iter->next;
 	}

@@ -28,28 +28,28 @@ struct afb_context
 extern void *afb_context_get(struct afb_context *actx);
 extern void afb_context_set(struct afb_context *actx, void *context, void (*free_context)(void*));
 
-struct afb_event_sender_itf
+struct afb_event_listener_itf
 {
 	void (*send)(void *closure, const char *event, struct json_object *object);
 };
 
-struct afb_event_sender
+struct afb_event_listener
 {
-	const struct afb_event_sender_itf *itf;
+	const struct afb_event_listener_itf *itf;
 	void *closure;
 };
 
-struct afb_event_sender_list;
+struct afb_event_listener_list;
 
 struct AFB_clientCtx
 {
-	time_t expiration;    // expiration time of the token
 	int created;
 	unsigned refcount;
+	time_t expiration;    // expiration time of the token
 	struct afb_context *contexts;
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
-	struct afb_event_sender_list *senders;
+	struct afb_event_listener_list *listeners;
 };
 
 extern void ctxStoreInit (int max_session_count, int timeout, const char *initok, int context_count);
@@ -59,8 +59,8 @@ extern struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx);
 extern void ctxClientPut(struct AFB_clientCtx *clientCtx);
 extern void ctxClientClose (struct AFB_clientCtx *clientCtx);
 
-extern int ctxClientEventSenderAdd(struct AFB_clientCtx *clientCtx, struct afb_event_sender sender);
-extern void ctxClientEventSenderRemove(struct AFB_clientCtx *clientCtx, struct afb_event_sender sender);
+extern int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener);
+extern void ctxClientEventListenerRemove(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener);
 extern int ctxClientEventSend(struct AFB_clientCtx *clientCtx, const char *event, struct json_object *object);
 
 extern int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token);

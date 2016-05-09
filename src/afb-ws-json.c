@@ -54,7 +54,7 @@ struct afb_ws_json
 
 static void aws_send_event(struct afb_ws_json *ws, const char *event, struct json_object *object);
 
-static const struct afb_event_sender_itf event_sender_itf = {
+static const struct afb_event_listener_itf event_listener_itf = {
 	.send = (void*)aws_send_event
 };
 
@@ -84,7 +84,7 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, vo
 	if (result->ws == NULL)
 		goto error4;
 
-	if (0 > ctxClientEventSenderAdd(result->context, (struct afb_event_sender){ .itf = &event_sender_itf, .closure = result }))
+	if (0 > ctxClientEventListenerAdd(result->context, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = result }))
 		goto error5;
 
 	return result;
@@ -104,7 +104,7 @@ error:
 
 static void aws_on_hangup(struct afb_ws_json *ws)
 {
-	ctxClientEventSenderRemove(ws->context, (struct afb_event_sender){ .itf = &event_sender_itf, .closure = ws });
+	ctxClientEventListenerRemove(ws->context, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = ws });
 	afb_ws_destroy(ws->ws);
 	json_tokener_free(ws->tokener);
 	if (ws->cleanup != NULL)
@@ -160,7 +160,6 @@ static const struct afb_req_itf wsreq_itf = {
 	.session_close = (void*)wsreq_session_close,
 	.context_get = (void*)afb_context_get,
 	.context_set = (void*)afb_context_set
-
 };
 
 static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)
