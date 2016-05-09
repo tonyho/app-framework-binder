@@ -33,7 +33,7 @@ struct afb_req_itf {
 	const char *(*raw)(void *req_closure, size_t *size);
 	void (*send)(void *req_closure, const char *buffer, size_t size);
 	void *(*context_get)(void *ctx_closure);
-	void (*context_set)(void *ctx_closure, void *context, void (*free_context)(void*));
+	void (*context_set)(void *ctx_closure, void *value, void (*free_value)(void*));
 	int (*session_create)(void *req_closure);
 	int (*session_check)(void *req_closure, int refresh);
 	void (*session_close)(void *req_closure);
@@ -90,9 +90,9 @@ static inline void *afb_req_context_get(struct afb_req req)
 	return req.itf->context_get(req.ctx_closure);
 }
 
-static inline void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*))
+static inline void afb_req_context_set(struct afb_req req, void *value, void (*free_value)(void*))
 {
-	return req.itf->context_set(req.ctx_closure, context, free_context);
+	return req.itf->context_set(req.ctx_closure, value, free_value);
 }
 
 static inline void afb_req_context_clear(struct afb_req req)
