@@ -90,7 +90,7 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, vo
 	return result;
 
 error5:
-	/* TODO */
+	afb_ws_destroy(result->ws);
 error4:
 	json_tokener_free(result->tokener);
 error3:
