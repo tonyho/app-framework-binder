@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <systemd/sd-daemon.h>
-
 extern int verbosity;
 extern void verbose(int level, const char *file, int line, const char *fmt, ...);
 

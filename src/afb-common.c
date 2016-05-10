@@ -69,7 +69,7 @@ static struct sd_bus *sdbusopen(struct sd_bus **p, int (*f)(struct sd_bus **))
 
 struct sd_event *afb_common_get_event_loop()
 {
-	static sd_event *result = NULL;
+	static struct sd_event *result = NULL;
 	return sdopen((void*)&result, (void*)sd_event_new);
 }
 

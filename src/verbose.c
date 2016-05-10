@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+
 #include "verbose.h"
 
 int verbosity = 1;
