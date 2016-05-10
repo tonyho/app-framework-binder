@@ -33,6 +33,13 @@
 
 #define CTX_NBCLIENTS   10   // allow a default of 10 authenticated clients
 
+struct afb_config_item
+{
+	struct afb_config_item *previous;
+	int kind;
+	char *value;
+};
+
 // main config structure
 struct afb_config
 {
@@ -51,6 +58,7 @@ struct afb_config
   int  cntxTimeout;        // Client Session Context timeout
   int mode;           // mode of listening
   int aliascount;
+  struct afb_config_item *items;
   struct {
          char  *url;
          char  *path;

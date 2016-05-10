@@ -38,6 +38,7 @@
 #include "afb-hswitch.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
+#include "afb-api-dbus.h"
 #include "afb-hsrv.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
@@ -78,6 +79,10 @@
 #define SET_MODE           18
 #define SET_READYFD        19
 
+#define DBUS_CLIENT        20
+#define DBUS_SERVICE       21
+#define SO_PLUGIN          22
+
 // Command line structure hold cli --command + help text
 typedef struct {
   int  val;        // command number within application
@@ -114,6 +119,11 @@ static  AFB_options cliOptions [] = {
 
   {SET_MODE         ,1,"mode"            , "set the mode: either local, remote or global"},
   {SET_READYFD      ,1,"readyfd"         , "set the #fd to signal when ready"},
+
+  {DBUS_CLIENT      ,1,"dbus-client"     , "bind to an afb service through dbus"},
+  {DBUS_SERVICE     ,1,"dbus-server"     , "provides an afb service through dbus"},
+  {SO_PLUGIN        ,1,"plugin"          , "load the plugin of path"},
+
   {0, 0, NULL, NULL}
  };
 
@@ -223,6 +233,19 @@ static void config_set_default (struct afb_config * config)
  | main
  |   Parse option and launch action
  +--------------------------------------------------------- */
+
+static void add_item(struct afb_config *config, int kind, char *value)
+{
+	struct afb_config_item *item = malloc(sizeof *item);
+	if (item == NULL) {
+		ERROR("out of memory");
+		exit(1);
+	}
+	item->kind = kind;
+	item->value = value;
+	item->previous = config->items;
+	config->items = item;
+}
 
 static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 {
@@ -352,6 +375,13 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
        if (!sscanf (optarg, "%u", &config->readyfd)) goto notAnInteger;
        break;
 
+    case DBUS_CLIENT:
+    case DBUS_SERVICE:
+    case SO_PLUGIN:
+       if (optarg == 0) goto needValueForOption;
+       add_item(config, optc, optarg);
+       break;
+
     case DISPLAY_VERSION:
        if (optarg != 0) goto noValueForOption;
        printVersion(stdout);
@@ -406,7 +436,6 @@ void signalQuit (int signum)
 	ERROR("Terminating signal received %s", strsignal(signum));
 	exit(1);
 }
-
 
 /*----------------------------------------------------------
  | Error signals
@@ -548,6 +577,38 @@ static struct afb_hsrv *start_http_server(struct afb_config * config)
 	return hsrv;
 }
 
+static void start_items(struct afb_config_item *item)
+{
+  if (item != NULL) {
+    /* keeps the order */
+    start_items(item->previous);
+    switch(item->kind) {
+    case DBUS_CLIENT:
+      if (afb_api_dbus_add_client(item->value) < 0) {
+        ERROR("can't start the afb-dbus client of path %s",item->value);
+	exit(1);
+      }
+      break;
+    case DBUS_SERVICE:
+      if (afb_api_dbus_add_server(item->value) < 0) {
+        ERROR("can't start the afb-dbus service of path %s",item->value);
+	exit(1);
+      }
+      break;
+    case SO_PLUGIN:
+      if (afb_api_so_add_plugin(item->value) < 0) {
+        ERROR("can't start the plugin of path %s",item->value);
+	exit(1);
+      }
+      break;
+    default:
+      ERROR("unexpected internal error");
+      exit(1);
+    }
+    /* frre the item */
+    free(item);
+  }
+}
 
 /*---------------------------------------------------------
  | main
@@ -576,6 +637,9 @@ int main(int argc, char *argv[])  {
 
   if (config->ldpaths) 
     afb_api_so_add_pathset(config->ldpaths);
+
+  start_items(config->items);
+  config->items = NULL;
 
   ctxStoreInit(CTX_NBCLIENTS, config->cntxTimeout, config->token, afb_apis_count());
   if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, DEFLT_CNTX_TIMEOUT)) {
