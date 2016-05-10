@@ -18,7 +18,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
-#include <json.h>
+#include <json-c/json.h>
 
 #include "afb-plugin.h"
 

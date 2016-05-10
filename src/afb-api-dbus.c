@@ -23,7 +23,7 @@
 #include <errno.h>
 
 #include <systemd/sd-bus.h>
-#include <json.h>
+#include <json-c/json.h>
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"

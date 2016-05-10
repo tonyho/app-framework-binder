@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include <json.h>
+#include <json-c/json.h>
 
 #include "afb-ws.h"
 #include "afb-ws-json.h"

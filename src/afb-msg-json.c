@@ -17,7 +17,7 @@
 
 #define _GNU_SOURCE
 
-#include <json.h>
+#include <json-c/json.h>
 
 #include "afb-msg-json.h"
 

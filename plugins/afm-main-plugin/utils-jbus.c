@@ -24,7 +24,7 @@
 #include <poll.h>
 #include <assert.h>
 
-#include <json.h>
+#include <json-c/json.h>
 #include <systemd/sd-bus.h>
 
 #include "utils-jbus.h"

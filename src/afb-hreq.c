@@ -26,7 +26,7 @@
 #include <sys/stat.h>
 
 #include <microhttpd.h>
-#include <json.h>
+#include <json-c/json.h>
 
 #if defined(USE_MAGIC_MIME_TYPE)
 #include <magic.h>

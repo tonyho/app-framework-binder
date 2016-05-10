@@ -25,7 +25,7 @@
 #include <assert.h>
 #include <errno.h>
 
-#include <json.h>
+#include <json-c/json.h>
 
 #include "session.h"
 #include "verbose.h"
