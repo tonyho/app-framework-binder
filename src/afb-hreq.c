@@ -35,6 +35,7 @@
 #include "afb-method.h"
 #include "afb-req-itf.h"
 #include "afb-msg-json.h"
+#include "afb-context.h"
 #include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"
@@ -55,12 +56,15 @@ static char *cookie_name = NULL;
 static char *cookie_setter = NULL;
 static char *tmp_pattern = NULL;
 
+/*
+ * Structure for storing key/values read from POST requests
+ */
 struct hreq_data {
-	struct hreq_data *next;
-	char *key;
-	size_t length;
-	char *value;
-	char *path;
+	struct hreq_data *next;	/* chain to next data */
+	char *key;		/* key name */
+	size_t length;		/* length of the value (used for appending) */
+	char *value;		/* the value (or original filename) */
+	char *path;		/* path of the file saved */
 };
 
 static struct json_object *req_json(struct afb_hreq *hreq);
@@ -69,9 +73,6 @@ static void req_fail(struct afb_hreq *hreq, const char *status, const char *info
 static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
 static const char *req_raw(struct afb_hreq *hreq, size_t *size);
 static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size);
-static int req_session_create(struct afb_hreq *hreq);
-static int req_session_check(struct afb_hreq *hreq, int refresh);
-static void req_session_close(struct afb_hreq *hreq);
 
 static const struct afb_req_itf afb_hreq_itf = {
 	.json = (void*)req_json,
@@ -80,11 +81,10 @@ static const struct afb_req_itf afb_hreq_itf = {
 	.fail = (void*)req_fail,
 	.raw = (void*)req_raw,
 	.send = (void*)req_send,
-	.session_create = (void*)req_session_create,
-	.session_check = (void*)req_session_check,
-	.session_close = (void*)req_session_close,
 	.context_get = (void*)afb_context_get,
-	.context_set = (void*)afb_context_set
+	.context_set = (void*)afb_context_set,
+	.addref = (void*)afb_hreq_addref,
+	.unref = (void*)afb_hreq_unref
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
@@ -162,7 +162,8 @@ static void afb_hreq_reply_v(struct afb_hreq *hreq, unsigned status, struct MHD_
 		MHD_add_response_header(response, k, v);
 		k = va_arg(args, const char *);
 	}
-	if (hreq->context != NULL && asprintf(&cookie, cookie_setter, hreq->context->uuid)) {
+	v = afb_context_sent_uuid(&hreq->context);
+	if (v != NULL && asprintf(&cookie, cookie_setter, v) > 0) {
 		MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, cookie);
 		free(cookie);
 	}
@@ -291,26 +292,33 @@ static const char *mimetype_fd_name(int fd, const char *filename)
 	return result;
 }
 
-void afb_hreq_free(struct afb_hreq *hreq)
+void afb_hreq_addref(struct afb_hreq *hreq)
+{
+	hreq->refcount++;
+}
+
+void afb_hreq_unref(struct afb_hreq *hreq)
 {
 	struct hreq_data *data;
-	if (hreq != NULL) {
-		if (hreq->postform != NULL)
-			MHD_destroy_post_processor(hreq->postform);
-		for (data = hreq->data; data; data = hreq->data) {
-			hreq->data = data->next;
-			if (data->path) {
-				unlink(data->path);
-				free(data->path);
-			}
-			free(data->key);
-			free(data->value);
-			free(data);
+
+	if (hreq == NULL || --hreq->refcount)
+		return;
+
+	if (hreq->postform != NULL)
+		MHD_destroy_post_processor(hreq->postform);
+	for (data = hreq->data; data; data = hreq->data) {
+		hreq->data = data->next;
+		if (data->path) {
+			unlink(data->path);
+			free(data->path);
 		}
-		ctxClientPut(hreq->context);
-		json_object_put(hreq->json);
-		free(hreq);
+		free(data->key);
+		free(data->value);
+		free(data);
 	}
+	afb_context_disconnect(&hreq->context);
+	json_object_put(hreq->json);
+	free(hreq);
 }
 
 /*
@@ -599,7 +607,7 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 
 struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
 {
-	return (struct afb_req){ .itf = &afb_hreq_itf, .req_closure = hreq };
+	return (struct afb_req){ .itf = &afb_hreq_itf, .closure = hreq };
 }
 
 static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
@@ -678,12 +686,9 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 	const char *token, *uuid;
 	struct MHD_Response *response;
 
-	if (hreq->context == NULL) {
-		token = uuid = NULL;
-	} else {
-		token = hreq->context->token;
-		uuid = hreq->context->uuid;
-	}
+	token = afb_context_sent_token(&hreq->context);
+	uuid = afb_context_sent_uuid(&hreq->context);
+
 	reply = afb_msg_json_reply(status, info, resp, token, uuid);
 	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string(reply)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
 	afb_hreq_reply(hreq, retcode, response, NULL);
@@ -699,63 +704,27 @@ static void req_success(struct afb_hreq *hreq, json_object *obj, const char *inf
 	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
 }
 
-struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq)
+int afb_hreq_init_context(struct afb_hreq *hreq)
 {
 	const char *uuid;
-
-	if (hreq->context == NULL) {
-		uuid = afb_hreq_get_header(hreq, uuid_header);
-		if (uuid == NULL)
-			uuid = afb_hreq_get_argument(hreq, uuid_arg);
-		if (uuid == NULL)
-			uuid = afb_hreq_get_cookie(hreq, cookie_name);
-		hreq->context = ctxClientGetForUuid(uuid);
-	}
-	return hreq->context;
-}
-
-static int req_session_create(struct afb_hreq *hreq)
-{
-	struct AFB_clientCtx *context = afb_hreq_context(hreq);
-	if (context == NULL)
-		return 0;
-	if (context->created)
-		return 0;
-	return req_session_check(hreq, 1);
-}
-
-static int req_session_check(struct afb_hreq *hreq, int refresh)
-{
 	const char *token;
 
-	struct AFB_clientCtx *context = afb_hreq_context(hreq);
-
-	if (context == NULL)
+	if (hreq->context.session != NULL)
 		return 0;
+
+	uuid = afb_hreq_get_header(hreq, uuid_header);
+	if (uuid == NULL)
+		uuid = afb_hreq_get_argument(hreq, uuid_arg);
+	if (uuid == NULL)
+		uuid = afb_hreq_get_cookie(hreq, cookie_name);
 
 	token = afb_hreq_get_header(hreq, token_header);
 	if (token == NULL)
 		token = afb_hreq_get_argument(hreq, token_arg);
 	if (token == NULL)
 		token = afb_hreq_get_cookie(hreq, token_cookie);
-	if (token == NULL)
-		return 0;
 
-	if (!ctxTokenCheck (context, token))
-		return 0;
-
-	if (refresh) {
-		ctxTokenNew (context);
-	}
-
-	return 1;
-}
-
-static void req_session_close(struct afb_hreq *hreq)
-{
-	struct AFB_clientCtx *context = afb_hreq_context(hreq);
-	if (context != NULL)
-		ctxClientClose(context);
+	return afb_context_connect(&hreq->context, uuid, token);
 }
 
 int afb_hreq_init_cookie(int port, const char *path, int maxage)

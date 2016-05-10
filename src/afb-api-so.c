@@ -37,6 +37,7 @@
 
 #include "session.h"
 #include "afb-common.h"
+#include "afb-context.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "verbose.h"
@@ -126,32 +127,36 @@ static void trapping_call(struct afb_req req, void(*cb)(struct afb_req))
 	error_handler = older;
 }
 
-static void call_check(struct afb_req req, const struct AFB_restapi *verb)
+static void call_check(struct afb_req req, struct afb_context *context, const struct AFB_restapi *verb)
 {
-	switch(verb->session) {
-	case AFB_SESSION_CREATE:
-		if (!afb_req_session_create(req))
+	int stag = (int)(verb->session & AFB_SESSION_MASK);
+
+	if (stag != AFB_SESSION_NONE) {
+		if (!afb_context_check(context)) {
+			afb_context_close(context);
+			afb_req_fail(req, "failed", "invalid token's identity");
 			return;
-		break;
-	case AFB_SESSION_RENEW:
-		if (!afb_req_session_check(req, 1))
-			return;
-		break;
-	case AFB_SESSION_CLOSE:
-	case AFB_SESSION_CHECK:
-		if (!afb_req_session_check(req, 0))
-			return;
-		break;
-	case AFB_SESSION_NONE:
-	default:
-		break;
+		}	
 	}
+
+	if ((stag & AFB_SESSION_CREATE) != 0) {
+		if (!afb_context_create(context)) {
+			afb_context_close(context);
+			afb_req_fail(req, "failed", "invalid creation state");
+			return;
+		}
+	}
+	
+	if ((stag & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0)
+		afb_context_refresh(context);
+
+	if ((stag & AFB_SESSION_CLOSE) != 0)
+		afb_context_close(context);
+
 	trapping_call(req, verb->callback);
-	if (verb->session == AFB_SESSION_CLOSE)
-		afb_req_session_close(req);
 }
 
-static void call(struct api_so_desc *desc, struct afb_req req, const char *verb, size_t lenverb)
+static void call(struct api_so_desc *desc, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
 {
 	const struct AFB_restapi *v;
 
@@ -159,7 +164,7 @@ static void call(struct api_so_desc *desc, struct afb_req req, const char *verb,
 	while (v->name && (strncasecmp(v->name, verb, lenverb) || v->name[lenverb]))
 		v++;
 	if (v->name)
-		call_check(req, v);
+		call_check(req, context, v);
 	else
 		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->plugin->prefix);
 }

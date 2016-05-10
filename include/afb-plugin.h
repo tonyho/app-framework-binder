@@ -31,11 +31,12 @@ enum  AFB_pluginE
 /* Enum for Session/Token/Authentication middleware */
 enum AFB_sessionE
 {
-	AFB_SESSION_NONE,
-	AFB_SESSION_CREATE,
-	AFB_SESSION_CLOSE,
-	AFB_SESSION_RENEW,
-	AFB_SESSION_CHECK
+	AFB_SESSION_NONE = 0,
+	AFB_SESSION_CREATE = 1,
+	AFB_SESSION_CLOSE = 2,
+	AFB_SESSION_RENEW = 4,
+	AFB_SESSION_CHECK = 8,
+	AFB_SESSION_MASK = 15
 };
 
 /* API definition */

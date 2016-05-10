@@ -25,6 +25,7 @@
 #include "session.h"
 #include "verbose.h"
 #include "afb-apis.h"
+#include "afb-context.h"
 #include "afb-req-itf.h"
 
 struct api_desc {
@@ -83,12 +84,12 @@ error:
 	return -1;
 }
 
-void afb_apis_call_(struct afb_req req, struct AFB_clientCtx *context, const char *api, const char *verb)
+void afb_apis_call_(struct afb_req req, struct afb_context *context, const char *api, const char *verb)
 {
 	afb_apis_call(req, context, api, strlen(api), verb, strlen(verb));
 }
 
-void afb_apis_call(struct afb_req req, struct AFB_clientCtx *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
+void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb)
 {
 	int i;
 	const struct api_desc *a;
@@ -96,8 +97,8 @@ void afb_apis_call(struct afb_req req, struct AFB_clientCtx *context, const char
 	a = apis_array;
 	for (i = 0 ; i < apis_count ; i++, a++) {
 		if (a->namelen == lenapi && !strncasecmp(a->name, api, lenapi)) {
-			req.ctx_closure = &context->contexts[i];
-			a->api.call(a->api.closure, req, verb, lenverb);
+			context->api_index = i;
+			a->api.call(a->api.closure, req, context, verb, lenverb);
 			return;
 		}
 	}

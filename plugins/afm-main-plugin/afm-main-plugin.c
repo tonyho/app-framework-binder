@@ -62,6 +62,7 @@ static struct memo *make_memo(struct afb_req request, const char *method)
 	if (memo != NULL) {
 		memo->request = request;
 		memo->method = method;
+		afb_req_addref(request);
 	}
 	return memo;
 }
@@ -109,6 +110,7 @@ static void embed_call_void_callback(int status, struct json_object *obj, struct
 			afb_req_success(memo->request, obj, NULL);
 		}
 	}
+	afb_req_unref(memo->request);
 	free(memo);
 }
 
@@ -134,6 +136,7 @@ static void call_appid_callback(int status, struct json_object *obj, struct memo
 		obj = json_object_get(obj);
 		afb_req_success(memo->request, obj, NULL);
 	}
+	afb_req_unref(memo->request);
 	free(memo);
 }
 

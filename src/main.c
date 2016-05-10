@@ -39,6 +39,7 @@
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-hsrv.h"
+#include "afb-context.h"
 #include "afb-hreq.h"
 #include "session.h"
 #include "verbose.h"

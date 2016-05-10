@@ -31,6 +31,30 @@
 
 #define NOW (time(NULL))
 
+struct client_value
+{
+	void *value;
+	void (*free_value)(void*);
+};
+
+struct afb_event_listener_list
+{
+	struct afb_event_listener_list *next;
+	struct afb_event_listener listener;
+	int refcount;
+};
+
+struct AFB_clientCtx
+{
+	unsigned refcount;
+	time_t expiration;    // expiration time of the token
+	time_t access;
+	char uuid[37];        // long term authentication of remote client
+	char token[37];       // short term authentication of remote client
+	struct client_value *values;
+	struct afb_event_listener_list *listeners;
+};
+
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
 static struct {
   pthread_mutex_t mutex;          // declare a mutex to protect hash table
@@ -42,31 +66,17 @@ static struct {
   const char *initok;
 } sessions;
 
-void *afb_context_get(struct afb_context *actx)
-{
-	return actx->context;
-}
-
-void afb_context_set(struct afb_context *actx, void *context, void (*free_context)(void*))
-{
-fprintf(stderr, "afb_context_set(%p,%p) was (%p,%p)\n",context, free_context, actx->context, actx->free_context);
-	if (actx->context != NULL && actx->free_context != NULL)
-		actx->free_context(actx->context);
-	actx->context = context;
-	actx->free_context = free_context;
-}
-
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 {
 	int idx;
 
 	// If application add a handle let's free it now
-	assert (client->contexts != NULL);
+	assert (client->values != NULL);
 
 	// Free client handle with a standard Free function, with app callback or ignore it
 	for (idx=0; idx < sessions.apicount; idx ++)
-		afb_context_set(&client->contexts[idx], NULL, NULL);
+		ctxClientValueSet(client, idx, NULL, NULL);
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
@@ -77,7 +87,7 @@ void ctxStoreInit (int max_session_count, int timeout, const char *initok, int c
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
 	sessions.apicount = context_count;
-	if (strlen(initok) >= 37) {
+	if (strlen(initok) >= sizeof(sessions.store[0]->token)) {
 		fprintf(stderr, "Error: initial token '%s' too long (max length 36)", initok);
 		exit(1);
 	}
@@ -175,67 +185,80 @@ static void ctxStoreCleanUp (time_t now)
 }
 
 // This function will return exiting client context or newly created client context
-struct AFB_clientCtx *ctxClientGetForUuid (const char *uuid)
+struct AFB_clientCtx *ctxClientGetSession (const char *uuid, int *created)
 {
 	uuid_t newuuid;
 	struct AFB_clientCtx *clientCtx;
 	time_t now;
 
-	/* search for an existing one not too old */
+	/* cleaning */
 	now = NOW;
 	ctxStoreCleanUp (now);
-	clientCtx = uuid != NULL ? ctxStoreSearch (uuid) : NULL;
-	if (clientCtx) {
-		clientCtx->refcount++;
-		return clientCtx;
-        }
 
-	/* mimic old behaviour */
-/*
-TODO remove? not remove?
-	if (sessions.initok == NULL)
-		return NULL;
-*/
-	/* check the uuid if given */
-	if (uuid != NULL && strlen(uuid) >= sizeof clientCtx->uuid)
-		return NULL;
+	/* search for an existing one not too old */
+	if (uuid != NULL) {
+		if (strlen(uuid) >= sizeof clientCtx->uuid) {
+			errno = EINVAL;
+			goto error;
+		}
+		clientCtx = ctxStoreSearch(uuid);
+		if (clientCtx != NULL) {
+			*created = 0;
+			goto found;
+		}
+	}
 
 	/* returns a new one */
-        clientCtx = calloc(1, sizeof(struct AFB_clientCtx)); // init NULL clientContext
-	if (clientCtx != NULL) {
-	        clientCtx->contexts = calloc ((unsigned)sessions.apicount, sizeof(*clientCtx->contexts));
-		if (clientCtx->contexts != NULL) {
-			/* generate the uuid */
-			if (uuid == NULL) {
-				uuid_generate(newuuid);
-				uuid_unparse_lower(newuuid, clientCtx->uuid);
-			} else {
-				strcpy(clientCtx->uuid, uuid);
-			}
-			strcpy(clientCtx->token, sessions.initok);
-    			clientCtx->expiration = now + sessions.timeout;
-			clientCtx->refcount = 1;
-			if (ctxStoreAdd (clientCtx))
-				return clientCtx;
-			free(clientCtx->contexts);
-		}
-		free(clientCtx);
+        clientCtx = calloc(1, sizeof(struct AFB_clientCtx) + ((unsigned)sessions.apicount * sizeof(*clientCtx->values)));
+	if (clientCtx == NULL) {
+		errno = ENOMEM;
+		goto error;
 	}
+        clientCtx->values = (void*)(clientCtx + 1);
+
+	/* generate the uuid */
+	if (uuid == NULL) {
+		uuid_generate(newuuid);
+		uuid_unparse_lower(newuuid, clientCtx->uuid);
+	} else {
+		strcpy(clientCtx->uuid, uuid);
+	}
+
+	/* init the token */
+	strcpy(clientCtx->token, sessions.initok);
+	clientCtx->expiration = now + sessions.timeout;
+	if (!ctxStoreAdd (clientCtx)) {
+		errno = ENOMEM;
+		goto error2;
+	}
+	*created = 1;
+
+found:
+	clientCtx->access = now;
+	clientCtx->refcount++;
+	return clientCtx;
+
+error2:
+	free(clientCtx);
+error:
 	return NULL;
 }
 
-struct AFB_clientCtx *ctxClientGet(struct AFB_clientCtx *clientCtx)
+struct AFB_clientCtx *ctxClientAddRef(struct AFB_clientCtx *clientCtx)
 {
 	if (clientCtx != NULL)
 		clientCtx->refcount++;
 	return clientCtx;
 }
 
-void ctxClientPut(struct AFB_clientCtx *clientCtx)
+void ctxClientUnref(struct AFB_clientCtx *clientCtx)
 {
 	if (clientCtx != NULL) {
 		assert(clientCtx->refcount != 0);
 		--clientCtx->refcount;
+       		if (clientCtx->refcount == 0 && clientCtx->uuid[0] == 0) {
+			ctxStoreDel (clientCtx);
+		}
 	}
 }
 
@@ -243,29 +266,8 @@ void ctxClientPut(struct AFB_clientCtx *clientCtx)
 void ctxClientClose (struct AFB_clientCtx *clientCtx)
 {
 	assert(clientCtx != NULL);
-	if (clientCtx->created) {
-		clientCtx->created = 0;
-	        ctxUuidFreeCB (clientCtx);
-	}
-       	if (clientCtx->refcount == 0)
-		ctxStoreDel (clientCtx);
-}
-
-// Sample Generic Ping Debug API
-int ctxTokenCheckLen (struct AFB_clientCtx *clientCtx, const char *token, size_t length)
-{
-	assert(clientCtx != NULL);
-	assert(token != NULL);
-
-	// compare current token with previous one
-	if (ctxStoreTooOld (clientCtx, NOW))
-		return 0;
-
-	if (clientCtx->token[0] && (length >= sizeof(clientCtx->token) || strncmp (token, clientCtx->token, length) || clientCtx->token[length]))
-		return 0;
-
-	clientCtx->created = 1; /* creates by default */
-	return 1;
+        ctxUuidFreeCB (clientCtx);
+	clientCtx->uuid[0] = 0;
 }
 
 // Sample Generic Ping Debug API
@@ -274,7 +276,14 @@ int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
 	assert(clientCtx != NULL);
 	assert(token != NULL);
 
-	return ctxTokenCheckLen(clientCtx, token, strlen(token));
+	// compare current token with previous one
+	if (ctxStoreTooOld (clientCtx, NOW))
+		return 0;
+
+	if (clientCtx->token[0] && strcmp (token, clientCtx->token) != 0)
+		return 0;
+
+	return 1;
 }
 
 // generate a new token and update client context
@@ -291,13 +300,6 @@ void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 	// keep track of time for session timeout and further clean up
 	clientCtx->expiration = NOW + sessions.timeout;
 }
-
-struct afb_event_listener_list
-{
-	struct afb_event_listener_list *next;
-	struct afb_event_listener listener;
-	int refcount;
-};
 
 int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
 {
@@ -375,12 +377,43 @@ int ctxClientEventSend(struct AFB_clientCtx *clientCtx, const char *event, struc
 		for (idx=0; idx < sessions.max; idx++) {
 			clientCtx = sessions.store[idx];
 			if (clientCtx != NULL && !ctxStoreTooOld(clientCtx, now)) {
-				clientCtx = ctxClientGet(clientCtx);
+				clientCtx = ctxClientAddRef(clientCtx);
 				result += send(clientCtx, event, object);
-				ctxClientPut(clientCtx);
+				ctxClientUnref(clientCtx);
 			}
 		}
 	}
 	return result;
 }
 
+const char *ctxClientGetUuid (struct AFB_clientCtx *clientCtx)
+{
+	assert(clientCtx != NULL);
+	return clientCtx->uuid;
+}
+
+const char *ctxClientGetToken (struct AFB_clientCtx *clientCtx)
+{
+	assert(clientCtx != NULL);
+	return clientCtx->token;
+}
+
+void *ctxClientValueGet(struct AFB_clientCtx *clientCtx, int index)
+{
+	assert(clientCtx != NULL);
+	assert(index >= 0);
+	assert(index < sessions.apicount);
+	return clientCtx->values[index].value;
+}
+
+void ctxClientValueSet(struct AFB_clientCtx *clientCtx, int index, void *value, void (*free_value)(void*))
+{
+	struct client_value prev;
+	assert(clientCtx != NULL);
+	assert(index >= 0);
+	assert(index < sessions.apicount);
+	prev = clientCtx->values[index];
+	clientCtx->values[index] = (struct client_value){.value = value, .free_value = free_value};
+	if (prev.value !=  NULL && prev.free_value != NULL)
+		prev.free_value(prev.value);
+}

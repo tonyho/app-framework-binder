@@ -15,21 +15,11 @@
  * limitations under the License.
  */
 
+
 #pragma once
 
-struct afb_req;
-struct afb_context;
+extern int afb_api_dbus_add_client(const char *path);
 
-struct afb_api
-{
-	void *closure;
-	void (*call)(void *closure, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb);
-};
-
-
-extern int afb_apis_count();
-extern int afb_apis_add(const char *name, struct afb_api api);
-extern void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
-extern void afb_apis_call_(struct afb_req req, struct afb_context *context, const char *api, const char *verb);
+extern int afb_api_dbus_add_server(const char *path);
 
 

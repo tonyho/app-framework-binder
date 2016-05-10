@@ -21,7 +21,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <microhttpd.h>
+
 #include "afb-req-itf.h"
+#include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-apis.h"
 #include "session.h"
@@ -31,7 +34,6 @@ int afb_hswitch_apis(struct afb_hreq *hreq, void *data)
 {
 	const char *api, *verb;
 	size_t lenapi, lenverb;
-	struct AFB_clientCtx *context;
 
 	api = &hreq->tail[strspn(hreq->tail, "/")];
 	lenapi = strcspn(api, "/");
@@ -42,8 +44,10 @@ int afb_hswitch_apis(struct afb_hreq *hreq, void *data)
 	if (!(*api && *verb && lenapi && lenverb))
 		return 0;
 
-	context = afb_hreq_context(hreq);
-	afb_apis_call(afb_hreq_to_req(hreq), context, api, lenapi, verb, lenverb);
+	if (afb_hreq_init_context(hreq) < 0)
+		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+	else
+		afb_apis_call(afb_hreq_to_req(hreq), &hreq->context, api, lenapi, verb, lenverb);
 	return 1;
 }
 
@@ -77,7 +81,12 @@ int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
 	if (hreq->lentail != 0)
 		return 0;
 
-	return afb_websock_check_upgrade(hreq /* TODO: protocols here */);
+	if (afb_hreq_init_context(hreq) < 0) {
+		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+		return 1;
+	}
+
+	return afb_websock_check_upgrade(hreq);
 }
 
 

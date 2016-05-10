@@ -28,6 +28,7 @@
 #include "afb-ws-json.h"
 
 #include "afb-method.h"
+#include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-websock.h"
 
@@ -203,7 +204,7 @@ int afb_websock_check_upgrade(struct afb_hreq *hreq)
 		return 0;
 
 	ws = NULL;
-	rc = check_websocket_upgrade(hreq->connection, protodefs, afb_hreq_context(hreq), &ws);
+	rc = check_websocket_upgrade(hreq->connection, protodefs, hreq->context.session, &ws);
 	if (rc == 1) {
 		hreq->replied = 1;
 		if (ws != NULL)

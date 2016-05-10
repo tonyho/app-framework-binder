@@ -30,6 +30,7 @@
 #include <systemd/sd-event.h>
 
 #include "afb-method.h"
+#include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-hsrv.h"
 #include "afb-req-itf.h"
@@ -130,6 +131,7 @@ static int access_handler(
 		}
 
 		/* init the request */
+		hreq->refcount = 1;
 		hreq->hsrv = hsrv;
 		hreq->cacheTimeout = hsrv->cache_to;
 		hreq->reqid = ++global_reqids;
@@ -228,7 +230,7 @@ static void end_handler(void *cls, struct MHD_Connection *connection, void **rec
 	hreq = *recordreq;
 	if (hreq->upgrade)
 		MHD_suspend_connection (connection);
-	afb_hreq_free(hreq);
+	afb_hreq_unref(hreq);
 }
 
 void run_micro_httpd(struct afb_hsrv *hsrv)

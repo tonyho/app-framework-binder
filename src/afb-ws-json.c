@@ -31,6 +31,7 @@
 #include "session.h"
 #include "afb-req-itf.h"
 #include "afb-apis.h"
+#include "afb-context.h"
 
 static void aws_on_hangup(struct afb_ws_json *ws);
 static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size);
@@ -47,7 +48,7 @@ struct afb_ws_json
 	void (*cleanup)(void*);
 	void *cleanup_closure;
 	struct afb_wsreq *requests;
-	struct AFB_clientCtx *context;
+	struct AFB_clientCtx *session;
 	struct json_tokener *tokener;
 	struct afb_ws *ws;
 };
@@ -58,12 +59,12 @@ static const struct afb_event_listener_itf event_listener_itf = {
 	.send = (void*)aws_send_event
 };
 
-struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *cleanup_closure)
+struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *session, void (*cleanup)(void*), void *cleanup_closure)
 {
 	struct afb_ws_json *result;
 
 	assert(fd >= 0);
-	assert(context != NULL);
+	assert(session != NULL);
 
 	result = malloc(sizeof * result);
 	if (result == NULL)
@@ -72,8 +73,8 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, vo
 	result->cleanup = cleanup;
 	result->cleanup_closure = cleanup_closure;
 	result->requests = NULL;
-	result->context = ctxClientGet(context);
-	if (result->context == NULL)
+	result->session = ctxClientAddRef(session);
+	if (result->session == NULL)
 		goto error2;
 
 	result->tokener = json_tokener_new();
@@ -84,7 +85,7 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, vo
 	if (result->ws == NULL)
 		goto error4;
 
-	if (0 > ctxClientEventListenerAdd(result->context, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = result }))
+	if (0 > ctxClientEventListenerAdd(result->session, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = result }))
 		goto error5;
 
 	return result;
@@ -94,7 +95,7 @@ error5:
 error4:
 	json_tokener_free(result->tokener);
 error3:
-	ctxClientPut(result->context);
+	ctxClientUnref(result->session);
 error2:
 	free(result);
 error:
@@ -104,11 +105,12 @@ error:
 
 static void aws_on_hangup(struct afb_ws_json *ws)
 {
-	ctxClientEventListenerRemove(ws->context, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = ws });
+	ctxClientEventListenerRemove(ws->session, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = ws });
 	afb_ws_destroy(ws->ws);
 	json_tokener_free(ws->tokener);
 	if (ws->cleanup != NULL)
 		ws->cleanup(ws->cleanup_closure);
+	ctxClientUnref(ws->session);
 	free(ws);
 }
 
@@ -119,6 +121,8 @@ static void aws_on_hangup(struct afb_ws_json *ws)
 
 struct afb_wsreq
 {
+	struct afb_context context;
+	int refcount;
 	struct afb_ws_json *aws;
 	struct afb_wsreq *next;
 	char *text;
@@ -137,15 +141,14 @@ struct afb_wsreq
 	struct json_object *root;
 };
 
+static void wsreq_addref(struct afb_wsreq *wsreq);
+static void wsreq_unref(struct afb_wsreq *wsreq);
 static struct json_object *wsreq_json(struct afb_wsreq *wsreq);
 static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name);
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info);
 static void wsreq_success(struct afb_wsreq *wsreq, struct json_object *obj, const char *info);
 static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size);
 static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size);
-static int wsreq_session_create(struct afb_wsreq *wsreq);
-static int wsreq_session_check(struct afb_wsreq *wsreq, int refresh);
-static void wsreq_session_close(struct afb_wsreq *wsreq);
 
 
 static const struct afb_req_itf wsreq_itf = {
@@ -155,11 +158,10 @@ static const struct afb_req_itf wsreq_itf = {
 	.fail = (void*)wsreq_fail,
 	.raw = (void*)wsreq_raw,
 	.send = (void*)wsreq_send,
-	.session_create = (void*)wsreq_session_create,
-	.session_check = (void*)wsreq_session_check,
-	.session_close = (void*)wsreq_session_close,
 	.context_get = (void*)afb_context_get,
-	.context_set = (void*)afb_context_set
+	.context_set = (void*)afb_context_set,
+	.addref = (void*)wsreq_addref,
+	.unref = (void*)wsreq_unref
 };
 
 static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)
@@ -303,13 +305,20 @@ static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size)
 		goto bad_header;
 
 	/* fill and record the request */
+	if (wsreq->tok != NULL)
+		wsreq->tok[wsreq->toklen] = 0;
+	afb_context_init(&wsreq->context, ws->session, wsreq->tok);
+	if (!wsreq->context.invalidated)
+		wsreq->context.validated = 1;
+	wsreq->refcount = 1;
 	wsreq->aws = ws;
 	wsreq->next = ws->requests;
 	ws->requests = wsreq;
 
-	r.req_closure = wsreq;
+	r.closure = wsreq;
 	r.itf = &wsreq_itf;
-	afb_apis_call(r, ws->context, wsreq->api, wsreq->apilen, wsreq->verb, wsreq->verblen);
+	afb_apis_call(r, &wsreq->context, wsreq->api, wsreq->apilen, wsreq->verb, wsreq->verblen);
+	wsreq_unref(wsreq);
 	return;
 
 bad_header:
@@ -318,6 +327,20 @@ alloc_error:
 	free(text);
 	afb_ws_close(ws->ws, 1008, NULL);
 	return;
+}
+
+static void wsreq_addref(struct afb_wsreq *wsreq)
+{
+	wsreq->refcount++;
+}
+
+static void wsreq_unref(struct afb_wsreq *wsreq)
+{
+	if (--wsreq->refcount == 0) {
+		afb_context_disconnect(&wsreq->context);
+		free(wsreq->text);
+		free(wsreq);
+	}
 }
 
 static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
@@ -352,41 +375,9 @@ static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 	return arg;
 }
 
-static int wsreq_session_create(struct afb_wsreq *wsreq)
-{
-	struct AFB_clientCtx *context = wsreq->aws->context;
-	if (context->created)
-		return 0;
-	return wsreq_session_check(wsreq, 1);
-}
-
-static int wsreq_session_check(struct afb_wsreq *wsreq, int refresh)
-{
-	struct AFB_clientCtx *context = wsreq->aws->context;
-
-	if (wsreq->tok == NULL)
-		return 0;
-
-	if (!ctxTokenCheckLen (context, wsreq->tok, wsreq->toklen))
-		return 0;
-
-	if (refresh) {
-		ctxTokenNew (context);
-	}
-
-	return 1;
-}
-
-static void wsreq_session_close(struct afb_wsreq *wsreq)
-{
-	struct AFB_clientCtx *context = wsreq->aws->context;
-	ctxClientClose(context);
-}
-
-static void aws_emit(struct afb_ws_json *aws, int code, const char *id, size_t idlen, struct json_object *data)
+static void aws_emit(struct afb_ws_json *aws, int code, const char *id, size_t idlen, struct json_object *data, const char *token)
 {
 	json_object *msg;
-	const char *token;
 	const char *txt;
 
 	/* pack the message */
@@ -394,7 +385,6 @@ static void aws_emit(struct afb_ws_json *aws, int code, const char *id, size_t i
 	json_object_array_add(msg, json_object_new_int(code));
 	json_object_array_add(msg, json_object_new_string_len(id, (int)idlen));
 	json_object_array_add(msg, data);
-	token = aws->context->token;
 	if (token)
 		json_object_array_add(msg, json_object_new_string(token));
 
@@ -406,8 +396,8 @@ static void aws_emit(struct afb_ws_json *aws, int code, const char *id, size_t i
 
 static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status, const char *info, json_object *resp)
 {
-	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, afb_msg_json_reply(status, info, resp, NULL, NULL));
-	/* TODO eliminates the wsreq */
+	const char *token = afb_context_sent_token(&wsreq->context);
+	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, afb_msg_json_reply(status, info, resp, token, NULL), token);
 }
 
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
@@ -433,6 +423,6 @@ static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size)
 
 static void aws_send_event(struct afb_ws_json *aws, const char *event, struct json_object *object)
 {
-	aws_emit(aws, EVENT, event, strlen(event), afb_msg_json_event(event, object));
+	aws_emit(aws, EVENT, event, strlen(event), afb_msg_json_event(event, object), NULL);
 }
 

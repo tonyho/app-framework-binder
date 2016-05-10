@@ -26,28 +26,30 @@ struct afb_arg {
 };
 
 struct afb_req_itf {
-	struct json_object *(*json)(void *req_closure);
-	struct afb_arg (*get)(void *req_closure, const char *name);
-	void (*success)(void *req_closure, struct json_object *obj, const char *info);
-	void (*fail)(void *req_closure, const char *status, const char *info);
-	const char *(*raw)(void *req_closure, size_t *size);
-	void (*send)(void *req_closure, const char *buffer, size_t size);
-	void *(*context_get)(void *ctx_closure);
-	void (*context_set)(void *ctx_closure, void *value, void (*free_value)(void*));
-	int (*session_create)(void *req_closure);
-	int (*session_check)(void *req_closure, int refresh);
-	void (*session_close)(void *req_closure);
+	struct json_object *(*json)(void *closure);
+	struct afb_arg (*get)(void *closure, const char *name);
+
+	void (*success)(void *closure, struct json_object *obj, const char *info);
+	void (*fail)(void *closure, const char *status, const char *info);
+
+	const char *(*raw)(void *closure, size_t *size);
+	void (*send)(void *closure, const char *buffer, size_t size);
+
+	void *(*context_get)(void *closure);
+	void (*context_set)(void *closure, void *value, void (*free_value)(void*));
+
+	void (*addref)(void *closure);
+	void (*unref)(void *closure);
 };
 
 struct afb_req {
 	const struct afb_req_itf *itf;
-	void *req_closure;
-	void *ctx_closure;
+	void *closure;
 };
 
 static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
 {
-	return req.itf->get(req.req_closure, name);
+	return req.itf->get(req.closure, name);
 }
 
 static inline const char *afb_req_value(struct afb_req req, const char *name)
@@ -62,37 +64,37 @@ static inline const char *afb_req_path(struct afb_req req, const char *name)
 
 static inline struct json_object *afb_req_json(struct afb_req req)
 {
-	return req.itf->json(req.req_closure);
+	return req.itf->json(req.closure);
 }
 
 static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
 {
-	req.itf->success(req.req_closure, obj, info);
+	req.itf->success(req.closure, obj, info);
 }
 
 static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
 {
-	req.itf->fail(req.req_closure, status, info);
+	req.itf->fail(req.closure, status, info);
 }
 
 static inline const char *afb_req_raw(struct afb_req req, size_t *size)
 {
-	return req.itf->raw(req.req_closure, size);
+	return req.itf->raw(req.closure, size);
 }
 
 static inline void afb_req_send(struct afb_req req, const char *buffer, size_t size)
 {
-	req.itf->send(req.req_closure, buffer, size);
+	req.itf->send(req.closure, buffer, size);
 }
 
 static inline void *afb_req_context_get(struct afb_req req)
 {
-	return req.itf->context_get(req.ctx_closure);
+	return req.itf->context_get(req.closure);
 }
 
 static inline void afb_req_context_set(struct afb_req req, void *value, void (*free_value)(void*))
 {
-	return req.itf->context_set(req.ctx_closure, value, free_value);
+	return req.itf->context_set(req.closure, value, free_value);
 }
 
 static inline void afb_req_context_clear(struct afb_req req)
@@ -100,25 +102,14 @@ static inline void afb_req_context_clear(struct afb_req req)
 	afb_req_context_set(req, NULL, NULL);
 }
 
-static inline int afb_req_session_create(struct afb_req req)
+static inline void afb_req_addref(struct afb_req req)
 {
-	int result = req.itf->session_create(req.req_closure);
-	if (!result)
-		afb_req_fail(req, "fail", "Can't create the session");
-	return result;
+	return req.itf->addref(req.closure);
 }
 
-static inline int afb_req_session_check(struct afb_req req, int refresh)
+static inline void afb_req_unref(struct afb_req req)
 {
-	int result = req.itf->session_check(req.req_closure, refresh);
-	if (!result)
-		afb_req_fail(req, "fail", "Token chek failed for the session");
-	return result;
-}
-
-static inline void afb_req_session_close(struct afb_req req)
-{
-	req.itf->session_close(req.req_closure);
+	return req.itf->unref(req.closure);
 }
 
 #include <stdlib.h>
@@ -126,8 +117,10 @@ static inline void afb_req_session_close(struct afb_req req)
 static inline struct afb_req *afb_req_store(struct afb_req req)
 {
 	struct afb_req *result = malloc(sizeof *result);
-	if (result != NULL)
+	if (result != NULL) {
 		*result = req;
+		afb_req_addref(req);
+	}
 	return result;
 }
 
@@ -135,6 +128,7 @@ static inline struct afb_req afb_req_unstore(struct afb_req *req)
 {
 	struct afb_req result = *req;
 	free(req);
+	afb_req_unref(result);
 	return result;
 }
 

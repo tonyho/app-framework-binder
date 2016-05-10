@@ -23,6 +23,8 @@ struct hreq_data;
 struct afb_hsrv;
 
 struct afb_hreq {
+	struct afb_context context;
+	int refcount;
 	struct afb_hsrv *hsrv;
 	const char *cacheTimeout;
 	struct MHD_Connection *connection;
@@ -37,13 +39,10 @@ struct afb_hreq {
 	const char *tail;
 	size_t lentail;
 	struct MHD_PostProcessor *postform;
-	struct AFB_clientCtx *context;
 	struct hreq_data *data;
 	struct json_object *json;
 	int upgrade;
 };
-
-extern void afb_hreq_free(struct afb_hreq *request);
 
 extern int afb_hreq_unprefix(struct afb_hreq *request, const char *prefix, size_t length);
 
@@ -69,7 +68,7 @@ extern int afb_hreq_post_add(struct afb_hreq *hreq, const char *name, const char
 
 extern struct afb_req afb_hreq_to_req(struct afb_hreq *hreq);
 
-extern struct AFB_clientCtx *afb_hreq_context(struct afb_hreq *hreq);
+extern int afb_hreq_init_context(struct afb_hreq *hreq);
 
 extern int afb_hreq_init_cookie(int port, const char *path, int maxage);
 
@@ -82,3 +81,8 @@ extern void afb_hreq_reply_free(struct afb_hreq *hreq, unsigned status, size_t s
 extern void afb_hreq_reply_empty(struct afb_hreq *hreq, unsigned status, ...);
 
 extern int afb_hreq_init_download_path(const char *directory);
+
+extern void afb_hreq_addref(struct afb_hreq *hreq);
+
+extern void afb_hreq_unref(struct afb_hreq *hreq);
+
