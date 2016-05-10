@@ -388,14 +388,14 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 		MHD_OPTION_END);	/* options-end */
 
 	if (httpd == NULL) {
-		fprintf(stderr, "Error: httpStart invalid httpd port: %d", (int)port);
+		ERROR("httpStart invalid httpd port: %d", (int)port);
 		return 0;
 	}
 
 	info = MHD_get_daemon_info(httpd, MHD_DAEMON_INFO_EPOLL_FD_LINUX_ONLY);
 	if (info == NULL) {
 		MHD_stop_daemon(httpd);
-		fprintf(stderr, "Error: httpStart no pollfd");
+		ERROR("httpStart no pollfd");
 		return 0;
 	}
 
@@ -403,7 +403,7 @@ int afb_hsrv_start(struct afb_hsrv *hsrv, uint16_t port, unsigned int connection
 	if (rc < 0) {
 		MHD_stop_daemon(httpd);
 		errno = -rc;
-		fprintf(stderr, "Error: connection to events for httpd failed");
+		ERROR("connection to events for httpd failed");
 		return 0;
 	}
 

@@ -51,14 +51,14 @@ int afb_apis_add(const char *name, struct afb_api api)
 	/* check existing or not */
 	len = strlen(name);
 	if (len == 0) {
-		fprintf(stderr, "empty api name forbidden\n");
+		ERROR("empty api name forbidden");
 		goto error;
 	}
 
 	/* check previously existing plugin */
 	for (i = 0 ; i < apis_count ; i++) {
 		if (!strcasecmp(apis_array[i].name, name)) {
-			fprintf(stderr, "ERROR: api of name %s already exists\n", name);
+			ERROR("api of name %s already exists", name);
 			goto error;
 		}
 	}
@@ -66,7 +66,7 @@ int afb_apis_add(const char *name, struct afb_api api)
 	/* allocates enough memory */
 	apis = realloc(apis_array, ((unsigned)apis_count + 1) * sizeof * apis);
 	if (apis == NULL) {
-		fprintf(stderr, "out of memory\n");
+		ERROR("out of memory");
 		goto error;
 	}
 	apis_array = apis;

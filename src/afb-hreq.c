@@ -234,18 +234,15 @@ static magic_t lazy_libmagic()
 		done = 1;
 		/* MAGIC_MIME tells magic to return a mime of the file,
 			 but you can specify different things */
-		if (verbosity)
-			fprintf(stderr, "Loading mimetype default magic database\n");
-
+		INFO("Loading mimetype default magic database");
 		result = magic_open(MAGIC_MIME_TYPE);
 		if (result == NULL) {
-			fprintf(stderr,"ERROR: unable to initialize magic library\n");
+			ERROR("unable to initialize magic library");
 		}
 		/* Warning: should not use NULL for DB
 				[libmagic bug wont pass efence check] */
 		else if (magic_load(result, MAGIC_DB) != 0) {
-			fprintf(stderr,"cannot load magic database - %s\n",
-					magic_error(result));
+			ERROR("cannot load magic database: %s", magic_error(result));
 			magic_close(result);
 			result = NULL;
 		}
@@ -435,8 +432,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	if (inm && 0 == strcmp(inm, etag)) {
 		/* etag ok, return NOT MODIFIED */
 		close(fd);
-		if (verbosity)
-			fprintf(stderr, "Not Modified: [%s]\n", filename);
+		DEBUG("Not Modified: [%s]", filename);
 		response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
 		status = MHD_HTTP_NOT_MODIFIED;
 	} else {
@@ -477,8 +473,7 @@ int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
 {
 	afb_hreq_reply_static(hreq, MHD_HTTP_MOVED_PERMANENTLY, 0, NULL,
 			MHD_HTTP_HEADER_LOCATION, url, NULL);
-	if (verbosity)
-		fprintf(stderr, "redirect from [%s] to [%s]\n", hreq->url, url);
+	DEBUG("redirect from [%s] to [%s]", hreq->url, url);
 	return 1;
 }
 

@@ -176,25 +176,24 @@ int afb_api_so_add_plugin(const char *path)
 
 	desc = calloc(1, sizeof *desc);
 	if (desc == NULL) {
-		fprintf(stderr, "[%s] out of memory\n", path);
+		ERROR("out of memory");
 		goto error;
 	}
 
 	// This is a loadable library let's check if it's a plugin
 	desc->handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 	if (desc->handle == NULL) {
-		fprintf(stderr, "[%s] not loadable, continuing...\n", path);
+		ERROR("plugin [%s] not loadable", path);
 		goto error2;
 	}
 
 	/* retrieves the register function */
 	pluginRegisterFct = dlsym(desc->handle, plugin_register_function);
 	if (!pluginRegisterFct) {
-		fprintf(stderr, "[%s] not an AFB plugin, continuing...\n", path);
+		ERROR("plugin [%s] is not an AFB plugin", path);
 		goto error3;
 	}
-	if (verbosity)
-		fprintf(stderr, "[%s] is a valid AFB plugin\n", path);
+	INFO("plugin [%s] is a valid AFB plugin", path);
 
 	/* init the interface */
 	desc->interface.verbosity = 0;
@@ -205,25 +204,25 @@ int afb_api_so_add_plugin(const char *path)
 	/* init the plugin */
 	desc->plugin = pluginRegisterFct(&desc->interface);
 	if (desc->plugin == NULL) {
-		fprintf(stderr, "ERROR: plugin [%s] register function failed. continuing...\n", path);
+		ERROR("plugin [%s] register function failed. continuing...", path);
 		goto error3;
 	}
 
 	/* check the returned structure */
 	if (desc->plugin->type != AFB_PLUGIN_JSON) {
-		fprintf(stderr, "ERROR: plugin [%s] invalid type %d...\n", path, desc->plugin->type);
+		ERROR("plugin [%s] invalid type %d...", path, desc->plugin->type);
 		goto error3;
 	}
 	if (desc->plugin->prefix == NULL || *desc->plugin->prefix == 0) {
-		fprintf(stderr, "ERROR: plugin [%s] bad prefix...\n", path);
+		ERROR("plugin [%s] bad prefix...", path);
 		goto error3;
 	}
 	if (desc->plugin->info == NULL || *desc->plugin->info == 0) {
-		fprintf(stderr, "ERROR: plugin [%s] bad description...\n", path);
+		ERROR("plugin [%s] bad description...", path);
 		goto error3;
 	}
 	if (desc->plugin->apis == NULL) {
-		fprintf(stderr, "ERROR: plugin [%s] no APIs...\n", path);
+		ERROR("plugin [%s] no APIs...", path);
 		goto error3;
 	}
 
@@ -232,10 +231,10 @@ int afb_api_so_add_plugin(const char *path)
 	if (afb_apis_add(desc->plugin->prefix, (struct afb_api){
 			.closure = desc,
 			.call = (void*)call}) < 0) {
-		fprintf(stderr, "ERROR: plugin [%s] can't be registered...\n", path);
+		ERROR("plugin [%s] can't be registered...", path);
 		goto error3;
 	}
-
+	NOTICE("plugin %s loaded with API prefix %s", path, desc->plugin->prefix);
 	return 0;
 
 error3:
@@ -255,11 +254,10 @@ static int adddirs(char path[PATH_MAX], size_t end)
 	/* open the DIR now */
 	dir = opendir(path);
 	if (dir == NULL) {
-		fprintf(stderr, "ERROR in scanning plugin directory %s, %m\n", path);
+		ERROR("can't scan plugin directory %s, %m", path);
 		return -1;
 	}
-	if (verbosity)
-		fprintf(stderr, "Scanning dir=[%s] for plugins\n", path);
+	INFO("Scanning dir=[%s] for plugins", path);
 
 	/* scan each entry */
 	if (end)
@@ -271,7 +269,7 @@ static int adddirs(char path[PATH_MAX], size_t end)
 
 		len = strlen(ent.d_name);
 		if (len + end >= PATH_MAX) {
-			fprintf(stderr, "path too long for %s\n", ent.d_name);
+			ERROR("path too long while scanning plugins for %s", ent.d_name);
 			continue;
 		}
 		memcpy(&path[end], ent.d_name, len+1);
@@ -302,7 +300,7 @@ int afb_api_so_add_directory(const char *path)
 
 	length = strlen(path);
 	if (length >= sizeof(buffer)) {
-		fprintf(stderr, "path too long %lu [%.99s...]\n", (unsigned long)length, path);
+		ERROR("path too long %lu [%.99s...]", (unsigned long)length, path);
 		return -1;
 	}
 
@@ -317,11 +315,13 @@ int afb_api_so_add_path(const char *path)
 
 	rc = stat(path, &st);
 	if (rc < 0)
-		fprintf(stderr, "Invalid plugin path [%s]: %m\n", path);
+		ERROR("Invalid plugin path [%s]: %m", path);
 	else if (S_ISDIR(st.st_mode))
 		rc = afb_api_so_add_directory(path);
-	else
+	else if (strstr(path, ".so"))
 		rc = afb_api_so_add_plugin(path);
+	else
+		INFO("not a plugin [%s], skipped", path);
 	return rc;
 }
 

@@ -51,7 +51,7 @@
 #error "you should define PLUGIN_INSTALL_DIR"
 #endif
 
-#define AFB_VERSION    "0.1"
+#define AFB_VERSION    "0.4"
 
 // Define command line option
 #define SET_VERBOSE        1
@@ -123,15 +123,40 @@ static  AFB_options cliOptions [] = {
  | printversion
  |   print version and copyright
  +--------------------------------------------------------- */
-static void printVersion (void)
+static void printVersion (FILE *file)
 {
-   fprintf (stderr,"\n----------------------------------------- \n");
-   fprintf (stderr,"|  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
-   fprintf (stderr,"----------------------------------------- \n");
-   fprintf (stderr,"|  Copyright(C) 2016 /IoT.bzh [fulup -at- iot.bzh]\n");
-   fprintf (stderr,"|  AFB comes with ABSOLUTELY NO WARRANTY.\n");
-   fprintf (stderr,"|  Licence Apache 2\n\n");
+   fprintf(file, "\n----------------------------------------- \n");
+   fprintf(file, "  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
+   fprintf(file, " \n");
+   fprintf(file, "  Copyright(C) 2016 /IoT.bzh [fulup -at- iot.bzh]\n");
+   fprintf(file, "  AFB comes with ABSOLUTELY NO WARRANTY.\n");
+   fprintf(file, "  Licence Apache 2\n\n");
    exit (0);
+}
+
+/*----------------------------------------------------------
+ | printHelp
+ |   print information from long option array
+ +--------------------------------------------------------- */
+
+static void printHelp(FILE *file, const char *name)
+{
+    int ind;
+    char command[50];
+
+    fprintf (file, "%s:\nallowed options\n", name);
+    for (ind=0; cliOptions [ind].name != NULL;ind++)
+    {
+      // display options
+      if (cliOptions [ind].has_arg == 0 )
+      {
+	     fprintf (file, "  --%-15s %s\n", cliOptions [ind].name, cliOptions[ind].help);
+      } else {
+         sprintf(command, "%s=xxxx", cliOptions [ind].name);
+         fprintf (file, "  --%-15s %s\n", command, cliOptions[ind].help);
+      }
+    }
+    fprintf (file, "Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/plugins:/usr/lib64/agl/plugins\n", name);
 }
 
 // load config from disk and merge with CLI option
@@ -194,30 +219,6 @@ static void config_set_default (struct afb_config * config)
 }
 
 
-/*----------------------------------------------------------
- | printHelp
- |   print information from long option array
- +--------------------------------------------------------- */
-
- static void printHelp(char *name) {
-    int ind;
-    char command[20];
-
-    fprintf (stderr,"%s:\nallowed options\n", name);
-    for (ind=0; cliOptions [ind].name != NULL;ind++)
-    {
-      // display options
-      if (cliOptions [ind].has_arg == 0 )
-      {
-	     fprintf (stderr,"  --%-15s %s\n", cliOptions [ind].name, cliOptions[ind].help);
-      } else {
-         sprintf(command,"%s=xxxx", cliOptions [ind].name);
-         fprintf (stderr,"  --%-15s %s\n", command, cliOptions[ind].help);
-      }
-    }
-    fprintf (stderr,"Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/plugins:/usr/lib64/agl/plugins\n", name);
-} // end printHelp
-
 /*---------------------------------------------------------
  | main
  |   Parse option and launch action
@@ -235,7 +236,7 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 
   // if no argument print help and return
   if (argc < 2) {
-       printHelp(programName);
+       printHelp(stderr, programName);
        exit(1);
   }
 
@@ -277,19 +278,19 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
     case SET_ROOT_DIR:
        if (optarg == 0) goto needValueForOption;
        config->rootdir   = optarg;
-       if (verbosity) fprintf(stderr, "Forcing Rootdir=%s\n",config->rootdir);
+       INFO("Forcing Rootdir=%s",config->rootdir);
        break;       
        
     case SET_ROOT_BASE:
        if (optarg == 0) goto needValueForOption;
        config->rootbase   = optarg;
-       if (verbosity) fprintf(stderr, "Forcing Rootbase=%s\n",config->rootbase);
+       INFO("Forcing Rootbase=%s",config->rootbase);
        break;
 
     case SET_ROOT_API:
        if (optarg == 0) goto needValueForOption;
        config->rootapi   = optarg;
-       if (verbosity) fprintf(stderr, "Forcing Rootapi=%s\n",config->rootapi);
+       INFO("Forcing Rootapi=%s",config->rootapi);
        break;
        
     case SET_ALIAS:
@@ -297,14 +298,14 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
        if ((unsigned)config->aliascount < sizeof (config->aliasdir) / sizeof (config->aliasdir[0])) {
             config->aliasdir[config->aliascount].url  = strsep(&optarg,":");
             if (optarg == NULL) {
-              fprintf(stderr, "missing ':' in alias %s, ignored\n", config->aliasdir[config->aliascount].url);
+              ERROR("missing ':' in alias %s, ignored", config->aliasdir[config->aliascount].url);
             } else {
               config->aliasdir[config->aliascount].path = optarg;
-              if (verbosity) fprintf(stderr, "Alias url=%s path=%s\n", config->aliasdir[config->aliascount].url, config->aliasdir[config->aliascount].path);
+              INFO("Alias url=%s path=%s", config->aliasdir[config->aliascount].url, config->aliasdir[config->aliascount].path);
               config->aliascount++;
             }
        } else {
-           fprintf(stderr, "Too many aliases [max:%d] %s ignored\n", MAX_ALIAS, optarg);
+           ERROR("Too many aliases [max:%d] %s ignored", MAX_ALIAS, optarg);
        }     
        break;
        
@@ -353,12 +354,12 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 
     case DISPLAY_VERSION:
        if (optarg != 0) goto noValueForOption;
-       printVersion();
-       exit(0);
+       printVersion(stdout);
+       break;
 
     case DISPLAY_HELP:
      default:
-       printHelp(programName);
+       printHelp(stdout, programName);
        exit(0);
     }
   }
@@ -369,22 +370,22 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 
 
 needValueForOption:
-  fprintf (stderr,"\nERR: AFB-daemon option [--%s] need a value i.e. --%s=xxx\n\n"
+  ERROR("AFB-daemon option [--%s] need a value i.e. --%s=xxx"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
   exit (1);
 
 notAnInteger:
-  fprintf (stderr,"\nERR: AFB-daemon option [--%s] requirer an interger i.e. --%s=9\n\n"
+  ERROR("AFB-daemon option [--%s] requirer an interger i.e. --%s=9"
           ,gnuOptions[optionIndex].name, gnuOptions[optionIndex].name);
   exit (1);
 
 noValueForOption:
-  fprintf (stderr,"\nERR: AFB-daemon option [--%s] don't take value\n\n"
+  ERROR("AFB-daemon option [--%s] don't take value"
           ,gnuOptions[optionIndex].name);
   exit (1);
 
 badMode:
-  fprintf (stderr,"\nERR: AFB-daemon option [--%s] only accepts local, global or remote.\n\n"
+  ERROR("AFB-daemon option [--%s] only accepts local, global or remote."
           ,gnuOptions[optionIndex].name);
   exit (1);
 }
@@ -402,7 +403,7 @@ static void closeSession (int status, void *data) {
  +--------------------------------------------------------- */
 void signalQuit (int signum)
 {
-	fprintf(stderr, "Terminating signal received %s\n", strsignal(signum));
+	ERROR("Terminating signal received %s", strsignal(signum));
 	exit(1);
 }
 
@@ -425,7 +426,7 @@ static void signalError(int signum)
 	}
 	if (signum == SIGALRM)
 		return;
-	fprintf(stderr, "Unmonitored signal received %s\n", strsignal(signum));
+	ERROR("Unmonitored signal received %s", strsignal(signum));
 	exit(2);
 }
 
@@ -435,7 +436,7 @@ static void install_error_handlers()
 
 	for (i = 0; signals[i] != 0; i++) {
 		if (signal(signals[i], signalError) == SIG_ERR) {
-			fprintf(stderr, "Signal handler error\n");
+			ERROR("Signal handler error");
 			exit(1);
 		}
 	}
@@ -453,7 +454,7 @@ static void daemonize(struct afb_config *config)
       // open /dev/console to redirect output messAFBes
       consoleFD = open(config->console, O_WRONLY | O_APPEND | O_CREAT , 0640);
       if (consoleFD < 0) {
-  		fprintf (stderr,"\nERR: AFB-daemon cannot open /dev/console (use --foreground)\n\n");
+  		ERROR("AFB-daemon cannot open /dev/console (use --foreground)");
   		exit (1);
       }
 
@@ -462,7 +463,7 @@ static void daemonize(struct afb_config *config)
 
       // if fail nothing much to do
       if (pid == -1) {
-  		fprintf (stderr,"\nERR: AFB-daemon Failed to fork son process\n\n");
+  		ERROR("AFB-daemon Failed to fork son process");
   		exit (1);
 	}
 
@@ -470,7 +471,7 @@ static void daemonize(struct afb_config *config)
       if (pid != 0) _exit (0);
 
       // son process get all data in standalone mode
-     fprintf (stderr, "\nAFB: background mode [pid:%d console:%s]\n", getpid(),config->console);
+     NOTICE("background mode [pid:%d console:%s]", getpid(),config->console);
 
       // redirect default I/O on console
       close (2); dup(consoleFD);  // redirect stderr
@@ -482,10 +483,6 @@ static void daemonize(struct afb_config *config)
   	 setsid();   // allow father process to fully exit
      sleep (2);  // allow main to leave and release port
 #endif
-
-         fprintf (stderr, "----------------------------\n");
-         fprintf (stderr, "INF: main background pid=%d\n", getpid());
-         fflush  (stderr);
 }
 
 /*---------------------------------------------------------
@@ -521,31 +518,29 @@ static struct afb_hsrv *start_http_server(struct afb_config * config)
 	struct afb_hsrv *hsrv;
 
 	if (afb_hreq_init_download_path("/tmp")) { /* TODO: sessiondir? */
-		fprintf(stderr, "unable to set the tmp directory\n");
+		ERROR("unable to set the tmp directory");
 		return NULL;
 	}
 
 	hsrv = afb_hsrv_create();
 	if (hsrv == NULL) {
-		fprintf(stderr, "memory allocation failure\n");
+		ERROR("memory allocation failure");
 		return NULL;
 	}
 
 	if (!afb_hsrv_set_cache_timeout(hsrv, config->cacheTimeout)
 	|| !init_http_server(hsrv, config)) {
-		fprintf (stderr, "Error: initialisation of httpd failed");
+		ERROR("initialisation of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}
 
-	if (verbosity) {
-		fprintf (stderr, "AFB:notice Waiting port=%d rootdir=%s\n", config->httpdPort, config->rootdir);
-		fprintf (stderr, "AFB:notice Browser URL= http:/*localhost:%d\n", config->httpdPort);
-	}
+	NOTICE("Waiting port=%d rootdir=%s", config->httpdPort, config->rootdir);
+	NOTICE("Browser URL= http:/*localhost:%d", config->httpdPort);
 
 	rc = afb_hsrv_start(hsrv, (uint16_t) config->httpdPort, 15);
 	if (!rc) {
-		fprintf (stderr, "Error: starting of httpd failed");
+		ERROR("starting of httpd failed");
 		afb_hsrv_put(hsrv);
 		return NULL;
 	}
@@ -575,7 +570,7 @@ int main(int argc, char *argv[])  {
 
   // ------------------ sanity check ----------------------------------------
   if (config->httpdPort <= 0) {
-    fprintf (stderr, "ERR: no port is defined\n");
+     ERROR("no port is defined");
      exit (1);
   }
 
@@ -584,7 +579,7 @@ int main(int argc, char *argv[])  {
 
   ctxStoreInit(CTX_NBCLIENTS, config->cntxTimeout, config->token, afb_apis_count());
   if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, DEFLT_CNTX_TIMEOUT)) {
-    fprintf (stderr, "ERR: initialisation of cookies failed\n");
+     ERROR("initialisation of cookies failed");
      exit (1);
   }
 
@@ -592,7 +587,7 @@ int main(int argc, char *argv[])  {
 
   // ------------------ clean exit on CTR-C signal ------------------------
   if (signal (SIGINT, signalQuit) == SIG_ERR || signal (SIGABRT, signalQuit) == SIG_ERR) {
-     fprintf (stderr, "ERR: main fail to install Signal handler\n");
+     ERROR("main fail to install Signal handler");
      return 1;
   }
 
@@ -603,17 +598,16 @@ int main(int argc, char *argv[])  {
   // let's not take the risk to run as ROOT
   //if (getuid() == 0)  goto errorNoRoot;
 
-  if (verbosity) fprintf (stderr, "AFB: notice Init config done\n");
+  DEBUG("Init config done");
 
   // --------- run -----------
   if (config->background) {
       // --------- in background mode -----------
-      if (verbosity) fprintf (stderr, "AFB: Entering background mode\n");
+      INFO("entering background mode");
       daemonize(config);
   } else {
       // ---- in foreground mode --------------------
-      if (verbosity) fprintf (stderr,"AFB: notice Foreground mode\n");
-
+      INFO("entering foreground mode");
   }
 
    hsrv = start_http_server(config);
@@ -631,8 +625,7 @@ int main(int argc, char *argv[])  {
   for(;;)
     sd_event_run(eventloop, 30000000);
 
-   if (verbosity)
-       fprintf (stderr, "hoops returned from infinite loop [report bug]\n");
+  WARNING("hoops returned from infinite loop [report bug]");
 
   return 0;
 }

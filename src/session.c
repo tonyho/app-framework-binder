@@ -28,6 +28,7 @@
 #include <json.h>
 
 #include "session.h"
+#include "verbose.h"
 
 #define NOW (time(NULL))
 
@@ -88,7 +89,7 @@ void ctxStoreInit (int max_session_count, int timeout, const char *initok, int c
 	sessions.timeout = timeout;
 	sessions.apicount = context_count;
 	if (strlen(initok) >= sizeof(sessions.store[0]->token)) {
-		fprintf(stderr, "Error: initial token '%s' too long (max length 36)", initok);
+		ERROR("initial token '%s' too long (max length 36)", initok);
 		exit(1);
 	}
 	sessions.initok = initok;
@@ -144,8 +145,6 @@ static int ctxStoreAdd (struct AFB_clientCtx *client)
     int status;
 
     assert (client != NULL);
-
-    //fprintf (stderr, "ctxStoreAdd request uuid=%s count=%d\n", client->uuid, sessions.count);
 
     pthread_mutex_lock(&sessions.mutex);
 

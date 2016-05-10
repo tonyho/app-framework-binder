@@ -18,10 +18,14 @@
 
 #pragma once
 
-#include <systemd/sd-journal.h>
+#include <systemd/sd-daemon.h>
+
 extern int verbosity;
-#define ERROR(...)   do{if(verbosity>=0)sd_journal_print(LOG_ERR,__VA_ARGS__);}while(0)
-#define WARNING(...) do{if(verbosity>=1)sd_journal_print(LOG_WARNING,__VA_ARGS__);}while(0)
-#define NOTICE(...)  do{if(verbosity>=0)sd_journal_print(LOG_NOTICE,__VA_ARGS__);}while(0)
-#define INFO(...)    do{if(verbosity>=2)sd_journal_print(LOG_INFO,__VA_ARGS__);}while(0)
-#define DEBUG(...)   do{if(verbosity>=3)sd_journal_print(LOG_DEBUG,__VA_ARGS__);}while(0)
+extern void verbose(int level, const char *file, int line, const char *fmt, ...);
+
+#define ERROR(...)   do{if(verbosity>=0)verbose(3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#define WARNING(...) do{if(verbosity>=1)verbose(4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#define NOTICE(...)  do{if(verbosity>=1)verbose(5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#define INFO(...)    do{if(verbosity>=2)verbose(6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#define DEBUG(...)   do{if(verbosity>=3)verbose(7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+

@@ -16,7 +16,30 @@
  limitations under the License.
 */
 
+#include <stdio.h>
+#include <stdarg.h>
 #include "verbose.h"
 
 int verbosity = 1;
 
+static const char *prefixes[] = {
+	"<0> EMERGENCY",
+	"<1> ALERT",
+	"<2> CRITICAL",
+	"<3> ERROR",
+	"<4> WARNING",
+	"<5> NOTICE",
+	"<6> INFO",
+	"<7> DEBUG"
+};
+
+void verbose(int level, const char *file, int line, const char *fmt, ...)
+{
+	va_list ap;
+
+	fprintf(stderr, "%s: ", prefixes[level < 0 ? 0 : level > 7 ? 7 : level]);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, " [%s:%d]\n", file, line);
+}
