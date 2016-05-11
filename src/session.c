@@ -83,11 +83,16 @@ static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 // Create a new store in RAM, not that is too small it will be automatically extended
 void ctxStoreInit (int max_session_count, int timeout, const char *initok, int context_count)
 {
+
 	// let's create as store as hashtable does not have any
 	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof(struct AFB_clientCtx));
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
 	sessions.apicount = context_count;
+        if (!initok) {
+		ERROR("\"--token=\" parameter is mandatory");
+		exit(1);
+	}
 	if (strlen(initok) >= sizeof(sessions.store[0]->token)) {
 		ERROR("initial token '%s' too long (max length 36)", initok);
 		exit(1);
