@@ -56,8 +56,14 @@ struct afb_ws_json
 static void aws_send_event(struct afb_ws_json *ws, const char *event, struct json_object *object);
 
 static const struct afb_event_listener_itf event_listener_itf = {
-	.send = (void*)aws_send_event
+	.send = (void*)aws_send_event,
+	.expects = NULL
 };
+
+static inline struct afb_event_listener listener_for(struct afb_ws_json *aws)
+{
+	return (struct afb_event_listener){ .itf = &event_listener_itf, .closure = aws };
+}
 
 struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *session, void (*cleanup)(void*), void *cleanup_closure)
 {
@@ -85,7 +91,7 @@ struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *session, vo
 	if (result->ws == NULL)
 		goto error4;
 
-	if (0 > ctxClientEventListenerAdd(result->session, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = result }))
+	if (0 > ctxClientEventListenerAdd(result->session, listener_for(result)))
 		goto error5;
 
 	return result;
@@ -105,7 +111,7 @@ error:
 
 static void aws_on_hangup(struct afb_ws_json *ws)
 {
-	ctxClientEventListenerRemove(ws->session, (struct afb_event_listener){ .itf = &event_listener_itf, .closure = ws });
+	ctxClientEventListenerRemove(ws->session, listener_for(ws));
 	afb_ws_destroy(ws->ws);
 	json_tokener_free(ws->tokener);
 	if (ws->cleanup != NULL)

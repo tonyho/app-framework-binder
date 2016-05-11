@@ -378,8 +378,10 @@ static int send(struct afb_event_listener_list *head, const char *event, struct 
 	result = 0;
 	iter = head;
 	while (iter != NULL) {
-		iter->listener.itf->send(iter->listener.closure, event, json_object_get(object));
-		result++;
+		if (iter->listener.itf->expects == NULL || iter->listener.itf->expects(iter->listener.closure, event)) {
+			iter->listener.itf->send(iter->listener.closure, event, json_object_get(object));
+			result++;
+		}
 		iter = iter->next;
 	}
 

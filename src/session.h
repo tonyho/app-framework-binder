@@ -23,6 +23,7 @@ struct AFB_clientCtx;
 struct afb_event_listener_itf
 {
 	void (*send)(void *closure, const char *event, struct json_object *object);
+	int (*expects)(void *closure, const char *event);
 };
 
 struct afb_event_listener
