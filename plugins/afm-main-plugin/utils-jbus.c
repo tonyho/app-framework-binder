@@ -26,6 +26,7 @@
 
 #include <json-c/json.h>
 #include <systemd/sd-bus.h>
+#include <systemd/sd-bus-protocol.h>
 
 #include "utils-jbus.h"
 
@@ -518,7 +519,7 @@ void jbus_unref(struct jbus *jbus)
  */
 int jbus_reply_error_s(struct sd_bus_message *smsg, const char *error)
 {
-	return mkerrno(sd_bus_reply_method_errorf(smsg, "error", "%s", error));
+	return mkerrno(sd_bus_reply_method_errorf(smsg, SD_BUS_ERROR_FAILED, "%s", error));
 }
 
 /*
