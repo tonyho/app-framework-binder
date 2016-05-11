@@ -47,6 +47,7 @@ static const char DEFAULT_PATH_PREFIX[] = "/org/agl/afb/api/";
 struct api_dbus
 {
 	struct sd_bus *sdbus;	/* the bus */
+	struct sd_bus_slot *slot; /* the slot */
 	char *path;		/* path of the object for the API */
 	char *name;		/* name/interface of the object */
 	char *api;		/* api name of the interface */
@@ -286,16 +287,49 @@ static void api_dbus_client_call(struct api_dbus *api, struct afb_req req, struc
 	}
 }
 
+/* receives events */
+static int api_dbus_client_on_event(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
+{
+	struct json_object *object;
+	const char *event, *data;
+	int rc = sd_bus_message_read(m, "ss", &event, &data);
+	if (rc < 0)
+		ERROR("unreadable event");
+	else {
+		object = json_tokener_parse(data);
+		ctxClientEventSend(NULL, event, object);
+		json_object_put(object);
+	}
+	return 1;
+}
+
 /* adds a afb-dbus-service client api */
 int afb_api_dbus_add_client(const char *path)
 {
+	int rc;
 	struct api_dbus *api;
 	struct afb_api afb_api;
+	char *match;
 
 	/* create the dbus client api */
 	api = make_api_dbus(path);
 	if (api == NULL)
 		goto error;
+
+	/* connect to events */
+	rc = asprintf(&match, "type='signal',path='%s',interface='%s',member='event'", api->path, api->name);
+	if (rc < 0) {
+		errno = ENOMEM;
+		ERROR("out of memory");
+		goto error;
+	}
+	rc = sd_bus_add_match(api->sdbus, &api->slot, match, api_dbus_client_on_event, api);
+	free(match);
+	if (rc < 0) {
+		errno = -rc;
+		ERROR("can't add dbus object %s for %s", api->path, api->name);
+		goto error;
+	}
 
 	/* record it as an API */
 	afb_api.closure = api;
@@ -378,6 +412,8 @@ static void dbus_req_reply(struct dbus_req *dreq, uint8_t type, const char *firs
 	int rc;
 	rc = sd_bus_reply_method_return(dreq->message,
 			"yssu", type, first, second, (uint32_t)dreq->context.flags);
+	if (rc < 0)
+		ERROR("sending the reply failed");
 }
 
 static void dbus_req_success(struct dbus_req *dreq, struct json_object *obj, const char *info)
@@ -470,12 +506,35 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	return 1;
 }
 
+static void afb_api_dbus_server_send_event(struct api_dbus *api, const char *event, struct json_object *object)
+{
+	int rc;
+
+	rc = sd_bus_emit_signal(api->sdbus, api->path, api->name,
+			"event", "ss", event, json_object_to_json_string(object));
+	if (rc < 0)
+		ERROR("error while emiting event %s", event);
+	json_object_put(object);
+}
+
+static int afb_api_dbus_server_expects_event(struct api_dbus *api, const char *event)
+{
+	size_t len = strlen(api->api);
+	if (strncasecmp(event, api->api, len) != 0)
+		return 0;
+	return event[len] == '.';
+}
+
+static struct afb_event_listener_itf evitf = {
+	.send = (void*)afb_api_dbus_server_send_event,
+	.expects = (void*)afb_api_dbus_server_expects_event
+};
+
 /* create the service */
 int afb_api_dbus_add_server(const char *path)
 {
 	int rc;
 	struct api_dbus *api;
-	sd_bus_slot *slot;
 
 	/* get the dbus api object connected */
 	api = make_api_dbus(path);
@@ -491,13 +550,15 @@ int afb_api_dbus_add_server(const char *path)
 	}
 
 	/* connect the service to the dbus object */
-	rc = sd_bus_add_object(api->sdbus, &slot, api->path, api_dbus_server_on_object_called, api);
+	rc = sd_bus_add_object(api->sdbus, &api->slot, api->path, api_dbus_server_on_object_called, api);
 	if (rc < 0) {
 		errno = -rc;
 		ERROR("can't add dbus object %s for %s", api->path, api->name);
 		goto error3;
 	}
 	INFO("afb service over dbus installed, name %s, path %s", api->name, api->path);
+
+	ctxClientEventListenerAdd(NULL, (struct afb_event_listener){ .itf = &evitf, .closure = api });
 
 	return 0;
 error3:
