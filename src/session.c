@@ -65,6 +65,7 @@ static struct {
   int timeout;
   int apicount;
   const char *initok;
+  struct afb_event_listener_list *listeners;
 } sessions;
 
 // Free context [XXXX Should be protected again memory abort XXXX]
@@ -170,7 +171,15 @@ added:
 // Check if context timeout or not
 static int ctxStoreTooOld (struct AFB_clientCtx *ctx, time_t now)
 {
-    return ctx->expiration <= now;
+    assert (ctx != NULL);
+    return ctx->expiration < now;
+}
+
+// Check if context is active or not
+static int ctxIsActive (struct AFB_clientCtx *ctx, time_t now)
+{
+    assert (ctx != NULL);
+    return ctx->uuid[0] != 0 && ctx->expiration >= now;
 }
 
 // Loop on every entry and remove old context sessions.hash
@@ -281,7 +290,7 @@ int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
 	assert(token != NULL);
 
 	// compare current token with previous one
-	if (ctxStoreTooOld (clientCtx, NOW))
+	if (!ctxIsActive (clientCtx, NOW))
 		return 0;
 
 	if (clientCtx->token[0] && strcmp (token, clientCtx->token) != 0)
@@ -305,11 +314,11 @@ void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 	clientCtx->expiration = NOW + sessions.timeout;
 }
 
-int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
+static int add_listener(struct afb_event_listener_list **head, struct afb_event_listener listener)
 {
 	struct afb_event_listener_list *iter, **prv;
 
-	prv = &clientCtx->listeners;
+	prv = head;
 	for (;;) {
 		iter = *prv;
 		if (iter == NULL) {
@@ -331,11 +340,16 @@ int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_
 	}
 }
 
-void ctxClientEventListenerRemove(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
+int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
+{
+	return add_listener(clientCtx != NULL ? &clientCtx->listeners : &sessions.listeners, listener);
+}
+
+static void remove_listener(struct afb_event_listener_list **head, struct afb_event_listener listener)
 {
 	struct afb_event_listener_list *iter, **prv;
 
-	prv = &clientCtx->listeners;
+	prv = head;
 	for (;;) {
 		iter = *prv;
 		if (iter == NULL)
@@ -351,13 +365,18 @@ void ctxClientEventListenerRemove(struct AFB_clientCtx *clientCtx, struct afb_ev
 	}
 }
 
-static int send(struct AFB_clientCtx *clientCtx, const char *event, struct json_object *object)
+void ctxClientEventListenerRemove(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
+{
+	remove_listener(clientCtx != NULL ? &clientCtx->listeners : &sessions.listeners, listener);
+}
+
+static int send(struct afb_event_listener_list *head, const char *event, struct json_object *object)
 {
 	struct afb_event_listener_list *iter;
 	int result;
 
 	result = 0;
-	iter = clientCtx->listeners;
+	iter = head;
 	while (iter != NULL) {
 		iter->listener.itf->send(iter->listener.closure, event, json_object_get(object));
 		result++;
@@ -373,18 +392,18 @@ int ctxClientEventSend(struct AFB_clientCtx *clientCtx, const char *event, struc
 	time_t now;
 	int result;
 
-	if (clientCtx != NULL)
-		result = send(clientCtx, event, object);
-	else {
-		result = 0;
-		now = NOW;
+	now = NOW;
+	if (clientCtx != NULL) {
+		result = ctxIsActive(clientCtx, now) ? send(clientCtx->listeners, event, object) : 0;
+	} else {
+		result = send(sessions.listeners, event, object);
 		for (idx=0; idx < sessions.max; idx++) {
-			clientCtx = sessions.store[idx];
-			if (clientCtx != NULL && !ctxStoreTooOld(clientCtx, now)) {
+			clientCtx = ctxClientAddRef(sessions.store[idx]);
+			if (clientCtx != NULL && ctxIsActive(clientCtx, now)) {
 				clientCtx = ctxClientAddRef(clientCtx);
-				result += send(clientCtx, event, object);
-				ctxClientUnref(clientCtx);
+				result += send(clientCtx->listeners, event, object);
 			}
+			ctxClientUnref(clientCtx);
 		}
 	}
 	return result;
