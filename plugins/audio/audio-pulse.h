@@ -24,7 +24,6 @@
 #include <pulse/error.h>
 
 #include "audio-alsa.h"
-#include "local-def.h"
 
 typedef struct dev_ctx_pulse dev_ctx_pulse_T;
 typedef struct alsa_info alsa_info_T;
@@ -48,24 +47,20 @@ struct alsa_info {
   char *synonyms;
 };
 
-PUBLIC unsigned char _pulse_init (const char *, audioCtxHandleT *);
-PUBLIC void _pulse_free (audioCtxHandleT *);
-PUBLIC void _pulse_play (audioCtxHandleT *);
-PUBLIC void _pulse_stop (audioCtxHandleT *);
-PUBLIC unsigned int _pulse_get_volume (audioCtxHandleT *, unsigned int);
-PUBLIC void _pulse_set_volume (audioCtxHandleT *, unsigned int, unsigned int);
-PUBLIC void _pulse_set_volume_all (audioCtxHandleT *, unsigned int);
-PUBLIC unsigned char _pulse_get_mute (audioCtxHandleT *);
-PUBLIC void _pulse_set_mute (audioCtxHandleT *, unsigned char);
+unsigned char _pulse_init (const char *, audioCtxHandleT *);
+void _pulse_free (audioCtxHandleT *);
+void _pulse_play (audioCtxHandleT *);
+void _pulse_stop (audioCtxHandleT *);
+unsigned int _pulse_get_volume (audioCtxHandleT *, unsigned int);
+void _pulse_set_volume (audioCtxHandleT *, unsigned int, unsigned int);
+void _pulse_set_volume_all (audioCtxHandleT *, unsigned int);
+unsigned char _pulse_get_mute (audioCtxHandleT *);
+void _pulse_set_mute (audioCtxHandleT *, unsigned char);
 
-STATIC void  _pulse_context_cb (pa_context *, void *);
-STATIC void  _pulse_sink_list_cb (pa_context *, const pa_sink_info *, int, void *);
-STATIC void  _pulse_sink_info_cb (pa_context *, const pa_sink_info *, int, void *);
-STATIC void* _pulse_play_thread_fn (void *);
-PUBLIC void  _pulse_refresh_sink (dev_ctx_pulse_T *);
-
-static struct alsa_info **alsa_info = NULL;
-static struct dev_ctx_pulse **dev_ctx_p = NULL;
-static unsigned int client_count = 0;
+void  _pulse_context_cb (pa_context *, void *);
+void  _pulse_sink_list_cb (pa_context *, const pa_sink_info *, int, void *);
+void  _pulse_sink_info_cb (pa_context *, const pa_sink_info *, int, void *);
+void* _pulse_play_thread_fn (void *);
+void  _pulse_refresh_sink (dev_ctx_pulse_T *);
 
 #endif /* AUDIO_PULSE_H */

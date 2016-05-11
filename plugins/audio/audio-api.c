@@ -17,6 +17,7 @@
 
 #define _GNU_SOURCE
 #include <stdlib.h>
+#include <json-c/json.h>
 
 #include "audio-api.h"
 #include "audio-alsa.h"
@@ -29,7 +30,7 @@
 
 /* ------ BACKEND FUNCTIONS ------- */
 
-void _backend_init (const char *name, audioCtxHandleT *ctx) {
+unsigned char _backend_init (const char *name, audioCtxHandleT *ctx) {
 
     char *backend_env = getenv ("AFB_AUDIO_OUTPUT");
     unsigned char res = 0;
@@ -41,8 +42,10 @@ void _backend_init (const char *name, audioCtxHandleT *ctx) {
 #endif
     res = _alsa_init (name, ctx);
 
-    if (!res && verbose)
+    if (!res)
         fprintf (stderr, "Could not initialize Audio backend\n");
+
+    return res;
 }
 
 void _backend_free (audioCtxHandleT *ctx) {
@@ -119,14 +122,15 @@ void _backend_set_channels (audioCtxHandleT *ctx, unsigned int channels) {
 
 /* ------ LOCAL HELPER FUNCTIONS --------- */
 
-/* private client context creation ; default values */
-STATIC audioCtxHandleT* initAudioCtx () {
+/* private client context constructor ; default values */
+static audioCtxHandleT* initAudioCtx () {
 
     audioCtxHandleT *ctx;
     int i;
 
     ctx = malloc (sizeof(audioCtxHandleT));
     ctx->audio_dev = NULL;
+    ctx->name = NULL;
     ctx->idx = -1;
     for (i = 0; i < 8; i++)
         ctx->volume[i] = 25;
@@ -137,45 +141,49 @@ STATIC audioCtxHandleT* initAudioCtx () {
     return ctx;
 }
 
-STATIC AFB_error releaseAudio (audioCtxHandleT *ctx) {
+static void releaseAudioCtx (void *context) {
+
+    audioCtxHandleT *ctx = (audioCtxHandleT*) context;
 
     /* power it off */
     _backend_free (ctx);
 
     /* clean client context */
+    ctx->audio_dev = NULL;
+    if (ctx->name)
+		free (ctx->name);
     ctx->idx = -1;
-
-    return AFB_SUCCESS;
-}
-
-/* called when client session dies [e.g. client quits for more than 15mns] */
-STATIC void freeAudio (void *context) {
-    free (context);    
+    free (ctx);
 }
 
 
 /* ------ PUBLIC PLUGIN FUNCTIONS --------- */
 
-STATIC void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
+static void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
+    audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
     json_object *jresp;
 
     /* create a private client context */
-    if (!request.context)
-        request.context = initAudioCtx();
+	if (!ctx) {
+        ctx = initAudioCtx();
+        afb_req_context_set (request, ctx, releaseAudioCtx);
+    }
 
-    _backend_init("default", request.context);
+    if (!_backend_init ("default", ctx)) {
+        afb_req_fail (request, "failed", "backend initialization failed");
+    }
 
     jresp = json_object_new_object();
-    json_object_object_add (jresp, "info", json_object_new_string ("Audio initialized"));
-
-    afb_req_success (request, jresp, "Audio initiliazed");
+    json_object_object_add (jresp, "init", json_object_new_string ("success"));
+    afb_req_success (request, jresp, "Audio initialized");
 }
 
-STATIC void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
+static void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
-    const char *value = afb_req_argument (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
+    struct afb_arg arg = afb_req_get (request, "value");
+    const char *value = arg.value;
     json_object *jresp;
     unsigned int volume[8], i;
     char *volume_i;
@@ -201,8 +209,7 @@ STATIC void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
 
         if (100 < volume[0]) {
             free (volume_i);
-            //request.errcode = MHD_HTTP_SERVICE_UNAVAILABLE;
-            afb_req_fail (request, "Failed", "Volume must be between 0 and 100");
+            afb_req_fail (request, "failed", "volume must be between 0 and 100");
             return;
         }
         ctx->volume[0] = volume[0];
@@ -230,10 +237,11 @@ STATIC void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
     afb_req_success (request, jresp, "Audio - Volume changed");
 }
 
-STATIC void channels (struct afb_req request) {    /* AFB_SESSION_CHECK */
+static void channels (struct afb_req request) {    /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
-    const char *value = afb_req_argument (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
+    struct afb_arg arg = afb_req_get (request, "value");
+    const char *value = arg.value;
     json_object *jresp = json_object_new_object();
     char channels_str[256];
 
@@ -255,10 +263,11 @@ STATIC void channels (struct afb_req request) {    /* AFB_SESSION_CHECK */
     afb_req_success (request, jresp, "Audio - Channels set");
 }
 
-STATIC void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
+static void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
-    const char *value = afb_req_argument (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
+    struct afb_arg arg = afb_req_get (request, "value");
+    const char *value = arg.value;
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
@@ -288,10 +297,11 @@ STATIC void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
     afb_req_success (request, jresp, "Audio - Mute set");
 }
 
-STATIC void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
+static void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    audioCtxHandleT *ctx = (audioCtxHandleT*)request.context;
-    const char *value = afb_req_argument (request, "value");
+    audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
+    struct afb_arg arg = afb_req_get (request, "value");
+    const char *value = arg.value;
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
@@ -320,11 +330,11 @@ STATIC void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
     afb_req_success (request, jresp, "Audio - Play");
 }
 
-STATIC void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
+static void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
     afb_req_success (request, NULL, "Audio - Ping success");
 }
 
-STATIC const struct AFB_restapi pluginApis[]= {
+static const struct AFB_restapi pluginApis[]= {
   {"init"    , AFB_SESSION_CHECK,  init      , "Audio API - init"},
   {"volume"  , AFB_SESSION_CHECK,  volume    , "Audio API - volume"},
   {"channels", AFB_SESSION_CHECK,  channels  , "Audio API - channels"},
@@ -334,9 +344,14 @@ STATIC const struct AFB_restapi pluginApis[]= {
   {NULL}
 };
 
-STATIC const struct AFB_plugin plug_desc = {
+static const struct AFB_plugin pluginDesc = {
     .type   = AFB_PLUGIN_JSON,
     .info   = "Application Framework Binder - Audio plugin",
     .prefix = "audio",
     .apis   = pluginApis
 };
+
+const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+{
+	return &pluginDesc;
+}

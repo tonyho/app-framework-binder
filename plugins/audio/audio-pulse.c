@@ -21,7 +21,12 @@
 #include "audio-api.h"
 #include "audio-pulse.h"
 
-PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
+static struct alsa_info **alsa_info = NULL;
+static struct dev_ctx_pulse **dev_ctx_p = NULL;
+static unsigned int client_count = 0;
+
+
+unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
     pa_mainloop *pa_loop;
     pa_mainloop_api *pa_api;
@@ -57,12 +62,12 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
         pa_mainloop_iterate (pa_loop, 0, &ret);
 
         if (ret == -1) {
-            if (verbose) fprintf (stderr, "Stopping PulseAudio backend...\n");
+			fprintf (stderr, "Stopping PulseAudio backend...\n");
             return 0;
         }
         if (ret >= 0) {
             /* found a matching sink from callback */
-            if (verbose) fprintf (stderr, "Success : using sink n.%d\n", error);
+            fprintf (stderr, "Success : using sink n.%d\n", error);
             ctx->audio_dev = (void*)dev_ctx_p[ret];
             break;
         }
@@ -96,12 +101,12 @@ PUBLIC unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
     client_count++;
 
-    if (verbose) fprintf (stderr, "Successfully initialized PulseAudio backend.\n");
+    fprintf (stderr, "Successfully initialized PulseAudio backend.\n");
 
     return 1;
 }
 
-PUBLIC void _pulse_free (audioCtxHandleT *ctx) {
+void _pulse_free (audioCtxHandleT *ctx) {
 
     int num, i;
 
@@ -127,7 +132,7 @@ PUBLIC void _pulse_free (audioCtxHandleT *ctx) {
     }
 }
 
-PUBLIC void _pulse_play (audioCtxHandleT *ctx) {
+void _pulse_play (audioCtxHandleT *ctx) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
@@ -139,7 +144,7 @@ PUBLIC void _pulse_play (audioCtxHandleT *ctx) {
     pthread_create (&dev_ctx_p_c->thr, NULL, _pulse_play_thread_fn, (void*)dev_ctx_p_c);
 }
 
-PUBLIC void _pulse_stop (audioCtxHandleT *ctx) {
+void _pulse_stop (audioCtxHandleT *ctx) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
@@ -152,7 +157,7 @@ PUBLIC void _pulse_stop (audioCtxHandleT *ctx) {
     pthread_join (dev_ctx_p_c->thr, NULL);
 }
 
-PUBLIC unsigned int _pulse_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
+unsigned int _pulse_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
@@ -164,7 +169,7 @@ PUBLIC unsigned int _pulse_get_volume (audioCtxHandleT *ctx, unsigned int channe
     return dev_ctx_p_c->volume.values[channel];
 }
 
-PUBLIC void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsigned int vol) {
+void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsigned int vol) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
     struct pa_cvolume volume;
@@ -180,7 +185,7 @@ PUBLIC void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsig
     _pulse_refresh_sink (dev_ctx_p_c);
 }
 
-PUBLIC void _pulse_set_volume_all (audioCtxHandleT *ctx, unsigned int vol) {
+void _pulse_set_volume_all (audioCtxHandleT *ctx, unsigned int vol) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
     struct pa_cvolume volume;
@@ -196,7 +201,7 @@ PUBLIC void _pulse_set_volume_all (audioCtxHandleT *ctx, unsigned int vol) {
     _pulse_refresh_sink (dev_ctx_p_c);
 }
 
-PUBLIC unsigned char _pulse_get_mute (audioCtxHandleT *ctx) {
+unsigned char _pulse_get_mute (audioCtxHandleT *ctx) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
@@ -208,7 +213,7 @@ PUBLIC unsigned char _pulse_get_mute (audioCtxHandleT *ctx) {
     return (unsigned char)dev_ctx_p_c->mute;
 }
 
-PUBLIC void _pulse_set_mute (audioCtxHandleT *ctx, unsigned char mute) {
+void _pulse_set_mute (audioCtxHandleT *ctx, unsigned char mute) {
 
     dev_ctx_pulse_T* dev_ctx_p_c = (dev_ctx_pulse_T*)ctx->audio_dev;
 
@@ -332,7 +337,7 @@ char** _pulse_find_cards (const char *name) {
 
  /* ---- LOCAL CALLBACK FUNCTIONS ---- */
 
-STATIC void _pulse_context_cb (pa_context *context, void *data) {
+void _pulse_context_cb (pa_context *context, void *data) {
 
     pa_context_state_t state = pa_context_get_state (context);
     dev_ctx_pulse_T *dev_ctx_p_t = (dev_ctx_pulse_T *)data;
@@ -346,7 +351,7 @@ STATIC void _pulse_context_cb (pa_context *context, void *data) {
         pa_context_get_sink_info_list (context, _pulse_sink_list_cb, (void*)dev_ctx_p_t);
 }
 
-STATIC void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
+void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
 				 int eol, void *data) {
 
     dev_ctx_pulse_T *dev_ctx_p_t = (dev_ctx_pulse_T *)data;
@@ -373,7 +378,7 @@ STATIC void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
             for (i = 0; i < (sizeof(cards)/sizeof(char*)); i++) {
                 if (!strcmp (cards[i], dev_ctx_p_t->card_name[0])) {
                     /* it did : stop there and succeed */
-                    if (verbose) fprintf (stderr, "Found matching sink : %s\n", info->name);
+                    fprintf (stderr, "Found matching sink : %s\n", info->name);
                     pa_mainloop_quit (dev_ctx_p_t->pa_loop, num);
                 }
             }
@@ -400,13 +405,13 @@ STATIC void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
     for (i = 0; i < (sizeof(cards)/sizeof(char*)); i++) {
         if (!strcmp (cards[i], dev_ctx_p_t->card_name[0])) {
              /* it did : stop there and succeed */
-             if (verbose) fprintf (stderr, "Found matching sink : %s\n", info->name);
+             fprintf (stderr, "Found matching sink : %s\n", info->name);
              pa_mainloop_quit (dev_ctx_p_t->pa_loop, num);
         }
     }
 }
 
-STATIC void _pulse_sink_info_cb (pa_context *context, const pa_sink_info *info,
+void _pulse_sink_info_cb (pa_context *context, const pa_sink_info *info,
 				 int eol, void *data) {
 
     dev_ctx_pulse_T *dev_ctx_p_c = (dev_ctx_pulse_T *)data;
@@ -421,7 +426,7 @@ STATIC void _pulse_sink_info_cb (pa_context *context, const pa_sink_info *info,
 
  /* ---- LOCAL THREADED FUNCTIONS ---- */
 
-STATIC void* _pulse_play_thread_fn (void *ctx) {
+void* _pulse_play_thread_fn (void *ctx) {
 
     dev_ctx_pulse_T *dev_ctx_p_c = (dev_ctx_pulse_T *)ctx;
     FILE *file = NULL;

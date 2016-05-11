@@ -29,7 +29,10 @@ snd_mixer_selem_channel_id_t SCHANNELS[8] = {
  SND_MIXER_SCHN_SIDE_RIGHT
 };
 
-PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
+static struct dev_ctx_alsa **dev_ctx_a = NULL;
+
+
+unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
 
     snd_pcm_t *dev;
     snd_pcm_hw_params_t *params;
@@ -97,14 +100,14 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
 
     /* allocate the global array if it hasn't been done */
     if (!dev_ctx_a) {
-        dev_ctx_a = (dev_ctx_alsa_T**) malloc (sizeof(dev_ctx_alsa_T));
+        dev_ctx_a = (dev_ctx_alsa_T**) malloc (sizeof(dev_ctx_alsa_T*));
         dev_ctx_a[0] = (dev_ctx_alsa_T*) malloc (sizeof(dev_ctx_alsa_T));
         dev_ctx_a[0]->name = NULL;
         dev_ctx_a[0]->dev = NULL;
     }
 
     /* is a card with similar name already opened ? */
-    for (num = 0; num < (sizeof(dev_ctx_a)/sizeof(dev_ctx_alsa_T)); num++) {
+    for (num = 0; num < (sizeof(dev_ctx_a)/sizeof(dev_ctx_alsa_T*)); num++) {
         if (dev_ctx_a[num]->name &&
            !strcmp (dev_ctx_a[num]->name, name))
             return 0;
@@ -112,7 +115,7 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     num++;
 
     /* it's not... let us add it to the global array */
-    dev_ctx_a = (dev_ctx_alsa_T**) realloc (dev_ctx_a, (num+1)*sizeof(dev_ctx_alsa_T));
+    dev_ctx_a = (dev_ctx_alsa_T**) realloc (dev_ctx_a, (num+1)*sizeof(dev_ctx_alsa_T*));
     dev_ctx_a[num] = (dev_ctx_alsa_T*) malloc (sizeof(dev_ctx_alsa_T));
     dev_ctx_a[num]->name = strdup (name);
     dev_ctx_a[num]->dev = dev;
@@ -131,16 +134,16 @@ PUBLIC unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     ctx->idx = num;
     ctx->name = strdup (name);
 
-    if (verbose) fprintf (stderr, "Successfully initialized ALSA backend.\n");
+    fprintf (stderr, "Successfully initialized ALSA backend.\n");
 
     return 1;
 }
 
-PUBLIC void _alsa_free (const char *name) {
+void _alsa_free (const char *name) {
 
     int num;
 
-    for (num = 0; num < (sizeof(dev_ctx_a)/sizeof(dev_ctx_alsa_T)); num++) {
+    for (num = 0; num < (sizeof(dev_ctx_a)/sizeof(dev_ctx_alsa_T*)); num++) {
         if (dev_ctx_a[num]->name &&
            !strcmp (dev_ctx_a[num]->name, name)) {
             snd_pcm_close (dev_ctx_a[num]->dev);
@@ -154,7 +157,7 @@ PUBLIC void _alsa_free (const char *name) {
     }
 }
 
-PUBLIC void _alsa_play (int num) {
+void _alsa_play (int num) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || dev_ctx_a[num]->thr_should_run ||
         access (AUDIO_BUFFER, F_OK) == -1)
@@ -165,7 +168,7 @@ PUBLIC void _alsa_play (int num) {
     pthread_create (&dev_ctx_a[num]->thr, NULL, _alsa_play_thread_fn, (void*)dev_ctx_a[num]);
 }
 
-PUBLIC void _alsa_stop (int num) {
+void _alsa_stop (int num) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->thr_should_run)
         return;
@@ -179,27 +182,26 @@ PUBLIC void _alsa_stop (int num) {
     pthread_join (dev_ctx_a[num]->thr, NULL);
 }
 
-PUBLIC unsigned int _alsa_get_volume (int num, unsigned int channel) {
+unsigned int _alsa_get_volume (int num, unsigned int channel) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm)
         return 0;
 
     snd_mixer_selem_get_playback_volume (dev_ctx_a[num]->mixer_elm, SCHANNELS[channel], &dev_ctx_a[num]->vol);
 
-    return (int)(dev_ctx_a[num]->vol*100)/dev_ctx_a[num]->vol_max;
+    return (unsigned int)(dev_ctx_a[num]->vol*100)/dev_ctx_a[num]->vol_max;
 }
 
-PUBLIC void _alsa_set_volume (int num, unsigned int channel, unsigned int vol) {
+void _alsa_set_volume (int num, unsigned int channel, unsigned int vol) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm ||
         vol > 100)
         return;
 
     snd_mixer_selem_set_playback_volume (dev_ctx_a[num]->mixer_elm, SCHANNELS[channel], (vol*dev_ctx_a[num]->vol_max)/100);
-
 }
 
-PUBLIC void _alsa_set_volume_all (int num, unsigned int vol) {
+void _alsa_set_volume_all (int num, unsigned int vol) {
 
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm ||
         vol > 100)
@@ -207,7 +209,7 @@ PUBLIC void _alsa_set_volume_all (int num, unsigned int vol) {
     snd_mixer_selem_set_playback_volume_all (dev_ctx_a[num]->mixer_elm, (vol*dev_ctx_a[num]->vol_max)/100);
 }
 
-PUBLIC unsigned char _alsa_get_mute (int num) {
+unsigned char _alsa_get_mute (int num) {
 
     int mute = 0;
     snd_mixer_elem_t *elm_m;
@@ -229,7 +231,7 @@ PUBLIC unsigned char _alsa_get_mute (int num) {
         return (unsigned char)!mute;
 }
 
-PUBLIC void _alsa_set_mute (int num, unsigned char tomute) {
+void _alsa_set_mute (int num, unsigned char tomute) {
 
     snd_mixer_elem_t *elm_m;
     int mute;
@@ -249,7 +251,7 @@ PUBLIC void _alsa_set_mute (int num, unsigned char tomute) {
         snd_mixer_selem_set_playback_switch_all (elm_m, !mute);
 }
 
-PUBLIC void _alsa_set_rate (int num, unsigned int rate) {
+void _alsa_set_rate (int num, unsigned int rate) {
 
     if (!dev_ctx_a || !dev_ctx_a[num])
         return;
@@ -257,7 +259,7 @@ PUBLIC void _alsa_set_rate (int num, unsigned int rate) {
     snd_pcm_hw_params_set_rate_near (dev_ctx_a[num]->dev, dev_ctx_a[num]->params, &rate, 0);
 }
 
-PUBLIC void _alsa_set_channels (int num, unsigned int channels) {
+void _alsa_set_channels (int num, unsigned int channels) {
 
     if (!dev_ctx_a || !dev_ctx_a[num])
         return;
@@ -267,7 +269,7 @@ PUBLIC void _alsa_set_channels (int num, unsigned int channels) {
 
  /* ---- LOCAL THREADED FUNCTIONS ---- */
 
-STATIC void* _alsa_play_thread_fn (void *ctx) {
+void* _alsa_play_thread_fn (void *ctx) {
 
     dev_ctx_alsa_T *dev_ctx_a = (dev_ctx_alsa_T *)ctx;
     FILE *file = NULL;

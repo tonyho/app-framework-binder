@@ -17,6 +17,7 @@ INCLUDE(GNUInstallDirs)
 
 add_compile_options(-Wall -Wextra -Wconversion)
 add_compile_options(-Wno-unused-parameter) # frankly not using a parameter does it care?
+add_compile_options(-Wno-sign-compare -Wno-sign-conversion)
 add_compile_options(-Werror=maybe-uninitialized)
 add_compile_options(-Werror=implicit-function-declaration)
 add_compile_options(-ffunction-sections -fdata-sections)
@@ -96,8 +97,8 @@ SET(include_dirs
 	${libmicrohttpd_INCLUDE_DIRS}
 	${uuid_INCLUDE_DIRS}
 	${dbus_INCLUDE_DIRS}
-#	${alsa_INCLUDE_DIRS}
-#	${pulseaudio_INCLUDE_DIRS}
+	${alsa_INCLUDE_DIRS}
+	${pulseaudio_INCLUDE_DIRS}
 #	${librtlsdr_INCLUDE_DIRS}
 #	${gupnp_INCLUDE_DIRS}
 	${openssl_INCLUDE_DIRS}
@@ -109,8 +110,8 @@ SET(link_libraries
 	${libmicrohttpd_LIBRARIES}
 	${uuid_LIBRARIES}
 	${dbus_LIBRARIES}
-#	${alsa_LIBRARIES}
-#	${pulseaudio_LIBRARIES}
+	${alsa_LIBRARIES}
+	${pulseaudio_LIBRARIES}
 #	${librtlsdr_LIBRARIES}
 #	${gupnp_LIBRARIES}
 	${CMAKE_THREAD_LIBS_INIT}
