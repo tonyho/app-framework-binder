@@ -21,10 +21,11 @@
 /* --------------- MEDIA RYGEL DEFINITIONS ------------------ */
 
 #include <sys/time.h>
+#include <json-c/json.h>
 #include <libgupnp/gupnp-control-point.h>
 #include <libgupnp-av/gupnp-av.h>
 
-#include "local-def.h"
+#include "media-api.h"
 
 #define URN_MEDIA_SERVER   "urn:schemas-upnp-org:device:MediaServer:1"
 #define URN_MEDIA_RENDERER "urn:schemas-upnp-org:device:MediaRenderer:1"
@@ -49,22 +50,29 @@ struct dev_ctx {
     unsigned char transfer_started;
 };
 
-STATIC char* _rygel_list_raw (dev_ctx_T *, unsigned int *);
-STATIC char* _rygel_find_upload_id (dev_ctx_T *, char *);
-STATIC char* _rygel_find_id_for_index (dev_ctx_T *, char *, unsigned int);
-STATIC char* _rygel_find_metadata_for_id (dev_ctx_T *, char *);
-STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T *, char *);
-STATIC unsigned char _rygel_start_uploading (dev_ctx_T *, char *, char *);
-STATIC unsigned char _rygel_start_doing (dev_ctx_T *, char *, char *, State, char *);
-STATIC unsigned char _rygel_find_av_transport (dev_ctx_T *);
-STATIC void _rygel_device_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
-STATIC void _rygel_av_transport_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
-STATIC void _rygel_content_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
-STATIC void _rygel_metadata_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
-STATIC void _rygel_select_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
-STATIC void _rygel_upload_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
-STATIC void _rygel_transfer_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
-STATIC void _rygel_do_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+unsigned char _rygel_init (mediaCtxHandleT *);
+void _rygel_free (mediaCtxHandleT *);
+json_object* _rygel_list (mediaCtxHandleT *);
+unsigned char _rygel_select (mediaCtxHandleT *, unsigned int);
+unsigned char _rygel_upload (mediaCtxHandleT *, char *);
+unsigned char _rygel_do (mediaCtxHandleT *, State, char *);
+
+char* _rygel_list_raw (dev_ctx_T *, unsigned int *);
+char* _rygel_find_upload_id (dev_ctx_T *, char *);
+char* _rygel_find_id_for_index (dev_ctx_T *, char *, unsigned int);
+char* _rygel_find_metadata_for_id (dev_ctx_T *, char *);
+char* _rygel_find_uri_for_metadata (dev_ctx_T *, char *);
+unsigned char _rygel_start_uploading (dev_ctx_T *, char *, char *);
+unsigned char _rygel_start_doing (dev_ctx_T *, char *, char *, State, char *);
+unsigned char _rygel_find_av_transport (dev_ctx_T *);
+static void _rygel_device_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
+static void _rygel_av_transport_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
+static void _rygel_content_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_metadata_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_select_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_upload_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_transfer_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_do_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
 
 static unsigned int client_count = 0;
 static struct dev_ctx **dev_ctx = NULL;

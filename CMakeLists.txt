@@ -93,8 +93,8 @@ SET(include_dirs
 	${uuid_INCLUDE_DIRS}
 	${alsa_INCLUDE_DIRS}
 	${pulseaudio_INCLUDE_DIRS}
-#	${librtlsdr_INCLUDE_DIRS}
-#	${gupnp_INCLUDE_DIRS}
+	${librtlsdr_INCLUDE_DIRS}
+	${gupnp_INCLUDE_DIRS}
 	${openssl_INCLUDE_DIRS}
 )
 
@@ -105,8 +105,8 @@ SET(link_libraries
 	${uuid_LIBRARIES}
 	${alsa_LIBRARIES}
 	${pulseaudio_LIBRARIES}
-#	${librtlsdr_LIBRARIES}
-#	${gupnp_LIBRARIES}
+	${librtlsdr_LIBRARIES}
+	${gupnp_LIBRARIES}
 	${CMAKE_THREAD_LIBS_INIT}
 #	${libefence_LIBRARIES}
 	${openssl_LIBRARIES}

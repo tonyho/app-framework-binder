@@ -15,13 +15,18 @@
  * limitations under the License.
  */
 
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+
 #include "media-api.h"
+#include "media-rygel.h"
 
 /* -------------- MEDIA RYGEL IMPLEMENTATION ---------------- */
 
 /* --- PUBLIC FUNCTIONS --- */
 
-PUBLIC unsigned char _rygel_init (mediaCtxHandleT *ctx) {
+unsigned char _rygel_init (mediaCtxHandleT *ctx) {
 
     GMainContext *loop;
     GUPnPContext *context;
@@ -72,7 +77,7 @@ PUBLIC unsigned char _rygel_init (mediaCtxHandleT *ctx) {
     return 1;
 }
 
-PUBLIC void _rygel_free (mediaCtxHandleT *ctx) {
+void _rygel_free (mediaCtxHandleT *ctx) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
 
@@ -87,7 +92,7 @@ PUBLIC void _rygel_free (mediaCtxHandleT *ctx) {
     dev_ctx_c->content_res = NULL;
 }
 
-PUBLIC json_object* _rygel_list (mediaCtxHandleT *ctx) {
+json_object* _rygel_list (mediaCtxHandleT *ctx) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     json_object *json_o, *json_a;
@@ -138,7 +143,7 @@ PUBLIC json_object* _rygel_list (mediaCtxHandleT *ctx) {
     return json_o;
 }
 
-PUBLIC unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
+unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     unsigned int count;
@@ -156,7 +161,7 @@ PUBLIC unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
     return 1;
 }
 
-PUBLIC unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
+unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     char *raw, *upload_id;
@@ -174,7 +179,7 @@ PUBLIC unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
     return _rygel_start_uploading (dev_ctx_c, path, upload_id);
 }
 
-PUBLIC unsigned char _rygel_do (mediaCtxHandleT *ctx, State state, char *args) {
+unsigned char _rygel_do (mediaCtxHandleT *ctx, State state, char *args) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     unsigned int index = ctx->index;
@@ -197,7 +202,7 @@ PUBLIC unsigned char _rygel_do (mediaCtxHandleT *ctx, State state, char *args) {
 
 /* --- LOCAL HELPER FUNCTIONS --- */
 
-STATIC char* _rygel_list_raw (dev_ctx_T* dev_ctx_c, unsigned int *count) {
+char* _rygel_list_raw (dev_ctx_T* dev_ctx_c, unsigned int *count) {
 
     GUPnPServiceProxy *content_dir_proxy;
     struct timeval tv_start, tv_now;
@@ -230,7 +235,7 @@ STATIC char* _rygel_list_raw (dev_ctx_T* dev_ctx_c, unsigned int *count) {
     return dev_ctx_c->content_res;
 }
 
-STATIC char* _rygel_find_upload_id (dev_ctx_T* dev_ctx_c, char *raw) {
+char* _rygel_find_upload_id (dev_ctx_T* dev_ctx_c, char *raw) {
 
     char *found;
     char id[33];
@@ -245,7 +250,7 @@ STATIC char* _rygel_find_upload_id (dev_ctx_T* dev_ctx_c, char *raw) {
     return strdup (id);
 }
 
-STATIC char* _rygel_find_id_for_index (dev_ctx_T* dev_ctx_c, char *raw, unsigned int index) {
+char* _rygel_find_id_for_index (dev_ctx_T* dev_ctx_c, char *raw, unsigned int index) {
 
     char *found = raw;
     char id[33];
@@ -265,7 +270,7 @@ STATIC char* _rygel_find_id_for_index (dev_ctx_T* dev_ctx_c, char *raw, unsigned
     return strdup (id);
 }
 
-STATIC char* _rygel_find_metadata_for_id (dev_ctx_T* dev_ctx_c, char *id) {
+char* _rygel_find_metadata_for_id (dev_ctx_T* dev_ctx_c, char *id) {
 
     GUPnPServiceProxy *content_dir_proxy;
     struct timeval tv_start, tv_now;
@@ -297,7 +302,7 @@ STATIC char* _rygel_find_metadata_for_id (dev_ctx_T* dev_ctx_c, char *id) {
     return dev_ctx_c->content_res;
 }
 
-STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T* dev_ctx_c, char *metadata) {
+char* _rygel_find_uri_for_metadata (dev_ctx_T* dev_ctx_c, char *metadata) {
 
     char *start, *end, *uri = NULL;
     int length;
@@ -325,7 +330,7 @@ STATIC char* _rygel_find_uri_for_metadata (dev_ctx_T* dev_ctx_c, char *metadata)
     return uri;
 }
 
-STATIC char * _rygel_time_for_string (char *string) {
+char * _rygel_time_for_string (char *string) {
 
     int total_seconds;
     unsigned int hours, minutes, seconds;
@@ -341,7 +346,7 @@ STATIC char * _rygel_time_for_string (char *string) {
     return time;
 }
 
-STATIC unsigned char _rygel_start_uploading (dev_ctx_T* dev_ctx_c, char *path, char *upload_id) {
+unsigned char _rygel_start_uploading (dev_ctx_T* dev_ctx_c, char *path, char *upload_id) {
 
     GUPnPServiceProxy *content_dir_proxy;
     GUPnPDIDLLiteWriter *didl_writer;
@@ -396,7 +401,7 @@ STATIC unsigned char _rygel_start_uploading (dev_ctx_T* dev_ctx_c, char *path, c
     return 1;
 }
 
-STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *metadata, State state, char *args) {
+unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *metadata, State state, char *args) {
 
     GUPnPServiceProxy *av_transport_proxy;
     struct timeval tv_start, tv_now;
@@ -431,7 +436,7 @@ STATIC unsigned char _rygel_start_doing (dev_ctx_T* dev_ctx_c, char *uri, char *
     return 1;
 }
 
-STATIC unsigned char _rygel_find_av_transport (dev_ctx_T* dev_ctx_c) {
+unsigned char _rygel_find_av_transport (dev_ctx_T* dev_ctx_c) {
 
     GUPnPControlPoint *control_point;
     gint handler_cb;
@@ -465,7 +470,7 @@ STATIC unsigned char _rygel_find_av_transport (dev_ctx_T* dev_ctx_c) {
 
  /* ---- LOCAL CALLBACK FUNCTIONS ---- */
 
-STATIC void _rygel_device_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
+static void _rygel_device_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
                               gpointer data) {
 
     mediaCtxHandleT *ctx = (mediaCtxHandleT*)data;
@@ -497,7 +502,7 @@ STATIC void _rygel_device_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
     ctx->media_server = (void*)dev_ctx[client_count];
 }
 
-STATIC void _rygel_av_transport_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
+static void _rygel_av_transport_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *proxy,
                                     gpointer data) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
@@ -510,7 +515,7 @@ STATIC void _rygel_av_transport_cb (GUPnPControlPoint *point, GUPnPDeviceProxy *
     dev_ctx_c->av_transport = av_transport;
 }
 
-STATIC void _rygel_content_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
+static void _rygel_content_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
                                gpointer data) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
@@ -553,7 +558,7 @@ STATIC void _rygel_content_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxy
     }
 }
 
-STATIC void _rygel_metadata_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
+static void _rygel_metadata_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
                                 gpointer data) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
@@ -567,7 +572,7 @@ STATIC void _rygel_metadata_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProx
     dev_ctx_c->content_res = result;
 }
 
-STATIC void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxyAction *action,
+static void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxyAction *action,
                               gpointer data)
 {
 
@@ -621,7 +626,7 @@ STATIC void _rygel_select_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxy
     }
 }
 
-STATIC void _rygel_upload_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
+static void _rygel_upload_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
                               gpointer data)
 {
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
@@ -675,7 +680,7 @@ STATIC void _rygel_upload_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyA
     }
 }
 
-STATIC void _rygel_transfer_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
+static void _rygel_transfer_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxyAction *action,
                                 gpointer data)
 {
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;
@@ -690,7 +695,7 @@ STATIC void _rygel_transfer_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProx
     dev_ctx_c->transfer_started = 1;
 }
 
-STATIC void _rygel_do_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxyAction *action,
+static void _rygel_do_cb (GUPnPServiceProxy *av_transport, GUPnPServiceProxyAction *action,
                           gpointer data)
 {
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)data;

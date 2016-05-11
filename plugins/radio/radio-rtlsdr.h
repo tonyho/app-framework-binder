@@ -25,11 +25,11 @@
 #include <rtl-sdr.h>
 
 #include "radio-api.h"
-#include "local-def.h"
 
 #define pthread_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
 #define pthread_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
 #define BUF_LEN 16*16384
+#define AUDIO_BUFFER "/tmp/audio_buf"
 
 typedef struct dongle_ctx dongle_ctx;
 typedef struct demod_ctx demod_ctx;
@@ -80,27 +80,25 @@ struct dev_ctx {
     output_ctx *output;
 };
 
-PUBLIC unsigned int _radio_dev_count (void);
-PUBLIC const char* _radio_dev_name (unsigned int);
+unsigned int _radio_dev_count (void);
+const char* _radio_dev_name (unsigned int);
 
-PUBLIC unsigned char _radio_on (unsigned int, radioCtxHandleT *);
-PUBLIC void _radio_off (unsigned int);
-PUBLIC void _radio_stop (unsigned int);
-PUBLIC void _radio_play (unsigned int);
-PUBLIC void _radio_set_mode (unsigned int, Mode);
-PUBLIC void _radio_set_freq (unsigned int, double);
-PUBLIC void _radio_set_mute (unsigned int, unsigned char);
+unsigned char _radio_on (unsigned int, radioCtxHandleT *);
+void _radio_off (unsigned int);
+void _radio_stop (unsigned int);
+void _radio_play (unsigned int);
+void _radio_set_mode (unsigned int, Mode);
+void _radio_set_freq (unsigned int, double);
+void _radio_set_mute (unsigned int, unsigned char);
 
-STATIC void* _dongle_thread_fn (void *);
-STATIC void* _demod_thread_fn (void *);
-STATIC void* _output_thread_fn (void *);
-STATIC unsigned char _radio_dev_init (struct dev_ctx *, unsigned int);
-STATIC unsigned char _radio_dev_free (struct dev_ctx *);
-STATIC void _radio_apply_params (struct dev_ctx *);
-STATIC void _radio_start_threads (struct dev_ctx *);
-STATIC void _radio_stop_threads (struct dev_ctx *);
+unsigned char _radio_dev_init (struct dev_ctx *, unsigned int);
+unsigned char _radio_dev_free (struct dev_ctx *);
+void _radio_apply_params (struct dev_ctx *);
+void _radio_start_threads (struct dev_ctx *);
+void _radio_stop_threads (struct dev_ctx *);
 
-static unsigned int init_dev_count = 0;
-static struct dev_ctx **dev_ctx = NULL;
+static void* _dongle_thread_fn (void *);
+static void* _demod_thread_fn (void *);
+static void* _output_thread_fn (void *);
 
 #endif /* RADIO_RTLSDR_H */

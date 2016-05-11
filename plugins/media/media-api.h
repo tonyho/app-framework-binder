@@ -18,8 +18,6 @@
 #ifndef MEDIA_API_H
 #define MEDIA_API_H
 
-#include "media-rygel.h"
-
 /* -------------- PLUGIN DEFINITIONS ----------------- */
 
 /* private client context [will be destroyed when client leaves] */
@@ -27,7 +25,5 @@ typedef struct {
   void *media_server;          /* handle to implementation (Rygel...) */
   unsigned int index;          /* currently selected media file       */
 } mediaCtxHandleT;
-
-PUBLIC json_object* _rygel_list (mediaCtxHandleT *);
 
 #endif /* MEDIA_API_H */

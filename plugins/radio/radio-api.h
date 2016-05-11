@@ -39,7 +39,7 @@ typedef struct {
 /* private client context [will be destroyed when client leaves] */
 typedef struct {
     radioDevT *radio;         /* pointer to client radio            */
-    unsigned int idx;         /* radio index within global array    */
+    int idx;                  /* radio index within global array    */
     Mode mode;                /* radio mode: AM/FM                  */
     float freq;               /* radio frequency (Mhz)              */
     unsigned char mute;       /* radio muted: 0(false)/1(true)      */

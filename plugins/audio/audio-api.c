@@ -182,8 +182,7 @@ static void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
 static void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
 
     audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
-    struct afb_arg arg = afb_req_get (request, "value");
-    const char *value = arg.value;
+    const char *value = afb_req_value (request, "value");
     json_object *jresp;
     unsigned int volume[8], i;
     char *volume_i;
@@ -240,8 +239,7 @@ static void volume (struct afb_req request) {      /* AFB_SESSION_CHECK */
 static void channels (struct afb_req request) {    /* AFB_SESSION_CHECK */
 
     audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
-    struct afb_arg arg = afb_req_get (request, "value");
-    const char *value = arg.value;
+    const char *value = afb_req_value (request, "value");
     json_object *jresp = json_object_new_object();
     char channels_str[256];
 
@@ -266,8 +264,7 @@ static void channels (struct afb_req request) {    /* AFB_SESSION_CHECK */
 static void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
     audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
-    struct afb_arg arg = afb_req_get (request, "value");
-    const char *value = arg.value;
+    const char *value = afb_req_value (request, "value");
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
@@ -300,8 +297,7 @@ static void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
 static void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
     audioCtxHandleT *ctx = (audioCtxHandleT*) afb_req_context_get(request);
-    struct afb_arg arg = afb_req_get (request, "value");
-    const char *value = arg.value;
+    const char *value = afb_req_value (request, "value");
     json_object *jresp = json_object_new_object();
 
     /* no "?value=" parameter : return current state */
