@@ -153,6 +153,7 @@ static int on_service_call(struct sd_bus_message *smsg, struct jbus *jbus, sd_bu
 	service = jbus->services;
 	while (service != NULL) {
 		if (!strcmp(service->method, member)) {
+			sd_bus_message_ref(smsg);
 			if (service->oncall_s)
 				service->oncall_s(smsg, content, service->data);
 			else if (service->oncall_j) {
@@ -519,7 +520,9 @@ void jbus_unref(struct jbus *jbus)
  */
 int jbus_reply_error_s(struct sd_bus_message *smsg, const char *error)
 {
-	return mkerrno(sd_bus_reply_method_errorf(smsg, SD_BUS_ERROR_FAILED, "%s", error));
+	int rc = sd_bus_reply_method_errorf(smsg, SD_BUS_ERROR_FAILED, "%s", error);
+	sd_bus_message_unref(smsg);
+	return mkerrno(rc);
 }
 
 /*
@@ -542,7 +545,9 @@ int jbus_reply_error_j(struct sd_bus_message *smsg, struct json_object *reply)
  */
 int jbus_reply_s(struct sd_bus_message *smsg, const char *reply)
 {
-	return mkerrno(sd_bus_reply_method_return(smsg, "s", reply));
+	int rc = sd_bus_reply_method_return(smsg, "s", reply);
+	sd_bus_message_unref(smsg);	
+	return mkerrno(rc);
 }
 
 /*
