@@ -64,9 +64,17 @@ static struct {
   int max;
   int timeout;
   int apicount;
-  const char *initok;
+  char initok[37];
   struct afb_event_listener_list *listeners;
 } sessions;
+
+/* generate a uuid */
+static void new_uuid(char uuid[37])
+{
+	uuid_t newuuid;
+	uuid_generate(newuuid);
+	uuid_unparse_lower(newuuid, uuid);
+}
 
 // Free context [XXXX Should be protected again memory abort XXXX]
 static void ctxUuidFreeCB (struct AFB_clientCtx *client)
@@ -84,21 +92,20 @@ static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 // Create a new store in RAM, not that is too small it will be automatically extended
 void ctxStoreInit (int max_session_count, int timeout, const char *initok, int context_count)
 {
-
 	// let's create as store as hashtable does not have any
 	sessions.store = calloc (1 + (unsigned)max_session_count, sizeof(struct AFB_clientCtx));
 	sessions.max = max_session_count;
 	sessions.timeout = timeout;
 	sessions.apicount = context_count;
-        if (!initok) {
-		ERROR("\"--token=\" parameter is mandatory");
-		exit(1);
-	}
-	if (strlen(initok) >= sizeof(sessions.store[0]->token)) {
+	if (initok == NULL)
+		/* without token, a secret is made to forbid creation of sessions */
+		new_uuid(sessions.initok);
+	else if (strlen(initok) < sizeof(sessions.store[0]->token))
+		strcpy(sessions.initok, initok);
+	else {
 		ERROR("initial token '%s' too long (max length 36)", initok);
 		exit(1);
 	}
-	sessions.initok = initok;
 }
 
 static struct AFB_clientCtx *ctxStoreSearch (const char* uuid)
@@ -200,7 +207,6 @@ static void ctxStoreCleanUp (time_t now)
 // This function will return exiting client context or newly created client context
 struct AFB_clientCtx *ctxClientGetSession (const char *uuid, int *created)
 {
-	uuid_t newuuid;
 	struct AFB_clientCtx *clientCtx;
 	time_t now;
 
@@ -231,8 +237,7 @@ struct AFB_clientCtx *ctxClientGetSession (const char *uuid, int *created)
 
 	/* generate the uuid */
 	if (uuid == NULL) {
-		uuid_generate(newuuid);
-		uuid_unparse_lower(newuuid, clientCtx->uuid);
+		new_uuid(clientCtx->uuid);
 	} else {
 		strcpy(clientCtx->uuid, uuid);
 	}
@@ -302,13 +307,10 @@ int ctxTokenCheck (struct AFB_clientCtx *clientCtx, const char *token)
 // generate a new token and update client context
 void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 {
-	uuid_t newuuid;
-
 	assert(clientCtx != NULL);
 
 	// Old token was valid let's regenerate a new one
-	uuid_generate(newuuid);         // create a new UUID
-	uuid_unparse_lower(newuuid, clientCtx->token);
+	new_uuid(clientCtx->token);
 
 	// keep track of time for session timeout and further clean up
 	clientCtx->expiration = NOW + sessions.timeout;
