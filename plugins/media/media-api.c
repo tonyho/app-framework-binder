@@ -94,7 +94,7 @@ static void selecting (struct afb_req request) {   /* AFB_SESSION_CHECK */
 
     /* "?value=" parameter is negative */
     else if (atoi(value) < 0) {
-        afb_req_fail (request, "failed", "chosen index cannot be negatuve");
+        afb_req_fail (request, "failed", "chosen index cannot be negative");
         return;
     }
 
