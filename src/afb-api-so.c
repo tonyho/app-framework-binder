@@ -26,10 +26,6 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/syscall.h>
-#include <setjmp.h>
 
 #include "afb-plugin.h"
 #include "afb-req-itf.h"
@@ -40,9 +36,8 @@
 #include "afb-context.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
+#include "afb-sig-handler.h"
 #include "verbose.h"
-
-extern __thread sigjmp_buf *error_handler;
 
 struct api_so_desc {
 	struct AFB_plugin *plugin;	/* descriptor */
@@ -85,50 +80,23 @@ static const struct afb_daemon_itf daemon_itf = {
 	.get_system_bus = (void*)afb_common_get_system_bus
 };
 
+struct monitoring {
+	struct afb_req req;
+	void (*action)(struct afb_req);
+};
 
-static void trapping_call(struct afb_req req, void(*cb)(struct afb_req))
+static void monitored_call(int signum, struct monitoring *data)
 {
-	volatile int signum, timerset;
-	timer_t timerid;
-	sigjmp_buf jmpbuf, *older;
-	struct sigevent sevp;
-	struct itimerspec its;
-
-	timerset = 0;
-	older = error_handler;
-	signum = setjmp(jmpbuf);
-	if (signum != 0) {
-		afb_req_fail_f(req, "aborted", "signal %d caught", signum);
-	}
-	else {
-		error_handler = &jmpbuf;
-		if (api_timeout > 0) {
-			timerset = 1; /* TODO: check statuses */
-			sevp.sigev_notify = SIGEV_THREAD_ID;
-			sevp.sigev_signo = SIGALRM;
-			sevp.sigev_value.sival_ptr = NULL;
-#if defined(sigev_notify_thread_id)
-			sevp.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
-#else
-			sevp._sigev_un._tid = (pid_t)syscall(SYS_gettid);
-#endif
-			timer_create(CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid);
-			its.it_interval.tv_sec = 0;
-			its.it_interval.tv_nsec = 0;
-			its.it_value.tv_sec = api_timeout;
-			its.it_value.tv_nsec = 0;
-			timer_settime(timerid, 0, &its, NULL);
-		}
-
-		cb(req);
-	}
-	if (timerset)
-		timer_delete(timerid);
-	error_handler = older;
+	if (signum != 0)
+		afb_req_fail_f(data->req, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
+	else
+		data->action(data->req);
 }
 
 static void call_check(struct afb_req req, struct afb_context *context, const struct AFB_restapi *verb)
 {
+	struct monitoring data;
+
 	int stag = (int)(verb->session & AFB_SESSION_MASK);
 
 	if (stag != AFB_SESSION_NONE) {
@@ -153,7 +121,9 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 	if ((stag & AFB_SESSION_CLOSE) != 0)
 		afb_context_close(context);
 
-	trapping_call(req, verb->callback);
+	data.req = req;
+	data.action = verb->callback;
+	afb_sig_monitor((void*)monitored_call, &data, api_timeout);
 }
 
 static void call(struct api_so_desc *desc, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)

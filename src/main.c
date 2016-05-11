@@ -42,6 +42,7 @@
 #include "afb-hsrv.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
+#include "afb-sig-handler.h"
 #include "session.h"
 #include "verbose.h"
 #include "afb-common.h"
@@ -126,8 +127,6 @@ static  AFB_options cliOptions [] = {
 
   {0, 0, NULL, NULL}
  };
-
-
 
 /*----------------------------------------------------------
  | printversion
@@ -429,49 +428,6 @@ static void closeSession (int status, void *data) {
 }
 
 /*----------------------------------------------------------
- | timeout signalQuit
- +--------------------------------------------------------- */
-void signalQuit (int signum)
-{
-	ERROR("Terminating signal received %s", strsignal(signum));
-	exit(1);
-}
-
-/*----------------------------------------------------------
- | Error signals
- |
- +--------------------------------------------------------- */
-__thread sigjmp_buf *error_handler;
-static void signalError(int signum)
-{
-	sigset_t sigset;
-
-	// unlock signal to allow a new signal to come
-	if (error_handler != NULL) {
-		sigemptyset(&sigset);
-		sigaddset(&sigset, signum);
-		sigprocmask(SIG_UNBLOCK, &sigset, 0);
-		longjmp(*error_handler, signum);
-	}
-	if (signum == SIGALRM)
-		return;
-	ERROR("Unmonitored signal received %s", strsignal(signum));
-	exit(2);
-}
-
-static void install_error_handlers()
-{
-	int i, signals[] = { SIGALRM, SIGSEGV, SIGFPE, 0 };
-
-	for (i = 0; signals[i] != 0; i++) {
-		if (signal(signals[i], signalError) == SIG_ERR) {
-			ERROR("Signal handler error");
-			exit(1);
-		}
-	}
-}
-
-/*----------------------------------------------------------
  | daemonize
  |   set the process in background
  +--------------------------------------------------------- */
@@ -647,11 +603,8 @@ int main(int argc, char *argv[])  {
      exit (1);
   }
 
-  install_error_handlers();
-
-  // ------------------ clean exit on CTR-C signal ------------------------
-  if (signal (SIGINT, signalQuit) == SIG_ERR || signal (SIGABRT, signalQuit) == SIG_ERR) {
-     ERROR("main fail to install Signal handler");
+  if (afb_sig_handler_init() < 0) {
+     ERROR("main fail to initialise signal handlers");
      return 1;
   }
 

@@ -10,6 +10,7 @@ ADD_LIBRARY(src OBJECT
 	afb-hswitch.c
 	afb-method.c
 	afb-msg-json.c
+	afb-sig-handler.c
 	afb-websock.c
 	afb-ws-json.c
 	afb-ws.c
