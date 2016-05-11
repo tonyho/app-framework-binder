@@ -197,10 +197,11 @@ static void ctxStoreCleanUp (time_t now)
 
 	// Loop on Sessions Table and remove anything that is older than timeout
 	for (idx=0; idx < sessions.max; idx++) {
-		ctx = sessions.store[idx];
+		ctx = ctxClientAddRef(sessions.store[idx]);
 		if (ctx != NULL && ctxStoreTooOld(ctx, now)) {
 			ctxClientClose (ctx);
 		}
+		ctxClientUnref(ctx);
 	}
 }
 
@@ -276,6 +277,7 @@ void ctxClientUnref(struct AFB_clientCtx *clientCtx)
 		--clientCtx->refcount;
        		if (clientCtx->refcount == 0 && clientCtx->uuid[0] == 0) {
 			ctxStoreDel (clientCtx);
+			free(clientCtx);
 		}
 	}
 }
@@ -284,8 +286,12 @@ void ctxClientUnref(struct AFB_clientCtx *clientCtx)
 void ctxClientClose (struct AFB_clientCtx *clientCtx)
 {
 	assert(clientCtx != NULL);
-        ctxUuidFreeCB (clientCtx);
-	clientCtx->uuid[0] = 0;
+	if (clientCtx->uuid[0] != 0) {
+		clientCtx->uuid[0] = 0;
+	        ctxUuidFreeCB (clientCtx);
+		while(clientCtx->listeners != NULL)
+			ctxClientEventListenerRemove(clientCtx, clientCtx->listeners->listener);
+	}
 }
 
 // Sample Generic Ping Debug API
