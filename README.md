@@ -9,26 +9,33 @@ Final goal is to keep the engine publicly accessible and modifiable, still allow
 Finally, whatever license is chosen, it should be compatible with dependencies and automotive industry requirements - as the primary target for this code is AGL. 
 
 ### Building
-Building Application Framework Binder requires the following libraries:
- * libmagic ("libmagic-dev" under Debian/Ubuntu, "file-devel" under OpenSUSE);
- * libmicrohttpd ("libmicrohttpd-dev/devel");
+Building Application Framework Binder has been tested under **Ubuntu 16.04 LTS (Xenial Xerus)** or **Fedora 23**, and requires the following libraries:
+ * libmagic ("libmagic-dev" under Ubuntu, "file-devel" under Fedora);
+ * libmicrohttpd >= 0.9.48  (fetch and build from "http://ftp.gnu.org/gnu/libmicrohttpd");
  * json-c ("libjson-c-dev/devel");
  * uuid ("uuid-dev/libuuid-devel");
- * dbus ("libdbus-1-dev/dbus-1-devel");
+ * openssl ("libssl-dev/openssl-devel");
+ * systemd >= 222 ("libsystemd-dev/systemd-devel");
 
 optionally, for plugins :
  * alsa ("libasound2-dev/alsa-devel");
  * pulseaudio ("libpulse-dev/libpulse-devel");
- * rtl-sdr >= 0.5.0 (fetch and build from "git://git.osmocom.org/rtl-sdr");
+ * rtl-sdr >= 0.5.0 ("librtlsdr-dev", or fetch and build from "git://git.osmocom.org/rtl-sdr" under Fedora);
  * GUPnP ("libglib2.0-dev libgupnp-av-1.0-dev/glib2-devel libgupnp-av-devel");
 
 and the following tools:
+ * gcc;
+ * make;
  * pkg-config;
  * cmake >= 2.8.8.
 
-To install all dependencies under OpenSUSE (excepting rtl-sdr), please type:
+To install all dependencies under Ubuntu (excepting libmicrohttpd), please type:
 ```
-$ zypper in file-devel libmicrohttpd-devel libjson-c-devel libuuid-devel dbus-1-devel alsa-devel libpulse-devel glib2-devel libgupnp-av-devel pkg-config cmake
+$ apt-get install libmagic-dev libjson-c-dev uuid-dev libsystemd-dev libssl-dev libasound2-dev libpulse-dev librtlsdr-dev libglib2.0-dev libgupnp-av-1.0-dev gcc make pkg-config cmake
+```
+or under Fedora (excepting libmicrohttpd and rtl-sdr):
+```
+$ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel alsa-devel libpulse-devel glib2-devel libgupnp-av-devel gcc make pkg-config cmake
 ```
 
  To build, move to the root directory and type:

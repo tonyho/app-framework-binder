@@ -91,7 +91,6 @@ SET(include_dirs
 	${json-c_INCLUDE_DIRS}
 	${libmicrohttpd_INCLUDE_DIRS}
 	${uuid_INCLUDE_DIRS}
-	${dbus_INCLUDE_DIRS}
 	${alsa_INCLUDE_DIRS}
 	${pulseaudio_INCLUDE_DIRS}
 #	${librtlsdr_INCLUDE_DIRS}
@@ -104,7 +103,6 @@ SET(link_libraries
 	${json-c_LIBRARIES}
 	${libmicrohttpd_LIBRARIES}
 	${uuid_LIBRARIES}
-	${dbus_LIBRARIES}
 	${alsa_LIBRARIES}
 	${pulseaudio_LIBRARIES}
 #	${librtlsdr_LIBRARIES}
