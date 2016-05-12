@@ -118,6 +118,7 @@ static const struct protodef *search_proto(const struct protodef *protodefs, con
 
 static int check_websocket_upgrade(struct MHD_Connection *con, const struct protodef *protodefs, void *context, void **websock)
 {
+	const union MHD_ConnectionInfo *info;
 	struct MHD_Response *response;
 	const char *connection, *upgrade, *key, *version, *protocols;
 	char acceptval[29];
@@ -163,10 +164,14 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 	}
 
 	/* create the web socket */
-	ws = proto->create(MHD_get_connection_info(con, MHD_CONNECTION_INFO_CONNECTION_FD)->connect_fd,
-			context,
-			(void*)MHD_resume_connection,
-			con);
+	info = MHD_get_connection_info(con, MHD_CONNECTION_INFO_CONNECTION_FD);
+	if (info == NULL) {
+		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+		MHD_queue_response(con, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
+		MHD_destroy_response(response);
+		return 1;
+	}
+	ws = proto->create(info->connect_fd, context, (void*)MHD_resume_connection, con);
 	if (ws == NULL) {
 		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 		MHD_queue_response(con, MHD_HTTP_INTERNAL_SERVER_ERROR, response);
