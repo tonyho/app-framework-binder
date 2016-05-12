@@ -343,7 +343,7 @@ static void wsreq_addref(struct afb_wsreq *wsreq)
 static void wsreq_unref(struct afb_wsreq *wsreq)
 {
 	if (--wsreq->refcount == 0) {
-		struct afb_wsreq **prv = &wsreq->ws->requests;
+		struct afb_wsreq **prv = &wsreq->aws->requests;
 		while(*prv != NULL) {
 			if (*prv == wsreq) {
 				*prv = wsreq->next;
@@ -352,6 +352,7 @@ static void wsreq_unref(struct afb_wsreq *wsreq)
 			prv = &(*prv)->next;
 		}
 		afb_context_disconnect(&wsreq->context);
+		json_object_put(wsreq->root);
 		free(wsreq->text);
 		free(wsreq);
 	}
