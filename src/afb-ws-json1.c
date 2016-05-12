@@ -343,6 +343,14 @@ static void wsreq_addref(struct afb_wsreq *wsreq)
 static void wsreq_unref(struct afb_wsreq *wsreq)
 {
 	if (--wsreq->refcount == 0) {
+		struct afb_wsreq **prv = &wsreq->ws->requests;
+		while(*prv != NULL) {
+			if (*prv == wsreq) {
+				*prv = wsreq->next;
+				break;
+			}
+			prv = &(*prv)->next;
+		}
 		afb_context_disconnect(&wsreq->context);
 		free(wsreq->text);
 		free(wsreq);
