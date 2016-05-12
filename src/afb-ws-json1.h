@@ -17,8 +17,8 @@
 
 #pragma once
 
-struct afb_ws_json;
+struct afb_ws_json1;
 struct AFB_clientCtx;
 
-extern struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *closure);
+extern struct afb_ws_json1 *afb_ws_json1_create(int fd, struct AFB_clientCtx *context, void (*cleanup)(void*), void *closure);
 

@@ -26,15 +26,15 @@
 #include <json-c/json.h>
 
 #include "afb-ws.h"
-#include "afb-ws-json.h"
+#include "afb-ws-json1.h"
 #include "afb-msg-json.h"
 #include "session.h"
 #include "afb-req-itf.h"
 #include "afb-apis.h"
 #include "afb-context.h"
 
-static void aws_on_hangup(struct afb_ws_json *ws);
-static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size);
+static void aws_on_hangup(struct afb_ws_json1 *ws);
+static void aws_on_text(struct afb_ws_json1 *ws, char *text, size_t size);
 
 static struct afb_ws_itf aws_itf = {
 	.on_hangup = (void*)aws_on_hangup,
@@ -43,7 +43,7 @@ static struct afb_ws_itf aws_itf = {
 
 struct afb_wsreq;
 
-struct afb_ws_json
+struct afb_ws_json1
 {
 	void (*cleanup)(void*);
 	void *cleanup_closure;
@@ -53,21 +53,21 @@ struct afb_ws_json
 	struct afb_ws *ws;
 };
 
-static void aws_send_event(struct afb_ws_json *ws, const char *event, struct json_object *object);
+static void aws_send_event(struct afb_ws_json1 *ws, const char *event, struct json_object *object);
 
 static const struct afb_event_listener_itf event_listener_itf = {
 	.send = (void*)aws_send_event,
 	.expects = NULL
 };
 
-static inline struct afb_event_listener listener_for(struct afb_ws_json *aws)
+static inline struct afb_event_listener listener_for(struct afb_ws_json1 *aws)
 {
 	return (struct afb_event_listener){ .itf = &event_listener_itf, .closure = aws };
 }
 
-struct afb_ws_json *afb_ws_json_create(int fd, struct AFB_clientCtx *session, void (*cleanup)(void*), void *cleanup_closure)
+struct afb_ws_json1 *afb_ws_json1_create(int fd, struct AFB_clientCtx *session, void (*cleanup)(void*), void *cleanup_closure)
 {
-	struct afb_ws_json *result;
+	struct afb_ws_json1 *result;
 
 	assert(fd >= 0);
 	assert(session != NULL);
@@ -109,7 +109,7 @@ error:
 	return NULL;
 }
 
-static void aws_on_hangup(struct afb_ws_json *ws)
+static void aws_on_hangup(struct afb_ws_json1 *ws)
 {
 	ctxClientEventListenerRemove(ws->session, listener_for(ws));
 	afb_ws_destroy(ws->ws);
@@ -129,7 +129,7 @@ struct afb_wsreq
 {
 	struct afb_context context;
 	int refcount;
-	struct afb_ws_json *aws;
+	struct afb_ws_json1 *aws;
 	struct afb_wsreq *next;
 	char *text;
 	size_t size;
@@ -296,7 +296,7 @@ bad_header:
 	return 0;
 }
 
-static void aws_on_text(struct afb_ws_json *ws, char *text, size_t size)
+static void aws_on_text(struct afb_ws_json1 *ws, char *text, size_t size)
 {
 	struct afb_req r;
 	struct afb_wsreq *wsreq;
@@ -381,7 +381,7 @@ static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 	return arg;
 }
 
-static void aws_emit(struct afb_ws_json *aws, int code, const char *id, size_t idlen, struct json_object *data, const char *token)
+static void aws_emit(struct afb_ws_json1 *aws, int code, const char *id, size_t idlen, struct json_object *data, const char *token)
 {
 	json_object *msg;
 	const char *txt;
@@ -427,7 +427,7 @@ static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size)
 	afb_ws_text(wsreq->aws->ws, buffer, size);
 }
 
-static void aws_send_event(struct afb_ws_json *aws, const char *event, struct json_object *object)
+static void aws_send_event(struct afb_ws_json1 *aws, const char *event, struct json_object *object)
 {
 	aws_emit(aws, EVENT, event, strlen(event), afb_msg_json_event(event, object), NULL);
 }

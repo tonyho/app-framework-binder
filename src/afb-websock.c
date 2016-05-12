@@ -25,12 +25,11 @@
 #include <openssl/sha.h>
 #include <microhttpd.h>
 
-#include "afb-ws-json.h"
-
 #include "afb-method.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-websock.h"
+#include "afb-ws-json1.h"
 
 /**************** WebSocket connection upgrade ****************************/
 
@@ -194,7 +193,7 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 }
 
 static const struct protodef protodefs[] = {
-	{ "x-afb-ws-json1",	(void*)afb_ws_json_create },
+	{ "x-afb-ws-json1",	(void*)afb_ws_json1_create },
 	{ NULL, NULL }
 };
 

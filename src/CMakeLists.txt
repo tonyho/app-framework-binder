@@ -12,7 +12,7 @@ ADD_LIBRARY(src OBJECT
 	afb-msg-json.c
 	afb-sig-handler.c
 	afb-websock.c
-	afb-ws-json.c
+	afb-ws-json1.c
 	afb-ws.c
 	main.c
 	session.c
