@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <sys/uio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <systemd/sd-event.h>
 
@@ -245,6 +246,39 @@ int afb_ws_text(struct afb_ws *ws, const char *text, size_t length)
 }
 
 /*
+ * Sends a variable list of texts to the endpoint of 'ws'.
+ * Returns 0 on success or -1 in case of error.
+ */
+int afb_ws_texts(struct afb_ws *ws, ...)
+{
+	va_list args;
+	struct iovec ios[32];
+	int count;
+	const char *s;
+
+	if (ws->ws == NULL) {
+		/* disconnected */
+		errno = EPIPE;
+		return -1;
+	}
+
+	count = 0;
+	va_start(args, ws);
+	s = va_arg(args, const char *);
+	while (s != NULL) {
+		if (count == 32) {
+			errno = EINVAL;
+			return -1;
+		}
+		ios[count].iov_base = (void*)s;
+		ios[count].iov_len = strlen(s);
+		s = va_arg(args, const char *);
+	}
+	va_end(args);
+	return websock_text_v(ws->ws, 1, ios, count);
+}
+
+/*
  * Sends a binary 'data' of 'length' to the endpoint of 'ws'.
  * Returns 0 on success or -1 in case of error.
  */
@@ -423,6 +457,5 @@ static void aws_on_error(struct afb_ws *ws, uint16_t code, const void *data, siz
 	else
 		afb_ws_hangup(ws);
 }
-
 
 
