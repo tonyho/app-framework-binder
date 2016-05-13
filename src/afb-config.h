@@ -1,7 +1,5 @@
 /*
- * local-def.h -- provide a REST/HTTP interface
- *
- * Copyright (C) 2015, Fulup Ar Foll
+ * Copyright (C) 2015, 2016 "IoT.bzh"
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

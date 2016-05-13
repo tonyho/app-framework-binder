@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 "IoT.bzh"
+ * Copyright (C) 2015, 2016 "IoT.bzh"
  * Author "Fulup Ar Foll"
  *
  * Licensed under the Apache License, Version 2.0 (the "License");

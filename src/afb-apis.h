@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 IoT.bzh
+ * Copyright (C) 2016 "IoT.bzh"
  * Author: José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
