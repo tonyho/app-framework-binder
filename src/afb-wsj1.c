@@ -34,8 +34,8 @@
 #define RETERR 4
 #define EVENT 5
 
-static void wsj1_on_hangup(struct afb_wsj1 *ws);
-static void wsj1_on_text(struct afb_wsj1 *ws, char *text, size_t size);
+static void wsj1_on_hangup(struct afb_wsj1 *wsj1);
+static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size);
 
 static struct afb_ws_itf wsj1_itf = {
 	.on_hangup = (void*)wsj1_on_hangup,
@@ -127,10 +127,10 @@ void afb_wsj1_unref(struct afb_wsj1 *wsj1)
 	}
 }
 
-static void wsj1_on_hangup(struct afb_wsj1 *ws)
+static void wsj1_on_hangup(struct afb_wsj1 *wsj1)
 {
-	if (ws->itf->on_hangup != NULL)
-		ws->itf->on_hangup(ws->closure);
+	if (wsj1->itf->on_hangup != NULL)
+		wsj1->itf->on_hangup(wsj1->closure, wsj1);
 }
 
 
@@ -302,7 +302,8 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 	afb_wsj1_addref(wsj1);
 	msg->wsj1 = wsj1;
 	msg->next = wsj1->messages;
-	msg->next->previous = msg;
+	if (msg->next != NULL)
+		msg->next->previous = msg;
 	wsj1->messages = msg;
 
 	/* incoke the handler */
@@ -418,89 +419,10 @@ const char *afb_wsj1_msg_token(struct afb_wsj1_msg *msg)
 	return msg->token;
 }
 
-
-
-
-
-
-
-
-
-
-#if 0
-
-
-
-
-
-static void wsj1_emit(struct afb_wsj1 *wsj1, int code, const char *id, size_t idlen, struct json_object *data, const char *token)
+struct afb_wsj1 *afb_wsj1_msg_wsj1(struct afb_wsj1_msg *msg)
 {
-	json_object *msg;
-	const char *txt;
-
-	/* pack the message */
-	msg = json_object_new_array();
-	json_object_array_add(msg, json_object_new_int(code));
-	json_object_array_add(msg, json_object_new_string_len(id, (int)idlen));
-	json_object_array_add(msg, data);
-	if (token)
-		json_object_array_add(msg, json_object_new_string(token));
-
-	/* emits the reply */
-	txt = json_object_to_json_string(msg);
-	afb_ws_text(wsj1->ws, txt, strlen(txt));
-	json_object_put(msg);
+	return msg->wsj1;
 }
-
-static void wsj1_msg_reply(struct afb_wsj1_msg *msg, int retcode, const char *status, const char *info, json_object *resp)
-{
-	const char *token = afb_context_sent_token(&msg->context);
-	wsj1_emit(msg->wsj1, retcode, msg->id, msg->idlen, afb_msg_json_reply(status, info, resp, token, NULL), token);
-}
-
-static void wsj1_msg_fail(struct afb_wsj1_msg *msg, const char *status, const char *info)
-{
-	wsj1_msg_reply(msg, RETERR, status, info, NULL);
-}
-
-static void wsj1_msg_success(struct afb_wsj1_msg *msg, json_object *obj, const char *info)
-{
-	wsj1_msg_reply(msg, RETOK, "success", info, obj);
-}
-
-static const char *wsj1_msg_raw(struct afb_wsj1_msg *msg, size_t *size)
-{
-	*size = msg->objlen;
-	return msg->obj;
-}
-
-static void wsj1_msg_send(struct afb_wsj1_msg *msg, const char *buffer, size_t size)
-{
-	afb_ws_text(msg->wsj1->ws, buffer, size);
-}
-
-static void wsj1_send_event(struct afb_wsj1 *wsj1, const char *event, struct json_object *object)
-{
-	wsj1_emit(wsj1, EVENT, event, strlen(event), afb_msg_json_event(event, object), NULL);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif
-
 
 static int wsj1_send_isot(struct afb_wsj1 *wsj1, int i1, const char *s1, const char *o1, const char *t1)
 {

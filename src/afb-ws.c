@@ -272,6 +272,7 @@ int afb_ws_texts(struct afb_ws *ws, ...)
 		}
 		ios[count].iov_base = (void*)s;
 		ios[count].iov_len = strlen(s);
+		count++;
 		s = va_arg(args, const char *);
 	}
 	va_end(args);

@@ -197,11 +197,10 @@ static void ctxStoreCleanUp (time_t now)
 
 	// Loop on Sessions Table and remove anything that is older than timeout
 	for (idx=0; idx < sessions.max; idx++) {
-		ctx = ctxClientAddRef(sessions.store[idx]);
+		ctx = sessions.store[idx];
 		if (ctx != NULL && ctxStoreTooOld(ctx, now)) {
 			ctxClientClose (ctx);
 		}
-		ctxClientUnref(ctx);
 	}
 }
 
@@ -291,6 +290,10 @@ void ctxClientClose (struct AFB_clientCtx *clientCtx)
 	        ctxUuidFreeCB (clientCtx);
 		while(clientCtx->listeners != NULL)
 			ctxClientEventListenerRemove(clientCtx, clientCtx->listeners->listener);
+       		if (clientCtx->refcount == 0) {
+			ctxStoreDel (clientCtx);
+			free(clientCtx);
+		}
 	}
 }
 

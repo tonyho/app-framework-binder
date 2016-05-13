@@ -23,7 +23,7 @@ struct afb_wsj1_msg;
 struct json_object;
 
 struct afb_wsj1_itf {
-	void (*on_hangup)(void *closure);
+	void (*on_hangup)(void *closure, struct afb_wsj1 *wsj1);
 	void (*on_call)(void *closure, const char *api, const char *verb, struct afb_wsj1_msg *msg);
 	void (*on_event)(void *closure, const char *event, struct afb_wsj1_msg *msg);
 };
@@ -58,6 +58,7 @@ extern const char *afb_wsj1_msg_api(struct afb_wsj1_msg *msg);
 extern const char *afb_wsj1_msg_verb(struct afb_wsj1_msg *msg);
 extern const char *afb_wsj1_msg_event(struct afb_wsj1_msg *msg);
 extern const char *afb_wsj1_msg_token(struct afb_wsj1_msg *msg);
+extern struct afb_wsj1 *afb_wsj1_msg_wsj1(struct afb_wsj1_msg *msg);
 
 extern const char *afb_wsj1_msg_object_s(struct afb_wsj1_msg *msg);
 extern struct json_object *afb_wsj1_msg_object_j(struct afb_wsj1_msg *msg);
