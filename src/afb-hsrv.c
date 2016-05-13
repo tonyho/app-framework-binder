@@ -156,7 +156,9 @@ static int access_handler(
 				if (hreq->postform == NULL)
 					afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
 				return MHD_YES;
-			} else if (strcasestr(type, JSON_CONTENT) == NULL) {
+			} else if (strcasestr(type, JSON_CONTENT) != NULL) {
+				return MHD_YES;
+                        } else {
 				afb_hreq_reply_error(hreq, MHD_HTTP_UNSUPPORTED_MEDIA_TYPE);
 				return MHD_YES;
 			}
