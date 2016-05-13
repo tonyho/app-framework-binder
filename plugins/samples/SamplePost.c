@@ -47,7 +47,11 @@ static void GetJsonByPost (struct afb_req request)
 // Upload a file and execute a function when upload is done
 static void Uploads (struct afb_req request, const char *destination)
 {
-   afb_req_fail_f(request, "unimplemented", "destination: %s", destination);
+   struct afb_arg a = afb_req_get(request, "file");
+   if (a.value == NULL || *a.value == 0)
+     afb_req_fail_f(request, "failed", "no file selected");
+   else
+     afb_req_success_f(request, NULL, "uploaded file %s of path %s for destination %s", a.value, a.path, destination);
 }
 
 // Upload a file and execute a function when upload is done
