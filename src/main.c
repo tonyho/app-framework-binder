@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2015 "IoT.bzh"
+ * Copyright (C) 2015, 2016 "IoT.bzh"
  * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
@@ -131,7 +131,7 @@ static void printVersion (FILE *file)
    fprintf(file, "\n----------------------------------------- \n");
    fprintf(file, "  AFB [Application Framework Binder] version=%s |\n", AFB_VERSION);
    fprintf(file, " \n");
-   fprintf(file, "  Copyright(C) 2016 /IoT.bzh [fulup -at- iot.bzh]\n");
+   fprintf(file, "  Copyright (C) 2015, 2016 \"IoT.bzh\" [fulup -at- iot.bzh]\n");
    fprintf(file, "  AFB comes with ABSOLUTELY NO WARRANTY.\n");
    fprintf(file, "  Licence Apache 2\n\n");
    exit (0);

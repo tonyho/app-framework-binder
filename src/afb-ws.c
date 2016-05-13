@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 IoT.bzh
+ * Copyright (C) 2016 "IoT.bzh"
  * Author: José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -272,6 +272,7 @@ int afb_ws_texts(struct afb_ws *ws, ...)
 		}
 		ios[count].iov_base = (void*)s;
 		ios[count].iov_len = strlen(s);
+		count++;
 		s = va_arg(args, const char *);
 	}
 	va_end(args);

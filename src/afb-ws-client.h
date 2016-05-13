@@ -15,23 +15,9 @@
  * limitations under the License.
  */
 
-
 #pragma once
 
-enum afb_method {
-	afb_method_none = 0,
-	afb_method_get = 1,
-	afb_method_post = 2,
-	afb_method_head = 4,
-	afb_method_connect = 8,
-	afb_method_delete = 16,
-	afb_method_options = 32,
-	afb_method_patch = 64,
-	afb_method_put = 128,
-	afb_method_trace = 256,
-	afb_method_all = 511
-};
+struct afb_wsj1;
+struct afb_wsj1_itf;
 
-extern enum afb_method get_method(const char *method);
-extern const char *get_method_name(enum afb_method method);
-
+extern struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf *itf, void *closure);

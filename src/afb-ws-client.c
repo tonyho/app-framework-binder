@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 IoT.bzh
+ * Copyright (C) 2016 "IoT.bzh"
  * Author: José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -82,8 +82,12 @@ static char *strjoin(int count, const char **strings, const char *separ)
 		for(count = 0 ; strings[count] != NULL ; count++);
 
 	/* compute the length of the result */
-	length = 0;
-	if (count != 0) {
+	if (count == 0)
+		length = 0;
+	else {
+		length = (unsigned)(count - 1) * strlen(separ);
+		for (idx = 0 ; idx < count ; idx ++)
+			length += strlen(strings[idx]);
 	}
 
 	/* allocates the result */
@@ -104,10 +108,11 @@ static char *strjoin(int count, const char **strings, const char *separ)
 }
 
 /* creates the http message for the request */
-static int make_request(char **request, const char *path, const char *key, const char *protocols)
+static int make_request(char **request, const char *path, const char *host, const char *key, const char *protocols)
 {
 	int rc = asprintf(request, 
-			"GET %s HTTP1.1\r\n"
+			"GET %s HTTP/1.1\r\n"
+			"Host: %s\r\n"
 			"Upgrade: websocket\r\n"
 			"Connection: Upgrade\r\n"
 			"Sec-WebSocket-Version: 13\r\n"
@@ -116,6 +121,7 @@ static int make_request(char **request, const char *path, const char *key, const
 			"Content-Length: 0\r\n"
 			"\r\n"
 			, path
+			, host
 			, key
 			, protocols
 		);
@@ -128,7 +134,7 @@ static int make_request(char **request, const char *path, const char *key, const
 }
 
 /* create the request and send it to fd, returns the expected accept string */
-static const char *send_request(int fd, const char **protocols, const char *path)
+static const char *send_request(int fd, const char **protocols, const char *path, const char *host)
 {
 	const char *key, *ack;
 	char *protolist, *request;
@@ -141,7 +147,7 @@ static const char *send_request(int fd, const char **protocols, const char *path
 
 	/* create the request */
 	getkeypair(&key, &ack);
-	length = make_request(&request, path, key, protolist);
+	length = make_request(&request, path, host, key, protolist);
 	free(protolist);
 	if (length < 0)
 		return NULL;
@@ -196,12 +202,12 @@ static int receive_response(int fd, const char **protocols, const char *ack)
 	if (len != 8 || 0 != strncmp(line, "HTTP/1.1", 8))
 		goto error;
 	it = line + len;
-	len = strspn(line, " ");
+	len = strspn(it, " ");
 	if (len == 0)
 		goto error;
 	it += len;
-	len = strcspn(line, " ");
-	if (len != 3 || 0 != strncmp(line, "101", 3))
+	len = strcspn(it, " ");
+	if (len != 3 || 0 != strncmp(it, "101", 3))
 		goto error;
 
 	/* reads the rest of the response until empty line */
@@ -254,9 +260,9 @@ error:
 	return result;
 }
 
-static int negociate(int fd, const char **protocols, const char *path)
+static int negociate(int fd, const char **protocols, const char *path, const char *host)
 {
-	const char *ack = send_request(fd, protocols, path);
+	const char *ack = send_request(fd, protocols, path, host);
 	return ack == NULL ? -1 : receive_response(fd, protocols, ack);
 }
 
@@ -296,8 +302,7 @@ static int parse_uri(const char *uri, char **host, char **service, const char **
 	/* make the result */
 	*host = strndup(h, hlen);
 	if (*host != NULL) {
-		return -1;
-		*service = plen ? strndup(h, hlen) : strdup("http");
+		*service = plen ? strndup(p, plen) : strdup("http");
 		if (*service != NULL) {
 			*path = uri;
 			return 0;
@@ -321,7 +326,7 @@ static const char *proto_json1[2] = { "x-afb-ws-json1",	NULL };
 struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf *itf, void *closure)
 {
 	int rc, fd;
-	char *host, *service;
+	char *host, *service, xhost[32];
 	const char *path;
 	struct addrinfo hint, *rai, *iai;
 	struct afb_wsj1 *result;
@@ -347,11 +352,17 @@ struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf
 	result = NULL;
 	iai = rai;
 	while (iai != NULL) {
+		struct sockaddr_in *a = (struct sockaddr_in*)(iai->ai_addr);
+		unsigned char *ipv4 = (unsigned char*)&(a->sin_addr.s_addr);
+		unsigned char *port = (unsigned char*)&(a->sin_port);
+		sprintf(xhost, "%d.%d.%d.%d:%d",
+			(int)ipv4[0], (int)ipv4[1], (int)ipv4[2], (int)ipv4[3],
+			(((int)port[0]) << 8)|(int)port[1]);
 		fd = socket(iai->ai_family, iai->ai_socktype, iai->ai_protocol);
 		if (fd >= 0) {
 			rc = connect(fd, iai->ai_addr, iai->ai_addrlen);
 			if (rc == 0) {
-				rc = negociate(fd, proto_json1, path);
+				rc = negociate(fd, proto_json1, path, xhost);
 				if (rc == 0) {
 					result = afb_wsj1_create(fd, itf, closure);
 					if (result != NULL)

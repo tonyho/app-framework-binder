@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 "IoT.bzh"
+ * Copyright (C) 2015, 2016 "IoT.bzh"
  * Author "Fulup Ar Foll"
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,8 +23,7 @@
 #include "session.h"
 #include "afb-context.h"
 
-
-void afb_context_init(struct afb_context *context, struct AFB_clientCtx *session, const char *token)
+static void init_context(struct afb_context *context, struct AFB_clientCtx *session, const char *token)
 {
 	assert(session != NULL);
 
@@ -42,6 +41,11 @@ void afb_context_init(struct afb_context *context, struct AFB_clientCtx *session
 	}
 }
 
+void afb_context_init(struct afb_context *context, struct AFB_clientCtx *session, const char *token)
+{
+	init_context(context, ctxClientAddRef(session), token);
+}
+
 int afb_context_connect(struct afb_context *context, const char *uuid, const char *token)
 {
 	int created;
@@ -50,7 +54,7 @@ int afb_context_connect(struct afb_context *context, const char *uuid, const cha
 	session = ctxClientGetSession (uuid, &created);
 	if (session == NULL)
 		return -1;
-	afb_context_init(context, session, token);
+	init_context(context, session, token);
 	if (created)
 		context->created = 1;
 	return 0;
