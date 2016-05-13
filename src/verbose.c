@@ -1,5 +1,5 @@
 /*
- Copyright 2015 IoT.bzh
+ Copyright 2016 IoT.bzh
 
  author: José Bollo <jose.bollo@iot.bzh>
 
@@ -16,10 +16,12 @@
  limitations under the License.
 */
 
+#include "verbose.h"
+
+#if !defined(VERBOSE_WITH_SYSLOG)
+
 #include <stdio.h>
 #include <stdarg.h>
-
-#include "verbose.h"
 
 int verbosity = 1;
 
@@ -44,3 +46,22 @@ void verbose(int level, const char *file, int line, const char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, " [%s:%d]\n", file, line);
 }
+
+#endif
+
+#if defined(VERBOSE_WITH_SYSLOG) && !defined(NDEBUG)
+
+int verbosity = 1;
+
+#endif
+
+#if defined(VERBOSE_WITH_SYSLOG) && defined(NDEBUG)
+
+void verbose_error(const char *file, int line)
+{
+	syslog(LOG_ERR, "error file %s line %d", file, line);
+}
+
+#endif
+
+

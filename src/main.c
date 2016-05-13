@@ -20,17 +20,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-
 #include <getopt.h>
-#include <setjmp.h>
-#include <signal.h>
-#include <syslog.h>
 
 #include <systemd/sd-event.h>
 
@@ -576,8 +570,7 @@ int main(int argc, char *argv[])  {
   struct afb_config *config;
   struct sd_event *eventloop;
 
-  // open syslog if ever needed
-  openlog("afb-daemon", 0, LOG_DAEMON);
+  LOGAUTH("afb-daemon");
 
   // ------------- Build session handler & init config -------
   config = calloc (1, sizeof (struct afb_config));

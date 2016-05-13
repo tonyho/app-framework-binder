@@ -49,7 +49,7 @@ static void Uploads (struct afb_req request, const char *destination)
 {
    struct afb_arg a = afb_req_get(request, "file");
    if (a.value == NULL || *a.value == 0)
-     afb_req_fail_f(request, "failed", "no file selected");
+     afb_req_fail(request, "failed", "no file selected");
    else
      afb_req_success_f(request, NULL, "uploaded file %s of path %s for destination %s", a.value, a.path, destination);
 }
