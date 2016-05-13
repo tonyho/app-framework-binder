@@ -22,6 +22,18 @@
 #include "media-api.h"
 #include "media-rygel.h"
 
+static void _rygel_device_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
+static void _rygel_av_transport_cb (GUPnPControlPoint *, GUPnPDeviceProxy *, gpointer);
+static void _rygel_content_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_metadata_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_select_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_upload_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_transfer_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+static void _rygel_do_cb (GUPnPServiceProxy *, GUPnPServiceProxyAction *, gpointer);
+
+static unsigned int client_count = 0;
+static struct dev_ctx **dev_ctx = NULL;
+
 /* -------------- MEDIA RYGEL IMPLEMENTATION ---------------- */
 
 /* --- PUBLIC FUNCTIONS --- */
@@ -161,7 +173,7 @@ unsigned char _rygel_select (mediaCtxHandleT *ctx, unsigned int index) {
     return 1;
 }
 
-unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
+unsigned char _rygel_upload (mediaCtxHandleT *ctx, const char *path, void (*oncompletion)(void*,int), void *closure) {
 
     dev_ctx_T *dev_ctx_c = (dev_ctx_T*)ctx->media_server;
     char *raw, *upload_id;
@@ -176,7 +188,7 @@ unsigned char _rygel_upload (mediaCtxHandleT *ctx, char *path) {
     /* for now, we always use the same upload container id */
     upload_id = _rygel_find_upload_id (dev_ctx_c, raw);
 
-    return _rygel_start_uploading (dev_ctx_c, path, upload_id);
+    return _rygel_start_uploading (dev_ctx_c, strdup(path), upload_id);
 }
 
 unsigned char _rygel_do (mediaCtxHandleT *ctx, State state, char *args) {

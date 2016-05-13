@@ -16,6 +16,9 @@
  */
 
 #define _GNU_SOURCE
+
+#include <string.h>
+
 #include <json-c/json.h>
 
 #include "media-api.h"
@@ -44,7 +47,7 @@ static mediaCtxHandleT* initMediaCtx () {
 
 static void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     json_object *jresp;
 
     /* create a private client context */
@@ -64,8 +67,14 @@ static void init (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
 static void list (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     json_object *jresp;
+
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
+    }
 
     jresp = _rygel_list (ctx);
 
@@ -79,11 +88,17 @@ static void list (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
 static void selecting (struct afb_req request) {   /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     const char *value = afb_req_value (request, "value");
     json_object *jresp;
     unsigned int index;
     char index_str[5];
+
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
+    }
 
     /* no "?value=" parameter : return current index */
     if (!value) {
@@ -119,8 +134,14 @@ static void selecting (struct afb_req request) {   /* AFB_SESSION_CHECK */
 
 static void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     json_object *jresp;
+
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
+    }
 
     if (!_rygel_do (ctx, PLAY, NULL)) {
       afb_req_fail (request, "failed", "could not play chosen media");
@@ -134,8 +155,14 @@ static void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
 static void stop (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     json_object *jresp;
+
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
+    }
 
     if (!_rygel_do (ctx, STOP, NULL)) {
       afb_req_fail (request, "failed", "could not stop chosen media");
@@ -149,8 +176,14 @@ static void stop (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
 static void pausing (struct afb_req request) {     /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     json_object *jresp;
+
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
+    }
 
     if (!_rygel_do (ctx, PAUSE, NULL)) {
       afb_req_fail (request, "failed", "could not pause chosen media");
@@ -164,9 +197,15 @@ static void pausing (struct afb_req request) {     /* AFB_SESSION_CHECK */
 
 static void seek (struct afb_req request) {        /* AFB_SESSION_CHECK */
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
     const char *value = afb_req_value (request, "value");
     json_object *jresp;
+
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
+    }
 
     /* no "?value=" parameter : return error */
     if (!value) {
@@ -184,38 +223,78 @@ static void seek (struct afb_req request) {        /* AFB_SESSION_CHECK */
     afb_req_success (request, jresp, "Media - Sought");
 }
 
-#if 0
-static void upload (AFB_request *request, AFB_PostItem *item) { /* AFB_SESSION_CHECK */
+static char *renamed_filename(struct afb_arg argfile)
+{
+    char *result;
+    const char *e = strrchr(argfile.path, '/');
+    if (e == NULL)
+        result = strdup(argfile.value);
+    else {
+        result = malloc((++e - argfile.path) + strlen(argfile.value) + 1);
+        if (result != NULL)
+            strcpy(stpncpy(result, argfile.path, e - argfile.path), argfile.value);
+    }
+    return result;
+}
 
-    mediaCtxHandleT *ctx = (mediaCtxHandleT*) afb_req_context_get(request);
-    AFB_PostCtx *postFileCtx;
-    json_object *jresp;
+static void on_uploaded(struct afb_req *prequest, int status)
+{
+    struct afb_req request = afb_req_unstore(prequest);
+    struct afb_arg argfile = afb_req_get(request, "file-upload");
+    char *file = renamed_filename(argfile);
+    if (file != NULL)
+        unlink(file);
+    free(file);
+    if (status)
+        afb_req_fail (request, "failed", "expected file not received");
+    else
+        afb_req_success_f (request, NULL, "uploaded file %s", argfile.value);
+}
+
+static void upload (struct afb_req request) { /* AFB_SESSION_CHECK */
+
+    mediaCtxHandleT *ctx = afb_req_context_get(request);
+    struct afb_req *prequest;
+    struct afb_arg argfile;
     char *path;
 
-    /* item is !NULL until transfer is complete */
-    if (item != NULL)
-      return getPostFile (request, item, "media");
-
-    /* target intermediary file path */
-    path = getPostPath (request);
-
-    if (!path)
-        fprintf (stderr, "Error encoutered during intermediary file transfer\n");
-
-    else if (!_rygel_upload (ctx, path)) {
-        request->errcode = MHD_HTTP_EXPECTATION_FAILED;
-        request->jresp = jsonNewMessage (AFB_FAIL, "Error when uploading file to media server... could not complete");
+    /* check that context is initialized */
+    if (ctx == NULL) {
+      afb_req_fail (request, "failed", "uninitialized");
+      return;
     }
 
-    else {
-        request->errcode = MHD_HTTP_OK;
-        request->jresp = jsonNewMessage (AFB_SUCCESS, "upload=%s done", path);
+    /* get the file */
+    argfile = afb_req_get(request, "file-upload");
+    if (!argfile.value || !argfile.path) {
+        afb_req_fail (request, "failed", "expected file not received");
+        return;
     }
 
-    /* finalizes file transfer */
-    return getPostFile (request, item, NULL);
+    /* rename the file */
+    path = renamed_filename(argfile);
+    if (path == NULL) {
+        afb_req_fail (request, "failed", "out of memory");
+        return;
+    }
+    if (rename(argfile.path, path) != 0) {
+        free(path);
+        afb_req_fail (request, "failed", "system error");
+        return;
+    }
+
+    /* for asynchronous processing */
+    prequest = afb_req_store(request);
+    if (path == NULL) {
+        unlink(path);
+        afb_req_fail (request, "failed", "out of memory");
+    }
+    else if (!_rygel_upload (ctx, path, (void*)on_uploaded, prequest)) {
+        unlink(path);
+        afb_req_fail (afb_req_unstore(prequest), "failed", "Error when uploading file to media server... could not complete");
+    }
+    free(path);
 }
-#endif
 
 static void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
     afb_req_success (request, NULL, "Media - Ping succeeded");
@@ -230,19 +309,19 @@ static const struct AFB_restapi pluginApis[]= {
   {"stop"   , AFB_SESSION_CHECK,  stop       , "Media API - stop"   },
   {"pause"  , AFB_SESSION_CHECK,  pausing    , "Media API - pause"  },
   {"seek"   , AFB_SESSION_CHECK,  seek       , "Media API - seek"   },
-//  {"upload" , AFB_SESSION_CHECK,  (AFB_apiCB)upload     , "Media API - upload" },
+//  {"upload" , AFB_SESSION_CHECK,  upload     , "Media API - upload" },
   {"ping"   , AFB_SESSION_NONE,   ping       , "Media API - ping"   },
   {NULL}
 };
 
 static const struct AFB_plugin pluginDesc = {
-    .type  = AFB_PLUGIN_JSON,
-    .info  = "Application Framework Binder - Media plugin",
-    .prefix  = "media",
-    .apis  = pluginApis
+    .type   = AFB_PLUGIN_JSON,
+    .info   = "Application Framework Binder - Media plugin",
+    .prefix = "media",
+    .apis   = pluginApis
 };
 
 const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
 {
-	return &pluginDesc;
+    return &pluginDesc;
 }
