@@ -25,8 +25,8 @@
 #include "audio-pulse.h"
 #endif
 
-#include "afb-plugin.h"
-#include "afb-req-itf.h"
+#include <afb/afb-plugin.h>
+#include <afb/afb-req-itf.h>
 
 /* ------ BACKEND FUNCTIONS ------- */
 

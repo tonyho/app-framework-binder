@@ -24,8 +24,8 @@
 #include "media-api.h"
 #include "media-rygel.h"
 
-#include "afb-plugin.h"
-#include "afb-req-itf.h"
+#include <afb/afb-plugin.h>
+#include <afb/afb-req-itf.h>
 
 json_object* _rygel_list (mediaCtxHandleT *);
 

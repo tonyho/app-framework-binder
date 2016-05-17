@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "afb-req-itf.h"
-#include "afb-evmgr-itf.h"
+#include <afb/afb-req-itf.h>
+#include <afb/afb-evmgr-itf.h>
 
 /* Plugin Type */
 enum  AFB_pluginE

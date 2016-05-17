@@ -21,7 +21,7 @@
 #include <assert.h>
 #include <json-c/json.h>
 
-#include "afb-plugin.h"
+#include <afb/afb-plugin.h>
 
 #include "utils-jbus.h"
 

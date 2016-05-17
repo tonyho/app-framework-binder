@@ -29,7 +29,7 @@
 #include "afb-ws-json1.h"
 #include "afb-msg-json.h"
 #include "session.h"
-#include "afb-req-itf.h"
+#include <afb/afb-req-itf.h>
 #include "afb-apis.h"
 #include "afb-context.h"
 

@@ -33,7 +33,7 @@
 #include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-hsrv.h"
-#include "afb-req-itf.h"
+#include <afb/afb-req-itf.h>
 #include "verbose.h"
 
 #include "afb-common.h"

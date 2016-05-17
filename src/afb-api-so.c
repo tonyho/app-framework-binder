@@ -27,9 +27,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "afb-plugin.h"
-#include "afb-req-itf.h"
-#include "afb-evmgr-itf.h"
+#include <afb/afb-plugin.h>
+#include <afb/afb-req-itf.h>
+#include <afb/afb-evmgr-itf.h>
 
 #include "session.h"
 #include "afb-common.h"

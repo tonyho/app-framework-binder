@@ -20,7 +20,7 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#include "afb-plugin.h"
+#include <afb/afb-plugin.h>
 
 
 // Sample Generic Ping Debug API

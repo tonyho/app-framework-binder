@@ -19,7 +19,7 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#include "afb-plugin.h"
+#include <afb/afb-plugin.h>
 
 const struct AFB_interface *interface;
 

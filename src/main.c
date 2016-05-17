@@ -41,7 +41,7 @@
 #include "verbose.h"
 #include "afb-common.h"
 
-#include "afb-plugin.h"
+#include <afb/afb-plugin.h>
 
 #if !defined(PLUGIN_INSTALL_DIR)
 #error "you should define PLUGIN_INSTALL_DIR"

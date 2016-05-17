@@ -33,7 +33,7 @@
 #endif
 
 #include "afb-method.h"
-#include "afb-req-itf.h"
+#include <afb/afb-req-itf.h>
 #include "afb-msg-json.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
@@ -471,6 +471,7 @@ int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 
 int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
 {
+	/* TODO: append the query part! */
 	afb_hreq_reply_static(hreq, MHD_HTTP_MOVED_PERMANENTLY, 0, NULL,
 			MHD_HTTP_HEADER_LOCATION, url, NULL);
 	DEBUG("redirect from [%s] to [%s]", hreq->url, url);

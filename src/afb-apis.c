@@ -26,7 +26,7 @@
 #include "verbose.h"
 #include "afb-apis.h"
 #include "afb-context.h"
-#include "afb-req-itf.h"
+#include <afb/afb-req-itf.h>
 
 struct api_desc {
 	struct afb_api api;

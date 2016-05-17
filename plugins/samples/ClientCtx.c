@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
-#include "afb-plugin.h"
+#include <afb/afb-plugin.h>
 
 typedef struct {
   /* 
