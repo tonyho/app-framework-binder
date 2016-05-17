@@ -48,8 +48,8 @@ $ make; make install<br />
 ### Testing/Debug
 ```
 $ AFB_DAEMON_DIR=$HOME/afb-daemon
-$ $AFB_DAEMON_DIR/build/afb-daemon --help
-$ $AFB_DAEMON_DIR/build/afb-daemon --port=1234 --token='' --ldpaths=$AFB_DAEMON_DIR/build --sessiondir=/tmp --rootdir=$AFB_DAEMON_DIR/test 
+$ $AFB_DAEMON_DIR/build/src/afb-daemon --help
+$ $AFB_DAEMON_DIR/build/src/afb-daemon --port=1234 --token='' --ldpaths=$AFB_DAEMON_DIR/build --sessiondir=/tmp --rootdir=$AFB_DAEMON_DIR/test 
 ```
 
 ### Starting
