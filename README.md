@@ -43,7 +43,7 @@ or under Fedora (excepting libmicrohttpd and rtl-sdr):
 $ dnf install git passwd iproute openssh-server openssh-client openssh-server # Tools needed on top of Docker Minimal Fedora
 $ dnf install file-devel gcc gdb make pkgconfig cmake  # install gcc developement tool chain + cmake
 $ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel 
-$ dnd install alsa-lib-devel pulseaudio-libs-devel glib2-devel gupnp-av-devel # optional but require to build audio plugin
+$ dnf install alsa-lib-devel pulseaudio-libs-devel glib2-devel gupnp-av-devel # optional but require to build audio plugin
 ```
 
  To build, move to your HOME directory and type:
