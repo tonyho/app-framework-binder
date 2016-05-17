@@ -19,16 +19,16 @@
 
 struct json_object;
 
-struct afb_evmgr_itf {
-	void (*push)(void *evmgr, const char *name, struct json_object *object);
+struct afb_event_sender_itf {
+	void (*push)(void *event_sender, const char *name, struct json_object *object);
 };
 
-struct afb_evmgr {
-	const struct afb_evmgr_itf *itf;
+struct afb_event_sender {
+	const struct afb_event_sender_itf *itf;
 	void *closure;
 };
 
-static inline void afb_evmgr_push(struct afb_evmgr mgr, const char *name, struct json_object *object)
+static inline void afb_event_sender_push(struct afb_event_sender mgr, const char *name, struct json_object *object)
 {
 	return mgr.itf->push(mgr.closure, name, object);
 }

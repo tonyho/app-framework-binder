@@ -18,7 +18,7 @@
 #pragma once
 
 #include <afb/afb-req-itf.h>
-#include <afb/afb-evmgr-itf.h>
+#include <afb/afb-event-sender-itf.h>
 
 /*
  * Definition of the versions of the plugin.
@@ -93,7 +93,7 @@ struct sd_bus;
  * Definition of the facilities provided by the daemon.
  */
 struct afb_daemon_itf {
-       struct afb_evmgr (*get_evmgr)(void *closure);           /* get the event manager */
+       struct afb_event_sender (*get_event_sender)(void *closure);           /* get the event manager */
        struct sd_event *(*get_event_loop)(void *closure);      /* get the common systemd's event loop */
        struct sd_bus *(*get_user_bus)(void *closure);          /* get the common systemd's user d-bus */
        struct sd_bus *(*get_system_bus)(void *closure);        /* get the common systemd's system d-bus */
@@ -101,7 +101,7 @@ struct afb_daemon_itf {
 
 /*
  * Structure for accessing daemon.
- * See also: afb_daemon_get_evmgr, afb_daemon_get_event_loop, afb_daemon_get_user_bus, afb_daemon_get_system_bus
+ * See also: afb_daemon_get_event_sender, afb_daemon_get_event_loop, afb_daemon_get_user_bus, afb_daemon_get_system_bus
  */
 struct afb_daemon {
        const struct afb_daemon_itf *itf;       /* the interfacing functions */
@@ -127,9 +127,9 @@ extern const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface 
  * Retrieves the event sender of AFB
  * 'daemon' MUST be the daemon given in interface when activating the plugin.
  */
-static inline struct afb_evmgr afb_daemon_get_evmgr(struct afb_daemon daemon)
+static inline struct afb_event_sender afb_daemon_get_event_sender(struct afb_daemon daemon)
 {
-	return daemon.itf->get_evmgr(daemon.closure);
+	return daemon.itf->get_event_sender(daemon.closure);
 }
 
 /*

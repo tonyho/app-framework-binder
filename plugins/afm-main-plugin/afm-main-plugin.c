@@ -46,7 +46,7 @@ static const char _uninstall_[] = "uninstall";
 static const char _uri_[]       = "uri";
 
 static const struct AFB_interface *afb_interface;
-static struct afb_evmgr evmgr;
+static struct afb_event_sender event_sender;
 
 static struct jbus *jbus;
 
@@ -69,7 +69,7 @@ static struct memo *make_memo(struct afb_req request, const char *method)
 
 static void application_list_changed(const char *data, void *closure)
 {
-	afb_evmgr_push(evmgr, "application-list-changed", NULL);
+	afb_event_sender_push(event_sender, "application-list-changed", NULL);
 }
 
 static struct json_object *embed(const char *tag, struct json_object *obj)
@@ -343,7 +343,7 @@ const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
 	/* records the interface */
 	assert (afb_interface == NULL);
 	afb_interface = itf;
-	evmgr = afb_daemon_get_evmgr(itf->daemon);
+	event_sender = afb_daemon_get_event_sender(itf->daemon);
 
 	/* creates the jbus for accessing afm-user-daemon */
 	sbus = afb_daemon_get_user_bus(itf->daemon);

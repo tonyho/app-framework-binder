@@ -29,7 +29,7 @@
 
 #include <afb/afb-plugin.h>
 #include <afb/afb-req-itf.h>
-#include <afb/afb-evmgr-itf.h>
+#include <afb/afb-event-sender-itf.h>
 
 #include "session.h"
 #include "afb-common.h"
@@ -50,7 +50,7 @@ static int api_timeout = 15;
 
 static const char plugin_register_function[] = "pluginAfbV1Entry";
 
-static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, struct json_object *object)
+static void afb_api_so_event_sender_push(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
 	size_t length;
 	char *event;
@@ -64,17 +64,17 @@ static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, st
 	ctxClientEventSend(NULL, event, object);
 }
 
-static const struct afb_evmgr_itf evmgr_itf = {
-	.push = (void*)afb_api_so_evmgr_push
+static const struct afb_event_sender_itf event_sender_itf = {
+	.push = (void*)afb_api_so_event_sender_push
 };
 
-static struct afb_evmgr afb_api_so_get_evmgr(struct api_so_desc *desc)
+static struct afb_event_sender afb_api_so_get_event_sender(struct api_so_desc *desc)
 {
-	return (struct afb_evmgr){ .itf = &evmgr_itf, .closure = desc };
+	return (struct afb_event_sender){ .itf = &event_sender_itf, .closure = desc };
 }
 
 static const struct afb_daemon_itf daemon_itf = {
-	.get_evmgr = (void*)afb_api_so_get_evmgr,
+	.get_event_sender = (void*)afb_api_so_get_event_sender,
 	.get_event_loop = (void*)afb_common_get_event_loop,
 	.get_user_bus = (void*)afb_common_get_user_bus,
 	.get_system_bus = (void*)afb_common_get_system_bus
