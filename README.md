@@ -23,6 +23,11 @@ optionally, for plugins :
  * rtl-sdr >= 0.5.0 ("librtlsdr-dev", or fetch and build from "git://git.osmocom.org/rtl-sdr" under Fedora);
  * GUPnP ("libglib2.0-dev libgupnp-av-1.0-dev/glib2-devel libgupnp-av-devel");
 
+Libmicrohttpd should be v49 patched or higher version including patch 5583
+ * Prepatched v49 for AGL is avaliable at http://iot.bzh/download/public/2016/afb-demos/libmicrohttpd-0.9.49-agl.tgz
+ * Bug is described at https://gerrit.automotivelinux.org/gerrit/#/c/5583/
+
+
 and the following tools:
  * gcc;
  * make;
@@ -35,14 +40,29 @@ $ apt-get install libmagic-dev libjson-c-dev uuid-dev libsystemd-dev libssl-dev 
 ```
 or under Fedora (excepting libmicrohttpd and rtl-sdr):
 ```
-$ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel alsa-devel libpulse-devel glib2-devel libgupnp-av-devel gcc make pkg-config cmake
+$ dnf install git passwd iproute openssh-server openssh-client openssh-server # Tools needed on top of Docker Minimal Fedora
+$ dnf install file-devel gcc gdb make pkgconfig cmake  # install gcc developement tool chain + cmake
+$ dnf install file-devel json-c-devel libuuid-devel systemd-devel openssl-devel 
+$ dnd install alsa-lib-devel pulseaudio-libs-devel glib2-devel gupnp-av-devel # optional but require to build audio plugin
 ```
 
- To build, move to the root directory and type:
+ To build, move to your HOME directory and type:
 ```
+$ export LIBMICRODEST= /opt/libmicrohttpd-0.9.49-agl
+$ wget http://iot.bzh/download/public/2016/afb-demos/libmicrohttpd-0.9.49-agl.tgz
+$ tar -xzf libmicrohttpd-0.9.49-agl.tgz
+$ cd libmicrohttpd-0.9.49-agl
+$ ./configure --prefix=$LIBMICRODEST
+$ make
+$ sudo make install-strip
+
+$ git clone https://github.com/iotbzh/afb-daemon.git
+$ cd afb-daemon
 $ mkdir build; cd build<br />
+$ export PKG_CONFIG_PATH=$LIBMICRODEST/lib/pkgconfig 
 $ cmake ..<br />
-$ make; make install<br />
+$ make; 
+$ sudo make install<br />
 ```
 
 ### Testing/Debug
