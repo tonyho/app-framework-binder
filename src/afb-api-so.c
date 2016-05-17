@@ -48,7 +48,7 @@ struct api_so_desc {
 
 static int api_timeout = 15;
 
-static const char plugin_register_function[] = "pluginRegister";
+static const char plugin_register_function[] = "pluginAfbV1Entry";
 
 static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
@@ -58,7 +58,7 @@ static void afb_api_so_evmgr_push(struct api_so_desc *desc, const char *name, st
 	assert(desc->plugin != NULL);
 	length = strlen(name);
 	event = alloca(length + 2 + desc->apilength);
-	memcpy(event, desc->plugin->prefix, desc->apilength);
+	memcpy(event, desc->plugin->v1.prefix, desc->apilength);
 	event[desc->apilength] = '/';
 	memcpy(event + desc->apilength + 1, name, length + 1);
 	ctxClientEventSend(NULL, event, object);
@@ -93,7 +93,7 @@ static void monitored_call(int signum, struct monitoring *data)
 		data->action(data->req);
 }
 
-static void call_check(struct afb_req req, struct afb_context *context, const struct AFB_restapi *verb)
+static void call_check(struct afb_req req, struct afb_context *context, const struct AFB_verb_desc_v1 *verb)
 {
 	struct monitoring data;
 
@@ -128,21 +128,21 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 
 static void call(struct api_so_desc *desc, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
 {
-	const struct AFB_restapi *v;
+	const struct AFB_verb_desc_v1 *v;
 
-	v = desc->plugin->apis;
+	v = desc->plugin->v1.verbs;
 	while (v->name && (strncasecmp(v->name, verb, lenverb) || v->name[lenverb]))
 		v++;
 	if (v->name)
 		call_check(req, context, v);
 	else
-		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->plugin->prefix);
+		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->plugin->v1.prefix);
 }
 
 int afb_api_so_add_plugin(const char *path)
 {
 	struct api_so_desc *desc;
-	struct AFB_plugin *(*pluginRegisterFct) (const struct AFB_interface *interface);
+	struct AFB_plugin *(*pluginAfbV1RegisterFct) (const struct AFB_interface *interface);
 
 	desc = calloc(1, sizeof *desc);
 	if (desc == NULL) {
@@ -158,8 +158,8 @@ int afb_api_so_add_plugin(const char *path)
 	}
 
 	/* retrieves the register function */
-	pluginRegisterFct = dlsym(desc->handle, plugin_register_function);
-	if (!pluginRegisterFct) {
+	pluginAfbV1RegisterFct = dlsym(desc->handle, plugin_register_function);
+	if (!pluginAfbV1RegisterFct) {
 		ERROR("plugin [%s] is not an AFB plugin", path);
 		goto error3;
 	}
@@ -172,39 +172,39 @@ int afb_api_so_add_plugin(const char *path)
 	desc->interface.daemon.closure = desc;
 
 	/* init the plugin */
-	desc->plugin = pluginRegisterFct(&desc->interface);
+	desc->plugin = pluginAfbV1RegisterFct(&desc->interface);
 	if (desc->plugin == NULL) {
 		ERROR("plugin [%s] register function failed. continuing...", path);
 		goto error3;
 	}
 
 	/* check the returned structure */
-	if (desc->plugin->type != AFB_PLUGIN_JSON) {
+	if (desc->plugin->type != AFB_PLUGIN_VERSION_1) {
 		ERROR("plugin [%s] invalid type %d...", path, desc->plugin->type);
 		goto error3;
 	}
-	if (desc->plugin->prefix == NULL || *desc->plugin->prefix == 0) {
+	if (desc->plugin->v1.prefix == NULL || *desc->plugin->v1.prefix == 0) {
 		ERROR("plugin [%s] bad prefix...", path);
 		goto error3;
 	}
-	if (desc->plugin->info == NULL || *desc->plugin->info == 0) {
+	if (desc->plugin->v1.info == NULL || *desc->plugin->v1.info == 0) {
 		ERROR("plugin [%s] bad description...", path);
 		goto error3;
 	}
-	if (desc->plugin->apis == NULL) {
+	if (desc->plugin->v1.verbs == NULL) {
 		ERROR("plugin [%s] no APIs...", path);
 		goto error3;
 	}
 
 	/* records the plugin */
-	desc->apilength = strlen(desc->plugin->prefix);
-	if (afb_apis_add(desc->plugin->prefix, (struct afb_api){
+	desc->apilength = strlen(desc->plugin->v1.prefix);
+	if (afb_apis_add(desc->plugin->v1.prefix, (struct afb_api){
 			.closure = desc,
 			.call = (void*)call}) < 0) {
 		ERROR("plugin [%s] can't be registered...", path);
 		goto error3;
 	}
-	NOTICE("plugin %s loaded with API prefix %s", path, desc->plugin->prefix);
+	NOTICE("plugin %s loaded with API prefix %s", path, desc->plugin->v1.prefix);
 	return 0;
 
 error3:

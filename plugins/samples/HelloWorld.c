@@ -78,7 +78,7 @@ static void pingJson (struct afb_req request) {
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static const struct AFB_restapi pluginApis[]= {
+static const struct AFB_verb_desc_v1 verbs[]= {
   {"ping"     , AFB_SESSION_NONE, pingSample  , "Ping Application Framework"},
   {"pingfail" , AFB_SESSION_NONE, pingFail    , "Fails"},
   {"pingnull" , AFB_SESSION_NONE, pingNull    , "Return NULL"},
@@ -89,13 +89,15 @@ static const struct AFB_restapi pluginApis[]= {
 };
 
 static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_JSON,
-	.info = "Minimal Hello World Sample",
-	.prefix = "hello",
-	.apis = pluginApis
+	.type = AFB_PLUGIN_VERSION_1,
+	.v1 = {
+		.info = "Minimal Hello World Sample",
+		.prefix = "hello",
+		.verbs = verbs
+	}
 };
 
-const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
 {
 	interface = itf;
 	return &plugin_desc;

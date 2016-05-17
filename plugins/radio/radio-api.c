@@ -316,7 +316,7 @@ static void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
 }
 
 
-static const struct AFB_restapi pluginApis[]= {
+static const struct AFB_verb_desc_v1 verbs[]= {
   {"init"   , AFB_SESSION_CHECK,  init       , "Radio API - init"},
   {"power"  , AFB_SESSION_CHECK,  power      , "Radio API - power"},
   {"mode"   , AFB_SESSION_CHECK,  mode       , "Radio API - mode"},
@@ -328,13 +328,15 @@ static const struct AFB_restapi pluginApis[]= {
 };
 
 static const struct AFB_plugin pluginDesc = {
-    .type  = AFB_PLUGIN_JSON,
-    .info  = "Application Framework Binder - Radio plugin",
-    .prefix  = "radio",
-    .apis  = pluginApis
+    .type  = AFB_PLUGIN_VERSION_1,
+    .v1 = {
+        .info  = "Application Framework Binder - Radio plugin",
+        .prefix  = "radio",
+        .verbs  = verbs
+    }
 };
 
-const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Entry (const struct AFB_interface *itf)
 {
     initRadioPlugin();
 	return &pluginDesc;

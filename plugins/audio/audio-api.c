@@ -330,7 +330,7 @@ static void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
     afb_req_success (request, NULL, "Audio - Ping success");
 }
 
-static const struct AFB_restapi pluginApis[]= {
+static const struct AFB_verb_desc_v1 verbs[]= {
   {"init"    , AFB_SESSION_CHECK,  init      , "Audio API - init"},
   {"volume"  , AFB_SESSION_CHECK,  volume    , "Audio API - volume"},
   {"channels", AFB_SESSION_CHECK,  channels  , "Audio API - channels"},
@@ -341,13 +341,15 @@ static const struct AFB_restapi pluginApis[]= {
 };
 
 static const struct AFB_plugin pluginDesc = {
-    .type   = AFB_PLUGIN_JSON,
-    .info   = "Application Framework Binder - Audio plugin",
-    .prefix = "audio",
-    .apis   = pluginApis
+    .type   = AFB_PLUGIN_VERSION_1,
+    .v1 = {
+        .info   = "Application Framework Binder - Audio plugin",
+        .prefix = "audio",
+        .verbs   = verbs
+    }
 };
 
-const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Entry (const struct AFB_interface *itf)
 {
 	return &pluginDesc;
 }

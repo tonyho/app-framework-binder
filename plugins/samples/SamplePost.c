@@ -76,7 +76,7 @@ static void UploadImage (struct afb_req request)
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application upload-xxx should be protected with AFB_SESSION_CHECK
-static const struct AFB_restapi pluginApis[]= {
+static const struct AFB_verb_desc_v1 verbs[]= {
   {"ping"         , AFB_SESSION_NONE  , getPingTest    ,"Ping Rest Test Service"},
   {"upload-json"  , AFB_SESSION_NONE  , GetJsonByPost  ,"Demo for Json Buffer on Post"},
   {"upload-image" , AFB_SESSION_NONE  , UploadImage    ,"Demo for file upload"},
@@ -86,13 +86,15 @@ static const struct AFB_restapi pluginApis[]= {
 };
 
 static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_JSON,
-	.info = "Sample with Post Upload Files",
-	.prefix = "post",
-	.apis = pluginApis
+	.type = AFB_PLUGIN_VERSION_1,
+	.v1 = {
+		.info = "Sample with Post Upload Files",
+		.prefix = "post",
+		.verbs = verbs
+	}
 };
 
-const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
 {
     return &plugin_desc;
 };

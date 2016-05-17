@@ -99,7 +99,7 @@ static void clientGetPing (struct afb_req request) {
 }
 
 
-static const struct AFB_restapi pluginApis[]= {
+static const struct AFB_verb_desc_v1 verbs[]= {
   {"ping"    , AFB_SESSION_NONE  , clientGetPing       ,"Ping Rest Test Service"},
   {"create"  , AFB_SESSION_CREATE, clientContextCreate ,"Request Client Context Creation"},
   {"refresh" , AFB_SESSION_RENEW , clientContextRefresh,"Refresh Client Context Token"},
@@ -109,13 +109,15 @@ static const struct AFB_restapi pluginApis[]= {
 };
 
 static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_JSON,
-	.info = "Application Framework Binder Service",
-	.prefix = "token",
-	.apis = pluginApis
+	.type = AFB_PLUGIN_VERSION_1,
+	.v1 = {
+		.info = "Application Framework Binder Service",
+		.prefix = "token",
+		.verbs = verbs
+	}
 };
 
-const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
 {
 	return &plugin_desc;
 }

@@ -87,7 +87,7 @@ static void myClose (struct afb_req request)
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static const struct AFB_restapi pluginApis[]= {
+static const struct AFB_verb_desc_v1 verbs[]= {
   {"create", AFB_SESSION_CREATE, myCreate  , "Create a new session"},
   {"action", AFB_SESSION_CHECK , myAction  , "Use Session Context"},
   {"close" , AFB_SESSION_CLOSE , myClose   , "Free Context"},
@@ -95,13 +95,15 @@ static const struct AFB_restapi pluginApis[]= {
 };
 
 static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_JSON,
-	.info = "Sample of Client Context Usage",
-	.prefix = "context",
-	.apis = pluginApis,
+	.type = AFB_PLUGIN_VERSION_1,
+	.v1 = {
+		.info = "Sample of Client Context Usage",
+		.prefix = "context",
+		.verbs = verbs,
+	}
 };
 
-const struct AFB_plugin *pluginRegister (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
 {
 	return &plugin_desc;
 }

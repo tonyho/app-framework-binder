@@ -45,7 +45,7 @@ static const char _terminate_[] = "terminate";
 static const char _uninstall_[] = "uninstall";
 static const char _uri_[]       = "uri";
 
-static const struct AFB_interface *interface;
+static const struct AFB_interface *afb_interface;
 static struct afb_evmgr evmgr;
 
 static struct jbus *jbus;
@@ -96,7 +96,7 @@ static struct json_object *embed(const char *tag, struct json_object *obj)
 
 static void embed_call_void_callback(int status, struct json_object *obj, struct memo *memo)
 {
-	if (interface->verbosity)
+	if (afb_interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) %s(true) -> %s\n", memo->method,
 			obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
@@ -127,7 +127,7 @@ static void embed_call_void(struct afb_req request, const char *method)
 
 static void call_appid_callback(int status, struct json_object *obj, struct memo *memo)
 {
-	if (interface->verbosity)
+	if (afb_interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) %s -> %s\n", memo->method, 
 			obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
@@ -171,7 +171,7 @@ static void call_runid(struct afb_req request, const char *method)
 		return;
 	}
 	obj = jbus_call_sj_sync(jbus, method, id);
-	if (interface->verbosity)
+	if (afb_interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) %s(%s) -> %s\n", method, id,
 				obj ? json_object_to_json_string(obj) : "NULL");
 	if (obj == NULL) {
@@ -210,7 +210,7 @@ static void start(struct afb_req request)
 	/* get the mode */
 	mode = afb_req_value(request, _mode_);
 	if (mode == NULL || !strcmp(mode, _auto_)) {
-		mode = interface->mode == AFB_MODE_REMOTE ? _remote_ : _local_;
+		mode = afb_interface->mode == AFB_MODE_REMOTE ? _remote_ : _local_;
 	}
 
 	/* create the query */
@@ -222,7 +222,7 @@ static void start(struct afb_req request)
 
 	/* calls the service */
 	obj = jbus_call_sj_sync(jbus, _start_, query);
-	if (interface->verbosity)
+	if (afb_interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) start(%s) -> %s\n", query,
 			obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
@@ -287,7 +287,7 @@ static void install(struct afb_req request)
 	}
 
 	obj = jbus_call_sj_sync(jbus, _install_, query);
-	if (interface->verbosity)
+	if (afb_interface->verbosity)
 		fprintf(stderr, "(afm-main-plugin) install(%s) -> %s\n", query,
 			obj ? json_object_to_json_string(obj) : "NULL");
 	free(query);
@@ -311,7 +311,7 @@ static void uninstall(struct afb_req request)
 	call_appid(request, _uninstall_);
 }
 
-static const struct AFB_restapi plug_apis[] =
+static const struct AFB_verb_desc_v1 verbs[] =
 {
 	{_runnables_, AFB_SESSION_CHECK, runnables,  "Get list of runnable applications"},
 	{_detail_   , AFB_SESSION_CHECK, detail, "Get the details for one application"},
@@ -327,20 +327,22 @@ static const struct AFB_restapi plug_apis[] =
 };
 
 static const struct AFB_plugin plug_desc = {
-	.type = AFB_PLUGIN_JSON,
-	.info = "Application Framework Master Service",
-	.prefix = "afm-main",
-	.apis = plug_apis
+	.type = AFB_PLUGIN_VERSION_1,
+	.v1 = {
+		.info = "Application Framework Master Service",
+		.prefix = "afm-main",
+		.verbs = verbs
+	}
 };
 
-const struct AFB_plugin *pluginRegister(const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
 {
 	int rc;
 	struct sd_bus *sbus;
 
 	/* records the interface */
-	assert (interface == NULL);
-	interface = itf;
+	assert (afb_interface == NULL);
+	afb_interface = itf;
 	evmgr = afb_daemon_get_evmgr(itf->daemon);
 
 	/* creates the jbus for accessing afm-user-daemon */
