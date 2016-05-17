@@ -242,7 +242,7 @@ static void wsj1_on_text(struct afb_wsj1 *wsj1, char *text, size_t size)
 	size_t items[10][2];
 	int n;
 	struct afb_wsj1_msg *msg;
-	struct wsj1_call *call;
+	struct wsj1_call *call = NULL;
 
 	/* allocate */
 	msg = calloc(1, sizeof *msg);
