@@ -349,7 +349,7 @@ static const struct AFB_plugin pluginDesc = {
     }
 };
 
-const struct AFB_plugin *pluginAfbV1Entry (const struct AFB_interface *itf)
+const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
 {
 	return &pluginDesc;
 }

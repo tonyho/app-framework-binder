@@ -6,7 +6,7 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
-SET(PROJECT_VERSION "0.3")
+SET(PROJECT_VERSION "0.4")
 
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
@@ -32,19 +32,6 @@ set(CMAKE_C_FLAGS_CCOV         "-g -O2 --coverage")
 
 ###########################################################################
 
-
-CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
-CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)
-IF(HAVE_MAGIC_H)
-  IF(HAVE_LIBMAGIC_SO)
-    SET(HAVE_LIBMAGIC "1")
-  ENDIF(HAVE_LIBMAGIC_SO)
-ENDIF(HAVE_MAGIC_H)
-IF(NOT HAVE_LIBMAGIC)
-  MESSAGE(FATAL_ERROR "\"magic.h\" or \"libmagic.so\" missing.
-    Please install the \"file-devel\" or \"libmagic-dev\" package !")
-ENDIF(NOT HAVE_LIBMAGIC)
-
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
   CHECK_LIBRARY_EXISTS(efence malloc "" HAVE_LIBEFENCE)
   IF(HAVE_LIBEFENCE)
@@ -53,33 +40,7 @@ IF(CMAKE_BUILD_TYPE MATCHES Debug)
   ENDIF(HAVE_LIBEFENCE)
 ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
-INCLUDE(FindPkgConfig)
-PKG_CHECK_MODULES(libsystemd REQUIRED libsystemd>=222)
 PKG_CHECK_MODULES(json-c REQUIRED json-c)
-PKG_CHECK_MODULES(libmicrohttpd REQUIRED libmicrohttpd>=0.9.48)
-PKG_CHECK_MODULES(openssl REQUIRED openssl)
-PKG_CHECK_MODULES(uuid REQUIRED uuid)
-# Optional plugin dependencies
-PKG_CHECK_MODULES(alsa alsa)
-PKG_CHECK_MODULES(pulseaudio libpulse libpulse-simple)
-PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
-PKG_CHECK_MODULES(gupnp gupnp-1.0 gupnp-av-1.0 gssdp-1.0 gobject-2.0 gio-2.0)
-
-IF(alsa_FOUND)
-  MESSAGE(STATUS "ALSA found ; will compile Audio plugin... (PLUGIN)")
-  IF(pulseaudio_FOUND)
-    MESSAGE(STATUS "PulseAudio found ; Audio plugin will have PulseAudio support")
-    ADD_DEFINITIONS(-DHAVE_PULSE=1)
-  ENDIF(pulseaudio_FOUND)
-ENDIF(alsa_FOUND)
-
-IF(librtlsdr_FOUND)
-  MESSAGE(STATUS "librtlsdr found ; will compile Radio plugin... (PLUGIN)")
-ENDIF(librtlsdr_FOUND)
-
-IF(gupnp_FOUND)
-  MESSAGE(STATUS "gupnp found ; will compile Media plugin... (PLUGIN)")
-ENDIF(gupnp_FOUND)
 
 INCLUDE(FindThreads)
 FIND_PACKAGE(Threads)
@@ -87,33 +48,13 @@ FIND_PACKAGE(Threads)
 SET(include_dirs
 	${INCLUDE_DIRS}
 	${CMAKE_SOURCE_DIR}/include
-	${libsystemd_INCLUDE_DIRS}
 	${json-c_INCLUDE_DIRS}
-	${libmicrohttpd_INCLUDE_DIRS}
-	${uuid_INCLUDE_DIRS}
-	${alsa_INCLUDE_DIRS}
-	${pulseaudio_INCLUDE_DIRS}
-	${librtlsdr_INCLUDE_DIRS}
-	${gupnp_INCLUDE_DIRS}
-	${openssl_INCLUDE_DIRS}
 )
 
 SET(link_libraries
-	${libsystemd_LIBRARIES}
-	${json-c_LIBRARIES}
-	${libmicrohttpd_LIBRARIES}
-	${uuid_LIBRARIES}
-	${alsa_LIBRARIES}
-	${pulseaudio_LIBRARIES}
-	${librtlsdr_LIBRARIES}
-	${gupnp_LIBRARIES}
+	${libefence_LIBRARIES}
 	${CMAKE_THREAD_LIBS_INIT}
-#	${libefence_LIBRARIES}
-	${openssl_LIBRARIES}
-	-lmagic
-	-lm
-	-ldl
-	-lrt
+	${json-c_LIBRARIES}
 )
 
 SET(plugin_install_dir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/afb)
