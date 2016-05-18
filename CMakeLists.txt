@@ -6,7 +6,9 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
+SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application framework")
 SET(PROJECT_VERSION "0.4")
+SET(PROJECT_URL "https://github.com/iotbzh/afb-daemon")
 
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
@@ -57,11 +59,21 @@ SET(link_libraries
 	${json-c_LIBRARIES}
 )
 
-SET(plugin_install_dir ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/afb)
+SET(plugin_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
 ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(plugins)
+
+############################################################
+# installs the pkgconfig file
+CONFIGURE_FILE(afb-daemon.pc.in afb-daemon.pc @ONLY)
+
+INSTALL(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/afb-daemon.pc
+    DESTINATION
+    ${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig
+    )
 
