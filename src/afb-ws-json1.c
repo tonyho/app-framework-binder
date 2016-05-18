@@ -51,6 +51,7 @@ struct afb_ws_json1
 	struct AFB_clientCtx *session;
 	struct json_tokener *tokener;
 	struct afb_ws *ws;
+	int new_session;
 };
 
 static void aws_send_event(struct afb_ws_json1 *ws, const char *event, struct json_object *object);
@@ -65,12 +66,12 @@ static inline struct afb_event_listener listener_for(struct afb_ws_json1 *aws)
 	return (struct afb_event_listener){ .itf = &event_listener_itf, .closure = aws };
 }
 
-struct afb_ws_json1 *afb_ws_json1_create(int fd, struct AFB_clientCtx *session, void (*cleanup)(void*), void *cleanup_closure)
+struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure)
 {
 	struct afb_ws_json1 *result;
 
 	assert(fd >= 0);
-	assert(session != NULL);
+	assert(context != NULL);
 
 	result = malloc(sizeof * result);
 	if (result == NULL)
@@ -79,7 +80,8 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct AFB_clientCtx *session, 
 	result->cleanup = cleanup;
 	result->cleanup_closure = cleanup_closure;
 	result->requests = NULL;
-	result->session = ctxClientAddRef(session);
+	result->session = ctxClientAddRef(context->session);
+	result->new_session = context->created != 0;
 	if (result->session == NULL)
 		goto error2;
 
@@ -316,6 +318,10 @@ static void aws_on_text(struct afb_ws_json1 *ws, char *text, size_t size)
 	afb_context_init(&wsreq->context, ws->session, wsreq->tok);
 	if (!wsreq->context.invalidated)
 		wsreq->context.validated = 1;
+	if (ws->new_session != 0) {
+		wsreq->context.created = 1;
+		ws->new_session = 0;
+	}
 	wsreq->refcount = 1;
 	wsreq->aws = ws;
 	wsreq->next = ws->requests;
@@ -411,8 +417,10 @@ static void aws_emit(struct afb_ws_json1 *aws, int code, const char *id, size_t 
 
 static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status, const char *info, json_object *resp)
 {
+	const char *uuid = afb_context_sent_uuid(&wsreq->context);
 	const char *token = afb_context_sent_token(&wsreq->context);
-	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, afb_msg_json_reply(status, info, resp, token, NULL), token);
+	struct json_object *reply = afb_msg_json_reply(status, info, resp, token, uuid);
+	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, reply, token);
 }
 
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
