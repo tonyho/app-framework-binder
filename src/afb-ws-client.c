@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <fcntl.h>
 
 #include "afb-wsj1.h"
 
@@ -365,8 +366,10 @@ struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf
 				rc = negociate(fd, proto_json1, path, xhost);
 				if (rc == 0) {
 					result = afb_wsj1_create(fd, itf, closure);
-					if (result != NULL)
+					if (result != NULL) {
+						fcntl(fd, F_SETFL, O_NONBLOCK);
 						break;
+					}
 				}
 			}
 			close(fd);
