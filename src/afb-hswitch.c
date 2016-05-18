@@ -86,6 +86,11 @@ int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
 		return 1;
 	}
 
+	if (!hreq->context.validated) {
+		afb_hreq_reply_error(hreq, MHD_HTTP_UNAUTHORIZED);
+		return 1;
+	}
+
 	return afb_websock_check_upgrade(hreq);
 }
 

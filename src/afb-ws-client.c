@@ -201,15 +201,15 @@ static int receive_response(int fd, const char **protocols, const char *ack)
 		goto error;
 	len = strcspn(line, " ");
 	if (len != 8 || 0 != strncmp(line, "HTTP/1.1", 8))
-		goto error;
+		goto abort;
 	it = line + len;
 	len = strspn(it, " ");
 	if (len == 0)
-		goto error;
+		goto abort;
 	it += len;
 	len = strcspn(it, " ");
 	if (len != 3 || 0 != strncmp(it, "101", 3))
-		goto error;
+		goto abort;
 
 	/* reads the rest of the response until empty line */
 	clen = 0;
@@ -250,15 +250,13 @@ static int receive_response(int fd, const char **protocols, const char *ack)
 	if (clen > 0) {
 		while (read(fd, line, len) < 0 && errno == EINTR);
 	}
-	if (haserr != 0)
-		result = -1;
-	else if (result < 0) {
-		result = 0;
-		while(protocols[result] != NULL)
-			result++;
-	}
-error:
+	if (haserr != 0 || result < 0)
+		goto abort;
 	return result;
+abort:
+	errno = ECONNABORTED;
+error:
+	return -1;
 }
 
 static int negociate(int fd, const char **protocols, const char *path, const char *host)

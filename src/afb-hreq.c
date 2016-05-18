@@ -44,13 +44,11 @@
 
 static char empty_string[] = "";
 
-static const char uuid_header[] = "x-afb-uuid";
-static const char uuid_arg[] = "uuid";
-static const char uuid_cookie[] = "uuid";
+static const char key_for_uuid[] = "x-afb-uuid";
+static const char old_key_for_uuid[] = "uuid";
 
-static const char token_header[] = "x-afb-token";
-static const char token_arg[] = "token";
-static const char token_cookie[] = "token";
+static const char key_for_token[] = "x-afb-token";
+static const char old_key_for_token[] = "token";
 
 static char *cookie_name = NULL;
 static char *cookie_setter = NULL;
@@ -708,17 +706,19 @@ int afb_hreq_init_context(struct afb_hreq *hreq)
 	if (hreq->context.session != NULL)
 		return 0;
 
-	uuid = afb_hreq_get_header(hreq, uuid_header);
+	uuid = afb_hreq_get_header(hreq, key_for_uuid);
 	if (uuid == NULL)
-		uuid = afb_hreq_get_argument(hreq, uuid_arg);
+		uuid = afb_hreq_get_argument(hreq, key_for_uuid);
 	if (uuid == NULL)
 		uuid = afb_hreq_get_cookie(hreq, cookie_name);
+	if (uuid == NULL)
+		uuid = afb_hreq_get_argument(hreq, old_key_for_uuid);
 
-	token = afb_hreq_get_header(hreq, token_header);
+	token = afb_hreq_get_header(hreq, key_for_token);
 	if (token == NULL)
-		token = afb_hreq_get_argument(hreq, token_arg);
+		token = afb_hreq_get_argument(hreq, key_for_token);
 	if (token == NULL)
-		token = afb_hreq_get_cookie(hreq, token_cookie);
+		token = afb_hreq_get_argument(hreq, old_key_for_token);
 
 	return afb_context_connect(&hreq->context, uuid, token);
 }
@@ -733,7 +733,7 @@ int afb_hreq_init_cookie(int port, const char *path, int maxage)
 	cookie_setter = NULL;
 
 	path = path ? : "/";
-	rc = asprintf(&cookie_name, "x-afb-uuid-%d", port);
+	rc = asprintf(&cookie_name, "%s-%d", key_for_uuid, port);
 	if (rc < 0)
 		return 0;
 	rc = asprintf(&cookie_setter, "%s=%%s; Path=%s; Max-Age=%d; HttpOnly",
