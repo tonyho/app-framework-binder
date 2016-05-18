@@ -48,7 +48,7 @@ struct api_so_desc {
 
 static int api_timeout = 15;
 
-static const char plugin_register_function[] = "pluginAfbV1Entry";
+static const char plugin_register_function[] = "pluginAfbV1Register";
 
 static void afb_api_so_event_sender_push(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
