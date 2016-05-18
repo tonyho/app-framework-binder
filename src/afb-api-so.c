@@ -187,6 +187,10 @@ int afb_api_so_add_plugin(const char *path)
 		ERROR("plugin [%s] bad prefix...", path);
 		goto error3;
 	}
+	if (!afb_apis_is_valid_api_name(desc->plugin->v1.prefix)) {
+		ERROR("plugin [%s] invalid prefix...", path);
+		goto error3;
+	}
 	if (desc->plugin->v1.info == NULL || *desc->plugin->v1.info == 0) {
 		ERROR("plugin [%s] bad description...", path);
 		goto error3;

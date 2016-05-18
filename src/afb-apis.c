@@ -42,16 +42,45 @@ int afb_apis_count()
 	return apis_count;
 }
 
+int afb_apis_is_valid_api_name(const char *name)
+{
+	unsigned char c;
+
+	c = (unsigned char)*name;
+	if (c == 0)
+		return 0;
+	do {
+		if (c < (unsigned char)'\x80') {
+			switch(c) {
+			default:
+				if (c > ' ')
+					break;
+			case '"':
+			case '#':
+			case '%':
+			case '&':
+			case '\'':
+			case '/':
+			case '?':
+			case '`':
+			case '\\':
+			case '\x7f':
+				return 0;
+			}
+		}
+		c = (unsigned char)*++name;
+	} while(c != 0);
+	return 1;
+}
+
 int afb_apis_add(const char *name, struct afb_api api)
 {
 	struct api_desc *apis;
-	size_t len;
 	int i;
 
-	/* check existing or not */
-	len = strlen(name);
-	if (len == 0) {
-		ERROR("empty api name forbidden");
+	/* Checks the api name */
+	if (!afb_apis_is_valid_api_name(name)) {
+		ERROR("invalid api name forbidden (name is '%s')", name);
 		goto error;
 	}
 
@@ -74,7 +103,7 @@ int afb_apis_add(const char *name, struct afb_api api)
 	/* record the plugin */
 	apis = &apis_array[apis_count];
 	apis->api = api;
-	apis->namelen = len;
+	apis->namelen = strlen(name);
 	apis->name = name;
 	apis_count++;
 

@@ -91,6 +91,10 @@ static struct api_dbus *make_api_dbus_3(int system, const char *path, size_t pat
 		goto error2;
 	}
 	api->api++;
+	if (!afb_apis_is_valid_api_name(api->api)) {
+		errno = EINVAL;
+		goto error2;
+	}
 
 	/* the name/interface is copied after the path */
 	api->name = &api->path[pathlen + 1];
