@@ -61,10 +61,9 @@ SET(link_libraries
 	${json-c_LIBRARIES}
 	)
 
-SET(plugin_install_dir ${CMAKE_INSTALL_LIBDIR}/afb)
-SET(plugin_full_install_dir ${CMAKE_INSTALL_PREFIX}/${plugin_install_dir})
+SET(plugin_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
-ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_full_install_dir}")
+ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(include)
@@ -77,6 +76,6 @@ CONFIGURE_FILE(afb-daemon.pc.in afb-daemon.pc @ONLY)
 INSTALL(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/afb-daemon.pc
     DESTINATION
-    ${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig
+    ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )
 
