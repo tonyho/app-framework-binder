@@ -7,7 +7,7 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 SET(PROJECT_NAME "AFB Daemon")
 SET(PROJECT_PRETTY_NAME "Application Framework Binder Daemon")
 SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application framework")
-SET(PROJECT_VERSION "0.4")
+SET(PROJECT_VERSION "0.5")
 SET(PROJECT_URL "https://github.com/iotbzh/afb-daemon")
 
 INCLUDE(FindPkgConfig)
@@ -17,13 +17,15 @@ INCLUDE(GNUInstallDirs)
 
 ###########################################################################
 
+link_libraries(-Wl,--as-needed -Wl,--gc-sections)
+
 add_compile_options(-Wall -Wextra -Wconversion)
 add_compile_options(-Wno-unused-parameter) # frankly not using a parameter does it care?
 add_compile_options(-Wno-sign-compare -Wno-sign-conversion)
 add_compile_options(-Werror=maybe-uninitialized)
 add_compile_options(-Werror=implicit-function-declaration)
 add_compile_options(-ffunction-sections -fdata-sections)
-add_compile_options(-Wl,--gc-sections)
+add_compile_options(-Wl,--as-needed -Wl,--gc-sections)
 add_compile_options(-fPIC)
 add_compile_options(-g)
 
@@ -51,17 +53,18 @@ SET(include_dirs
 	${INCLUDE_DIRS}
 	${CMAKE_SOURCE_DIR}/include
 	${json-c_INCLUDE_DIRS}
-)
+	)
 
 SET(link_libraries
 	${libefence_LIBRARIES}
 	${CMAKE_THREAD_LIBS_INIT}
 	${json-c_LIBRARIES}
-)
+	)
 
-SET(plugin_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
+SET(plugin_install_dir ${CMAKE_INSTALL_LIBDIR}/afb)
+SET(plugin_full_install_dir ${CMAKE_INSTALL_PREFIX}/${plugin_install_dir})
 
-ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
+ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_full_install_dir}")
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(include)

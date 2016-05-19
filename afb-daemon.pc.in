@@ -17,12 +17,16 @@
 ## limitations under the License.
 ##
 
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+plugin_install_dir=${prefix}/@plugin_install_dir@
+
 Name: @PROJECT_PRETTY_NAME@
 Description: @PROJECT_DESCRIPTION@
 Version: @PROJECT_VERSION@
 URL: @PROJECT_URL@
+
 Requires: json-c
-Cflags: -DPLUGIN_INSTALL_DIR=\"@plugin_install_dir@\"
-
-
+Cflags: -DPLUGIN_INSTALL_DIR=\"${plugin_install_dir}\" -I${includedir}
 
