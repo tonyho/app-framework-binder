@@ -102,6 +102,10 @@ static const struct protodef *search_proto(const struct protodef *protodefs, con
 	int i;
 	size_t len;
 
+	if (protocols == NULL) {
+		/* return NULL; */
+		return protodefs != NULL && protodefs->name != NULL ? protodefs : NULL;
+	}
 	for(;;) {
 		protocols += strspn(protocols, vseparators);
 		if (!*protocols)
@@ -154,7 +158,7 @@ static int check_websocket_upgrade(struct MHD_Connection *con, const struct prot
 
 	/* is the protocol supported ? */
 	protocols = MHD_lookup_connection_value(con, MHD_HEADER_KIND, sec_websocket_protocol_s);
-	proto = protocols == NULL ? NULL : search_proto(protodefs, protocols);
+	proto = search_proto(protodefs, protocols);
 	if (proto == NULL) {
 		response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
 		MHD_queue_response(con, MHD_HTTP_PRECONDITION_FAILED, response);
