@@ -17,6 +17,25 @@
 
 #pragma once
 
+/*****************************************************************************
+ * This files is the main file to include for writing plugins dedicated to
+ *
+ *                      AFB-DAEMON
+ *
+ * Functions of plugins of afb-daemon are accessible by authorized clients
+ * through the apis module of afb-daemon.
+ *
+ * A plugin is a shared library. This shared library must have at least one
+ * exported symbol for being registered in afb-daemon.
+ * For the current version of afb-daemon, the function exported MUST be named
+ *
+ *                  pluginAfbV1Register
+ */
+
+/*
+ * Some function of the library are exported to afb-daemon.
+ */
+
 #include <afb/afb-req-itf.h>
 #include <afb/afb-event-sender-itf.h>
 
@@ -119,7 +138,7 @@ struct AFB_interface
 };
 
 /*
- * The function for registering the plugin to AFB
+ * Function for registering the plugin
  */
 extern const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *interface);
 
