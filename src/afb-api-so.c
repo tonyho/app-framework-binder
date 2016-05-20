@@ -141,29 +141,35 @@ static void call(struct api_so_desc *desc, struct afb_req req, struct afb_contex
 
 int afb_api_so_add_plugin(const char *path)
 {
+	int rc;
+	void *handle;
 	struct api_so_desc *desc;
 	struct AFB_plugin *(*pluginAfbV1RegisterFct) (const struct AFB_interface *interface);
 
-	desc = calloc(1, sizeof *desc);
-	if (desc == NULL) {
-		ERROR("out of memory");
+	// This is a loadable library let's check if it's a plugin
+	rc = 0;
+	handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+	if (handle == NULL) {
+		ERROR("plugin [%s] not loadable", path);
 		goto error;
 	}
 
-	// This is a loadable library let's check if it's a plugin
-	desc->handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-	if (desc->handle == NULL) {
-		ERROR("plugin [%s] not loadable", path);
-		goto error2;
-	}
-
 	/* retrieves the register function */
-	pluginAfbV1RegisterFct = dlsym(desc->handle, plugin_register_function);
+	pluginAfbV1RegisterFct = dlsym(handle, plugin_register_function);
 	if (!pluginAfbV1RegisterFct) {
 		ERROR("plugin [%s] is not an AFB plugin", path);
-		goto error3;
+		goto error2;
 	}
 	INFO("plugin [%s] is a valid AFB plugin", path);
+	rc = -1;
+
+	/* allocates the description */
+	desc = calloc(1, sizeof *desc);
+	if (desc == NULL) {
+		ERROR("out of memory");
+		goto error2;
+	}
+	desc->handle = handle;
 
 	/* init the interface */
 	desc->interface.verbosity = 0;
@@ -212,11 +218,11 @@ int afb_api_so_add_plugin(const char *path)
 	return 0;
 
 error3:
-	dlclose(desc->handle);
-error2:
 	free(desc);
+error2:
+	dlclose(handle);
 error:
-	return -1;
+	return rc;
 }
 
 static int adddirs(char path[PATH_MAX], size_t end)
@@ -260,7 +266,8 @@ static int adddirs(char path[PATH_MAX], size_t end)
 			/* case of files */
 			if (!strstr(ent.d_name, ".so"))
 				continue;
-			afb_api_so_add_plugin(path);
+			if (afb_api_so_add_plugin(path) < 0)
+				return -1;
 		}
 	}
 	closedir(dir);
@@ -309,7 +316,8 @@ int afb_api_so_add_pathset(const char *pathset)
 		p = strsep(&ps, sep);
 		if (!p)
 			return 0;
-		afb_api_so_add_path(p);
-	};
+		if (afb_api_so_add_path(p) < 0)
+			return -1;
+	}
 }
 

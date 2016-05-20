@@ -584,8 +584,12 @@ int main(int argc, char *argv[])  {
      exit (1);
   }
 
-  if (config->ldpaths) 
-    afb_api_so_add_pathset(config->ldpaths);
+  if (config->ldpaths) {
+    if (afb_api_so_add_pathset(config->ldpaths) < 0) {
+      ERROR("initialisation of plugins within %s failed", config->ldpaths);
+      exit(1);
+    }
+  }
 
   start_items(config->items);
   config->items = NULL;
