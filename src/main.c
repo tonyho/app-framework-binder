@@ -479,10 +479,10 @@ static int init_http_server(struct afb_hsrv *hsrv, struct afb_config * config)
 		return 0;
 
 	for (idx = 0; idx < config->aliascount; idx++)
-		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0))
+		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0, 0))
 			return 0;
 
-	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10))
+	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10, 1))
 		return 0;
 
 	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL, -20))

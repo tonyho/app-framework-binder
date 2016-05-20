@@ -302,6 +302,19 @@ static struct hsrv_handler *new_handler(
 	return head;
 }
 
+static int handle_alias_relax(struct afb_hreq *hreq, void *data)
+{
+	struct hsrv_alias *da = data;
+
+	if (hreq->method != afb_method_get)
+		return 0;
+
+	if (!afb_hreq_valid_tail(hreq))
+		return 0;
+
+	return afb_hreq_reply_file_if_exist(hreq, da->dirfd, &hreq->tail[1]);
+}
+
 static int handle_alias(struct afb_hreq *hreq, void *data)
 {
 	struct hsrv_alias *da = data;
@@ -335,7 +348,7 @@ int afb_hsrv_add_handler(
 	return 1;
 }
 
-int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority)
+int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority, int relax)
 {
 	struct hsrv_alias *da;
 	int dirfd;
@@ -351,7 +364,7 @@ int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *al
 		da->directory = alias;
 		da->lendir = strlen(da->directory);
 		da->dirfd = dirfd;
-		if (afb_hsrv_add_handler(hsrv, prefix, handle_alias, da, priority))
+		if (afb_hsrv_add_handler(hsrv, prefix, relax ? handle_alias_relax : handle_alias, da, priority))
 			return 1;
 		free(da);
 	}
