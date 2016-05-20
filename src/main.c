@@ -47,7 +47,7 @@
 #error "you should define PLUGIN_INSTALL_DIR"
 #endif
 
-#define AFB_VERSION    "0.4"
+#define AFB_VERSION    "0.5"
 
 // Define command line option
 #define SET_VERBOSE        1
