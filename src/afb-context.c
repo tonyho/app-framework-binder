@@ -31,6 +31,7 @@ static void init_context(struct afb_context *context, struct AFB_clientCtx *sess
 	context->session = session;
 	context->flags = 0;
 	context->api_index = -1;
+	context->loa_in = ctxClientGetLOA(session) & 7;
 
 	/* check the token */
 	if (token != NULL) {
@@ -55,19 +56,30 @@ int afb_context_connect(struct afb_context *context, const char *uuid, const cha
 	if (session == NULL)
 		return -1;
 	init_context(context, session, token);
-	if (created)
+	if (created) {
 		context->created = 1;
+		context->refreshing = 1;
+	}
 	return 0;
 }
 
 void afb_context_disconnect(struct afb_context *context)
 {
 	if (context->session != NULL) {
-		if (context->closing && !context->closed) {
-			context->closed = 1;
+		if (context->refreshing && !context->refreshed) {
+			ctxTokenNew (context->session);
+			context->refreshed = 1;
+		}
+		if (context->loa_changing && !context->loa_changed) {
+			ctxClientSetLOA (context->session, context->loa_out);
+			context->loa_changed = 1;
+		}
+		if (!context->closed) {
 			ctxClientClose(context->session);
+			context->closed = 1;
 		}
 		ctxClientUnref(context->session);
+		context->session = NULL;
 	}
 }
 
@@ -75,7 +87,7 @@ const char *afb_context_sent_token(struct afb_context *context)
 {
 	if (context->session == NULL || context->closing)
 		return NULL;
-	if (!(context->created || context->refreshing))
+	if (!context->refreshing)
 		return NULL;
 	if (!context->refreshed) {
 		ctxTokenNew (context->session);
@@ -112,6 +124,7 @@ void afb_context_close(struct afb_context *context)
 
 void afb_context_refresh(struct afb_context *context)
 {
+	assert(context->validated);
 	context->refreshing = 1;
 }
 
@@ -120,7 +133,21 @@ int afb_context_check(struct afb_context *context)
 	return context->validated;
 }
 
-int afb_context_create(struct afb_context *context)
+int afb_context_check_loa(struct afb_context *context, unsigned loa)
 {
-	return context->created;
+	return context->loa_in >= loa;
 }
+
+void afb_context_change_loa(struct afb_context *context, unsigned loa)
+{
+	assert(context->validated);
+
+	if (loa == context->loa_in)
+		context->loa_changing = 0;
+	else {
+		context->loa_changing = 1;
+		context->loa_out = loa & 7;
+	}
+}
+
+

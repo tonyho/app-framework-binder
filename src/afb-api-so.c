@@ -108,18 +108,22 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 	}
 
 	if ((stag & AFB_SESSION_CREATE) != 0) {
-		if (!afb_context_create(context)) {
+		if (afb_context_check_loa(context, 1)) {
 			afb_context_close(context);
 			afb_req_fail(req, "failed", "invalid creation state");
 			return;
 		}
+		afb_context_change_loa(context, 1);
+		afb_context_refresh(context);
 	}
 	
 	if ((stag & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0)
 		afb_context_refresh(context);
 
-	if ((stag & AFB_SESSION_CLOSE) != 0)
+	if ((stag & AFB_SESSION_CLOSE) != 0) {
+		afb_context_change_loa(context, 0);
 		afb_context_close(context);
+	}
 
 	data.req = req;
 	data.action = verb->callback;

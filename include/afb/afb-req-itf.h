@@ -97,6 +97,17 @@ static inline void afb_req_context_set(struct afb_req req, void *value, void (*f
 	return req.itf->context_set(req.closure, value, free_value);
 }
 
+static inline void *afb_req_context(struct afb_req req, void *(*create_value)(), void (*free_value)(void*))
+{
+	void *result = req.itf->context_get(req.closure);
+	if (result == NULL) {
+		result = create_value();
+		if (result != NULL)
+			req.itf->context_set(req.closure, result, free_value);
+	}
+	return result;
+}
+
 static inline void afb_req_context_clear(struct afb_req req)
 {
 	afb_req_context_set(req, NULL, NULL);

@@ -48,6 +48,7 @@ struct afb_event_listener_list
 struct AFB_clientCtx
 {
 	unsigned refcount;
+	unsigned loa;
 	time_t expiration;    // expiration time of the token
 	time_t access;
 	char uuid[37];        // long term authentication of remote client
@@ -432,6 +433,18 @@ const char *ctxClientGetToken (struct AFB_clientCtx *clientCtx)
 {
 	assert(clientCtx != NULL);
 	return clientCtx->token;
+}
+
+unsigned ctxClientGetLOA (struct AFB_clientCtx *clientCtx)
+{
+	assert(clientCtx != NULL);
+	return clientCtx->loa;
+}
+
+void ctxClientSetLOA (struct AFB_clientCtx *clientCtx, unsigned loa)
+{
+	assert(clientCtx != NULL);
+	clientCtx->loa = loa;
 }
 
 void *ctxClientValueGet(struct AFB_clientCtx *clientCtx, int index)

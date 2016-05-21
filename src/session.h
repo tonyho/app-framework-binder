@@ -48,6 +48,8 @@ extern void ctxTokenNew (struct AFB_clientCtx *clientCtx);
 
 extern const char *ctxClientGetUuid (struct AFB_clientCtx *clientCtx);
 extern const char *ctxClientGetToken (struct AFB_clientCtx *clientCtx);
+extern unsigned ctxClientGetLOA (struct AFB_clientCtx *clientCtx);
+extern void ctxClientSetLOA (struct AFB_clientCtx *clientCtx, unsigned loa);
 
 extern void *ctxClientValueGet(struct AFB_clientCtx *clientCtx, int index);
 extern void ctxClientValueSet(struct AFB_clientCtx *clientCtx, int index, void *value, void (*free_value)(void*));

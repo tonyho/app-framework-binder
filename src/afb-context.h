@@ -32,6 +32,10 @@ struct afb_context
 			unsigned refreshed: 1;
 			unsigned closing: 1;
 			unsigned closed: 1;
+			unsigned loa_in: 3;
+			unsigned loa_out: 3;
+			unsigned loa_changing: 1;
+			unsigned loa_changed: 1;
 		};
 	};
 	int api_index;
@@ -49,5 +53,6 @@ extern void afb_context_set(struct afb_context *context, void *value, void (*fre
 extern void afb_context_close(struct afb_context *context);
 extern void afb_context_refresh(struct afb_context *context);
 extern int afb_context_check(struct afb_context *context);
-extern int afb_context_create(struct afb_context *context);
+extern int afb_context_check_loa(struct afb_context *context, unsigned loa);
+extern void afb_context_change_loa(struct afb_context *context, unsigned loa);
 
