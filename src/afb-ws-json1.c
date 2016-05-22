@@ -169,7 +169,9 @@ static const struct afb_req_itf wsreq_itf = {
 	.context_get = (void*)afb_context_get,
 	.context_set = (void*)afb_context_set,
 	.addref = (void*)wsreq_addref,
-	.unref = (void*)wsreq_unref
+	.unref = (void*)wsreq_unref,
+	.session_close = (void*)afb_context_close,
+	.session_set_LOA = (void*)afb_context_change_loa
 };
 
 static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)

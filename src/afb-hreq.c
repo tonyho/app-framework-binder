@@ -82,7 +82,9 @@ static const struct afb_req_itf afb_hreq_itf = {
 	.context_get = (void*)afb_context_get,
 	.context_set = (void*)afb_context_set,
 	.addref = (void*)afb_hreq_addref,
-	.unref = (void*)afb_hreq_unref
+	.unref = (void*)afb_hreq_unref,
+	.session_close = (void*)afb_context_close,
+	.session_set_LOA = (void*)afb_context_change_loa
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)

@@ -40,6 +40,9 @@ struct afb_req_itf {
 
 	void (*addref)(void *closure);
 	void (*unref)(void *closure);
+
+	void (*session_close)(void *closure);
+	void (*session_set_LOA)(void *closure, unsigned level);
 };
 
 struct afb_req {
@@ -121,6 +124,16 @@ static inline void afb_req_addref(struct afb_req req)
 static inline void afb_req_unref(struct afb_req req)
 {
 	return req.itf->unref(req.closure);
+}
+
+static inline void afb_req_session_close(struct afb_req req)
+{
+	return req.itf->session_close(req.closure);
+}
+
+static inline void afb_req_session_set_LOA(struct afb_req req, unsigned level)
+{
+	return req.itf->session_set_LOA(req.closure, level);
 }
 
 #include <stdlib.h>
