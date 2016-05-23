@@ -109,7 +109,6 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 
 	if ((stag & AFB_SESSION_CREATE) != 0) {
 		if (afb_context_check_loa(context, 1)) {
-			afb_context_close(context);
 			afb_req_fail(req, "failed", "invalid creation state");
 			return;
 		}
