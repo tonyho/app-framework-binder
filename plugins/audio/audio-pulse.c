@@ -42,7 +42,7 @@ unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
 
     /* allocate the global array if it hasn't been done */
     if (!dev_ctx_p)
-        dev_ctx_p = (dev_ctx_pulse_T**) malloc (sizeof(dev_ctx_pulse_T));
+        dev_ctx_p = (dev_ctx_pulse_T**) malloc (sizeof(dev_ctx_pulse_T*));
 
     /* create a temporary device, to be held until sink gets discovered */
     dev_ctx_pulse_T *dev_ctx_p_t = (dev_ctx_pulse_T*) malloc (sizeof(dev_ctx_pulse_T));

@@ -10,7 +10,7 @@ IF(librtlsdr_FOUND)
 	PREFIX ""
 	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export.map"
   )
-  TARGET_LINK_LIBRARIES(radio-api ${link_libraries} ${librtlsdr_LIBRARIES})
+  TARGET_LINK_LIBRARIES(radio-api ${link_libraries} ${librtlsdr_LIBRARIES} -lm)
   INSTALL(TARGETS radio-api
           LIBRARY DESTINATION ${plugin_install_dir})
 

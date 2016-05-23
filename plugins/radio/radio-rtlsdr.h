@@ -97,8 +97,4 @@ void _radio_apply_params (struct dev_ctx *);
 void _radio_start_threads (struct dev_ctx *);
 void _radio_stop_threads (struct dev_ctx *);
 
-static void* _dongle_thread_fn (void *);
-static void* _demod_thread_fn (void *);
-static void* _output_thread_fn (void *);
-
 #endif /* RADIO_RTLSDR_H */

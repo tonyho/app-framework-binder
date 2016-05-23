@@ -23,6 +23,10 @@
 #include "radio-api.h"
 #include "radio-rtlsdr.h"
 
+static void* _dongle_thread_fn (void *);
+static void* _demod_thread_fn (void *);
+static void* _output_thread_fn (void *);
+
 static unsigned int init_dev_count = 0;
 static struct dev_ctx **dev_ctx = NULL;
 
