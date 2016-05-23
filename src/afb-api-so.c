@@ -99,7 +99,7 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 
 	int stag = (int)verb->session;
 
-	if (stag != (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) {
+	if ((stag & (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
 		if (!afb_context_check(context)) {
 			afb_context_close(context);
 			afb_req_fail(req, "failed", "invalid token's identity");
