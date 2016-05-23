@@ -74,7 +74,7 @@ void afb_context_disconnect(struct afb_context *context)
 			ctxClientSetLOA (context->session, context->loa_out);
 			context->loa_changed = 1;
 		}
-		if (!context->closed) {
+		if (context->closing && !context->closed) {
 			ctxClientClose(context->session);
 			context->closed = 1;
 		}
