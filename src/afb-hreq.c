@@ -44,11 +44,14 @@
 
 static char empty_string[] = "";
 
-static const char key_for_uuid[] = "x-afb-uuid";
-static const char old_key_for_uuid[] = "uuid";
+static const char long_key_for_uuid[] = "x-afb-uuid";
+static const char short_key_for_uuid[] = "uuid";
 
-static const char key_for_token[] = "x-afb-token";
-static const char old_key_for_token[] = "token";
+static const char long_key_for_token[] = "x-afb-token";
+static const char short_key_for_token[] = "token";
+
+static const char long_key_for_reqid[] = "x-afb-reqid";
+static const char short_key_for_reqid[] = "reqid";
 
 static char *cookie_name = NULL;
 static char *cookie_setter = NULL;
@@ -678,14 +681,25 @@ static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t ma
 
 static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
 {
-	struct json_object *reply;
-	const char *token, *uuid;
+	struct json_object *reply, *request;
+	const char *token, *uuid, *reqid;
 	struct MHD_Response *response;
 
 	token = afb_context_sent_token(&hreq->context);
 	uuid = afb_context_sent_uuid(&hreq->context);
 
 	reply = afb_msg_json_reply(status, info, resp, token, uuid);
+
+	reqid = afb_hreq_get_argument(hreq, long_key_for_reqid);
+	if (reqid != NULL && json_object_object_get_ex(reply, "request", &request)) {
+		json_object_object_add (request, long_key_for_reqid, json_object_new_string(reqid));
+	} else {
+		reqid = afb_hreq_get_argument(hreq, short_key_for_reqid);
+		if (reqid != NULL && json_object_object_get_ex(reply, "request", &request)) {
+			json_object_object_add (request, short_key_for_reqid, json_object_new_string(reqid));
+		}
+	}
+
 	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string(reply)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
 	afb_hreq_reply(hreq, retcode, response, NULL);
 }
@@ -708,19 +722,19 @@ int afb_hreq_init_context(struct afb_hreq *hreq)
 	if (hreq->context.session != NULL)
 		return 0;
 
-	uuid = afb_hreq_get_header(hreq, key_for_uuid);
+	uuid = afb_hreq_get_header(hreq, long_key_for_uuid);
 	if (uuid == NULL)
-		uuid = afb_hreq_get_argument(hreq, key_for_uuid);
+		uuid = afb_hreq_get_argument(hreq, long_key_for_uuid);
 	if (uuid == NULL)
 		uuid = afb_hreq_get_cookie(hreq, cookie_name);
 	if (uuid == NULL)
-		uuid = afb_hreq_get_argument(hreq, old_key_for_uuid);
+		uuid = afb_hreq_get_argument(hreq, short_key_for_uuid);
 
-	token = afb_hreq_get_header(hreq, key_for_token);
+	token = afb_hreq_get_header(hreq, long_key_for_token);
 	if (token == NULL)
-		token = afb_hreq_get_argument(hreq, key_for_token);
+		token = afb_hreq_get_argument(hreq, long_key_for_token);
 	if (token == NULL)
-		token = afb_hreq_get_argument(hreq, old_key_for_token);
+		token = afb_hreq_get_argument(hreq, short_key_for_token);
 
 	return afb_context_connect(&hreq->context, uuid, token);
 }
@@ -735,7 +749,7 @@ int afb_hreq_init_cookie(int port, const char *path, int maxage)
 	cookie_setter = NULL;
 
 	path = path ? : "/";
-	rc = asprintf(&cookie_name, "%s-%d", key_for_uuid, port);
+	rc = asprintf(&cookie_name, "%s-%d", long_key_for_uuid, port);
 	if (rc < 0)
 		return 0;
 	rc = asprintf(&cookie_setter, "%s=%%s; Path=%s; Max-Age=%d; HttpOnly",
