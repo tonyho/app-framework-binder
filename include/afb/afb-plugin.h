@@ -59,7 +59,33 @@ enum AFB_session_v1
        AFB_SESSION_CLOSE = 2,  /* closes the session after authentification */
        AFB_SESSION_RENEW = 4,  /* refreshes the token after authentification */
        AFB_SESSION_CHECK = 8,  /* enforce authentification */
-       AFB_SESSION_MASK = 15   /* convenient mask used internally, bit-or of the previous masks */
+
+       AFB_SESSION_LOA_GE = 16, /* check that the LOA is greater or equal to the given value */
+       AFB_SESSION_LOA_LE = 32, /* check that the LOA is lesser or equal to the given value */
+       AFB_SESSION_LOA_EQ = 48, /* check that the LOA is equal to the given value */
+
+       AFB_SESSION_LOA_SHIFT = 6, /* shift for LOA */
+       AFB_SESSION_LOA_MASK = 3,  /* mask for LOA */
+
+       AFB_SESSION_LOA_0 = 0,   /* value for LOA of 0 */
+       AFB_SESSION_LOA_1 = 64,  /* value for LOA of 1 */
+       AFB_SESSION_LOA_2 = 128, /* value for LOA of 2 */
+       AFB_SESSION_LOA_3 = 192, /* value for LOA of 3 */
+
+       AFB_SESSION_LOA_LE_0 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_0, /* check LOA <= 0 */
+       AFB_SESSION_LOA_LE_1 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_1, /* check LOA <= 1 */
+       AFB_SESSION_LOA_LE_2 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_2, /* check LOA <= 2 */
+       AFB_SESSION_LOA_LE_3 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_3, /* check LOA <= 3 */
+
+       AFB_SESSION_LOA_GE_0 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_0, /* check LOA >= 0 */
+       AFB_SESSION_LOA_GE_1 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_1, /* check LOA >= 1 */
+       AFB_SESSION_LOA_GE_2 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_2, /* check LOA >= 2 */
+       AFB_SESSION_LOA_GE_3 = AFB_SESSION_LOA_GE | AFB_SESSION_LOA_3, /* check LOA >= 3 */
+
+       AFB_SESSION_LOA_EQ_0 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_0, /* check LOA == 0 */
+       AFB_SESSION_LOA_EQ_1 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_1, /* check LOA == 1 */
+       AFB_SESSION_LOA_EQ_2 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_2, /* check LOA == 2 */
+       AFB_SESSION_LOA_EQ_3 = AFB_SESSION_LOA_EQ | AFB_SESSION_LOA_3  /* check LOA == 3 */
 };
 
 /*

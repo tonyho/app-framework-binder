@@ -42,7 +42,7 @@ struct afb_req_itf {
 	void (*unref)(void *closure);
 
 	void (*session_close)(void *closure);
-	void (*session_set_LOA)(void *closure, unsigned level);
+	int (*session_set_LOA)(void *closure, unsigned level);
 };
 
 struct afb_req {
@@ -97,7 +97,7 @@ static inline void *afb_req_context_get(struct afb_req req)
 
 static inline void afb_req_context_set(struct afb_req req, void *value, void (*free_value)(void*))
 {
-	return req.itf->context_set(req.closure, value, free_value);
+	req.itf->context_set(req.closure, value, free_value);
 }
 
 static inline void *afb_req_context(struct afb_req req, void *(*create_value)(), void (*free_value)(void*))
@@ -118,20 +118,20 @@ static inline void afb_req_context_clear(struct afb_req req)
 
 static inline void afb_req_addref(struct afb_req req)
 {
-	return req.itf->addref(req.closure);
+	req.itf->addref(req.closure);
 }
 
 static inline void afb_req_unref(struct afb_req req)
 {
-	return req.itf->unref(req.closure);
+	req.itf->unref(req.closure);
 }
 
 static inline void afb_req_session_close(struct afb_req req)
 {
-	return req.itf->session_close(req.closure);
+	req.itf->session_close(req.closure);
 }
 
-static inline void afb_req_session_set_LOA(struct afb_req req, unsigned level)
+static inline int afb_req_session_set_LOA(struct afb_req req, unsigned level)
 {
 	return req.itf->session_set_LOA(req.closure, level);
 }

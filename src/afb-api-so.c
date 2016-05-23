@@ -97,9 +97,9 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 {
 	struct monitoring data;
 
-	int stag = (int)(verb->session & AFB_SESSION_MASK);
+	int stag = (int)verb->session;
 
-	if (stag != AFB_SESSION_NONE) {
+	if (stag != (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) {
 		if (!afb_context_check(context)) {
 			afb_context_close(context);
 			afb_req_fail(req, "failed", "invalid token's identity");
@@ -122,6 +122,22 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 	if ((stag & AFB_SESSION_CLOSE) != 0) {
 		afb_context_change_loa(context, 0);
 		afb_context_close(context);
+	}
+
+	if ((stag & AFB_SESSION_LOA_GE) != 0) {
+		int loa = (stag >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
+		if (!afb_context_check_loa(context, loa)) {
+			afb_req_fail(req, "failed", "invalid LOA");
+			return;
+		}
+	}
+
+	if ((stag & AFB_SESSION_LOA_LE) != 0) {
+		int loa = (stag >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
+		if (afb_context_check_loa(context, loa + 1)) {
+			afb_req_fail(req, "failed", "invalid LOA");
+			return;
+		}
 	}
 
 	data.req = req;

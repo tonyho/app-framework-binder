@@ -138,16 +138,19 @@ int afb_context_check_loa(struct afb_context *context, unsigned loa)
 	return context->loa_in >= loa;
 }
 
-void afb_context_change_loa(struct afb_context *context, unsigned loa)
+int afb_context_change_loa(struct afb_context *context, unsigned loa)
 {
-	assert(context->validated);
+	if (!context->validated || loa > 7)
+		return 0;
 
-	if (loa == context->loa_in)
+	if (loa == context->loa_in && !context->loa_changed)
 		context->loa_changing = 0;
 	else {
-		context->loa_changing = 1;
 		context->loa_out = loa & 7;
+		context->loa_changing = 1;
+		context->loa_changed = 0;
 	}
+	return 1;
 }
 
 

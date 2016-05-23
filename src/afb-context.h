@@ -54,5 +54,5 @@ extern void afb_context_close(struct afb_context *context);
 extern void afb_context_refresh(struct afb_context *context);
 extern int afb_context_check(struct afb_context *context);
 extern int afb_context_check_loa(struct afb_context *context, unsigned loa);
-extern void afb_context_change_loa(struct afb_context *context, unsigned loa);
+extern int afb_context_change_loa(struct afb_context *context, unsigned loa);
 
