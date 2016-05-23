@@ -44,8 +44,10 @@ unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     long vol, vol_min, vol_max;
     int num, i;
 
-    if (snd_pcm_open (&dev, name, SND_PCM_STREAM_PLAYBACK, 0) < 0)
+    if (snd_pcm_open (&dev, name, SND_PCM_STREAM_PLAYBACK, 0) < 0) {
+        fprintf (stderr, "ALSA backend could not open card '%s'\n", name);
         return 0;
+    }
 
     snd_pcm_hw_params_malloc (&params);
     snd_pcm_hw_params_any (dev, params);
@@ -55,6 +57,7 @@ unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     snd_pcm_hw_params_set_channels (dev, params, ctx->channels);
     if (snd_pcm_hw_params (dev, params) < 0) {
         snd_pcm_hw_params_free (params);
+        fprintf (stderr, "ALSA backend could set channels on card '%s'\n", name);
         return 0;
     }
     snd_pcm_prepare (dev);
@@ -62,6 +65,7 @@ unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     snd_mixer_open (&mixer, 0);
     if (snd_mixer_attach (mixer, name) < 0) {
         snd_pcm_hw_params_free (params);
+        fprintf (stderr, "ALSA backend could not open mixer for card '%s'\n", name);
         return 0;
     }
     snd_mixer_selem_register (mixer, NULL, NULL);
@@ -109,14 +113,17 @@ unsigned char _alsa_init (const char *name, audioCtxHandleT *ctx) {
     /* is a card with similar name already opened ? */
     for (num = 0; num < (sizeof(dev_ctx_a)/sizeof(dev_ctx_alsa_T*)); num++) {
         if (dev_ctx_a[num]->name &&
-           !strcmp (dev_ctx_a[num]->name, name))
+           !strcmp (dev_ctx_a[num]->name, name)) {
+            fprintf (stderr, "Card '%s' already locked by other ALSA backend session\n", name);
             return 0;
+        }
     }
-    num++;
+    num--;
 
     /* it's not... let us add it to the global array */
     dev_ctx_a = (dev_ctx_alsa_T**) realloc (dev_ctx_a, (num+1)*sizeof(dev_ctx_alsa_T*));
-    dev_ctx_a[num] = (dev_ctx_alsa_T*) malloc (sizeof(dev_ctx_alsa_T));
+    if (!dev_ctx_a[num])
+        dev_ctx_a[num] = (dev_ctx_alsa_T*) malloc (sizeof(dev_ctx_alsa_T));
     dev_ctx_a[num]->name = strdup (name);
     dev_ctx_a[num]->dev = dev;
     dev_ctx_a[num]->params = params;
@@ -206,6 +213,7 @@ void _alsa_set_volume_all (int num, unsigned int vol) {
     if (!dev_ctx_a || !dev_ctx_a[num] || !dev_ctx_a[num]->mixer_elm ||
         vol > 100)
 
+    fflush (stdout); /* seems to force this logic to apply quickly */
     snd_mixer_selem_set_playback_volume_all (dev_ctx_a[num]->mixer_elm, (vol*dev_ctx_a[num]->vol_max)/100);
 }
 
