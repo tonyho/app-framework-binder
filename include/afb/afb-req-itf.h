@@ -17,15 +17,37 @@
 
 #pragma once
 
+#if !defined(_GNU_SOURCE)
+# error "_GNU_SOURCE must be defined for using vasprintf"
+#endif
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+/* avoid inclusion of <json-c/json.h> */
 struct json_object;
 
+/*
+ * Describes an argument (or parameter) of a request
+ */
 struct afb_arg {
-	const char *name;
-	const char *value;
-	const char *path;
+	const char *name;	/* name of the argument or NULL if invalid */
+	const char *value;	/* string representation of the value of the argument */
+				/* original filename of the argument if path != NULL */
+	const char *path;	/* if not NULL, path of the received file for the argument */
+				/* when the request is finalized this file is removed */
 };
 
+/*
+ * Interface for handling requests.
+ * It records the functions to be called for the request.
+ * Don't use this structure directly.
+ * Use the helper functions documented below.
+ */ 
 struct afb_req_itf {
+	/* CAUTION: respect the order, add at the end */
+
 	struct json_object *(*json)(void *closure);
 	struct afb_arg (*get)(void *closure, const char *name);
 
@@ -45,99 +67,214 @@ struct afb_req_itf {
 	int (*session_set_LOA)(void *closure, unsigned level);
 };
 
+/*
+ * Describes the request by plugins from afb-daemon
+ */
 struct afb_req {
-	const struct afb_req_itf *itf;
-	void *closure;
+	const struct afb_req_itf *itf;	/* the interface to use */
+	void *closure;			/* the closure argument for functions of 'itf' */
 };
 
+/*
+ * Gets from the request 'req' the argument of 'name'.
+ * Returns a PLAIN structure of type 'struct afb_arg'.
+ * When the argument of 'name' is not found, all fields of result are set to NULL.
+ * When the argument of 'name' is found, the fields are filled,
+ * in particular, the field 'result.name' is set to 'name'.
+ *
+ * There is a special name value: the empty string.
+ * The argument of name "" is defined only if the request was made using
+ * an HTTP POST of Content-Type "application/json". In that case, the
+ * argument of name "" receives the value of the body of the HTTP request.
+ */
 static inline struct afb_arg afb_req_get(struct afb_req req, const char *name)
 {
 	return req.itf->get(req.closure, name);
 }
 
+/*
+ * Gets from the request 'req' the string value of the argument of 'name'.
+ * Returns NULL if when there is no argument of 'name'.
+ * Returns the value of the argument of 'name' otherwise.
+ *
+ * Shortcut for: afb_req_get(req, name).value
+ */
 static inline const char *afb_req_value(struct afb_req req, const char *name)
 {
 	return afb_req_get(req, name).value;
 }
 
+/*
+ * Gets from the request 'req' the path for file attached to the argument of 'name'.
+ * Returns NULL if when there is no argument of 'name' or when there is no file.
+ * Returns the path of the argument of 'name' otherwise.
+ *
+ * Shortcut for: afb_req_get(req, name).path
+ */
 static inline const char *afb_req_path(struct afb_req req, const char *name)
 {
 	return afb_req_get(req, name).path;
 }
 
+/*
+ * Gets from the request 'req' the json object hashing the arguments.
+ * The returned object must not be released using 'json_object_put'.
+ */
 static inline struct json_object *afb_req_json(struct afb_req req)
 {
 	return req.itf->json(req.closure);
 }
 
+/*
+ * Sends a reply of kind success to the request 'req'.
+ * The status of the reply is automatically set to "success".
+ * Its send the object 'obj' (can be NULL) with an
+ * informationnal comment 'info (can also be NULL).
+ */
 static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
 {
 	req.itf->success(req.closure, obj, info);
 }
 
+/*
+ * Same as 'afb_req_success' but the 'info' is a formatting
+ * string followed by arguments.
+ */
+static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...)
+{
+	char *message;
+	va_list args;
+	va_start(args, info);
+	if (info == NULL || vasprintf(&message, info, args) < 0)
+		message = NULL;
+	va_end(args);
+	afb_req_success(req, obj, message);
+	free(message);
+}
+
+/*
+ * Sends a reply of kind failure to the request 'req'.
+ * The status of the reply is set to 'status' and an
+ * informationnal comment 'info' (can also be NULL) can be added.
+ *
+ * Note that calling afb_req_fail("success", info) is equivalent
+ * to call afb_req_success(NULL, info). Thus even if possible it
+ * is strongly recommanded to NEVER use "success" for status.
+ */
 static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
 {
 	req.itf->fail(req.closure, status, info);
 }
 
-static inline const char *afb_req_raw(struct afb_req req, size_t *size)
+/*
+ * Same as 'afb_req_fail' but the 'info' is a formatting
+ * string followed by arguments.
+ */
+static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...)
 {
-	return req.itf->raw(req.closure, size);
+	char *message;
+	va_list args;
+	va_start(args, info);
+	if (info == NULL || vasprintf(&message, info, args) < 0)
+		message = NULL;
+	va_end(args);
+	afb_req_fail(req, status, message);
+	free(message);
 }
 
-static inline void afb_req_send(struct afb_req req, const char *buffer, size_t size)
-{
-	req.itf->send(req.closure, buffer, size);
-}
-
+/*
+ * Gets the pointer stored by the plugin for the session of 'req'.
+ * When the plugin has not yet recorded a pointer, NULL is returned.
+ */
 static inline void *afb_req_context_get(struct afb_req req)
 {
 	return req.itf->context_get(req.closure);
 }
 
-static inline void afb_req_context_set(struct afb_req req, void *value, void (*free_value)(void*))
+/*
+ * Stores for the plugin the pointer 'context' to the session of 'req'.
+ * The function 'free_context' will be called when the session is closed
+ * or if plugin stores an other pointer.
+ */
+static inline void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*))
 {
-	req.itf->context_set(req.closure, value, free_value);
+	req.itf->context_set(req.closure, context, free_context);
 }
 
-static inline void *afb_req_context(struct afb_req req, void *(*create_value)(), void (*free_value)(void*))
+/*
+ * Gets the pointer stored by the plugin for the session of 'req'.
+ * If the stored pointer is NULL, indicating that no pointer was
+ * already stored, afb_req_context creates a new context by calling
+ * the function 'create_context' and stores it with the freeing function
+ * 'free_context'.
+ */
+static inline void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free_context)(void*))
 {
-	void *result = req.itf->context_get(req.closure);
+	void *result = afb_req_context_get(req);
 	if (result == NULL) {
-		result = create_value();
-		if (result != NULL)
-			req.itf->context_set(req.closure, result, free_value);
+		result = create_context();
+		afb_req_context_set(req, result, free_context);
 	}
 	return result;
 }
 
+/*
+ * Frees the pointer stored by the plugin for the session of 'req'
+ * and sets it to NULL.
+ *
+ * Shortcut for: afb_req_context_set(req, NULL, NULL)
+ */
 static inline void afb_req_context_clear(struct afb_req req)
 {
 	afb_req_context_set(req, NULL, NULL);
 }
 
+/*
+ * Adds one to the count of references of 'req'.
+ * This function MUST be called by asynchronous implementations
+ * of verbs if no reply was sent before returning.
+ */
 static inline void afb_req_addref(struct afb_req req)
 {
 	req.itf->addref(req.closure);
 }
 
+/*
+ * Substracts one to the count of references of 'req'.
+ * This function MUST be called by asynchronous implementations
+ * of verbs after sending the asynchronous reply.
+ */
 static inline void afb_req_unref(struct afb_req req)
 {
 	req.itf->unref(req.closure);
 }
 
+/*
+ * Closes the session associated with 'req'
+ * and delete all associated contexts.
+ */
 static inline void afb_req_session_close(struct afb_req req)
 {
 	req.itf->session_close(req.closure);
 }
 
+/*
+ * Sets the level of authorisation of the session of 'req'
+ * to 'level'. The effect of this function is subject of
+ * security policies.
+ * Returns 1 on success or 0 if failed.
+ */
 static inline int afb_req_session_set_LOA(struct afb_req req, unsigned level)
 {
 	return req.itf->session_set_LOA(req.closure, level);
 }
 
-#include <stdlib.h>
-
+/*
+ * Stores 'req' on heap for asynchrnous use.
+ * Returns a pointer to the stored 'req' or NULL on memory depletion.
+ * The count of reference to 'req' is incremented on success
+ * (see afb_req_addref).
+ */
 static inline struct afb_req *afb_req_store(struct afb_req req)
 {
 	struct afb_req *result = malloc(sizeof *result);
@@ -148,52 +285,29 @@ static inline struct afb_req *afb_req_store(struct afb_req req)
 	return result;
 }
 
+/*
+ * Retrieves the afb_req stored at 'req' and frees the memory.
+ * Returns the stored request.
+ * The count of reference is UNCHANGED, thus, normally, the
+ * function 'afb_req_unref' should be called on the result
+ * after that the asynchronous reply if sent.
+ */
 static inline struct afb_req afb_req_unstore(struct afb_req *req)
 {
 	struct afb_req result = *req;
 	free(req);
-	afb_req_unref(result);
 	return result;
 }
 
-#if !defined(_GNU_SOURCE)
-# error "_GNU_SOURCE must be defined for using vasprintf"
-#endif
-
-#include <stdarg.h>
-#include <stdio.h>
-
-static inline void afb_req_fail_v(struct afb_req req, const char *status, const char *info, va_list args)
+/* internal use */
+static inline const char *afb_req_raw(struct afb_req req, size_t *size)
 {
-	char *message;
-	if (info == NULL || vasprintf(&message, info, args) < 0)
-		message = NULL;
-	afb_req_fail(req, status, message);
-	free(message);
+	return req.itf->raw(req.closure, size);
 }
 
-static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...)
+/* internal use */
+static inline void afb_req_send(struct afb_req req, const char *buffer, size_t size)
 {
-	va_list args;
-	va_start(args, info);
-	afb_req_fail_v(req, status, info, args);
-	va_end(args);
-}
-
-static inline void afb_req_success_v(struct afb_req req, struct json_object *obj, const char *info, va_list args)
-{
-	char *message;
-	if (info == NULL || vasprintf(&message, info, args) < 0)
-		message = NULL;
-	afb_req_success(req, obj, message);
-	free(message);
-}
-
-static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...)
-{
-	va_list args;
-	va_start(args, info);
-	afb_req_success_v(req, obj, info, args);
-	va_end(args);
+	req.itf->send(req.closure, buffer, size);
 }
 

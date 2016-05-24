@@ -249,6 +249,7 @@ static void on_uploaded(struct afb_req *prequest, int status)
         afb_req_fail (request, "failed", "expected file not received");
     else
         afb_req_success_f (request, NULL, "uploaded file %s", argfile.value);
+   afb_req_unref(request);
 }
 
 static void upload (struct afb_req request) { /* AFB_SESSION_CHECK */
@@ -290,8 +291,9 @@ static void upload (struct afb_req request) { /* AFB_SESSION_CHECK */
         afb_req_fail (request, "failed", "out of memory");
     }
     else if (!_rygel_upload (ctx, path, (void*)on_uploaded, prequest)) {
+        afb_req_unref(afb_req_unstore(prequest));
         unlink(path);
-        afb_req_fail (afb_req_unstore(prequest), "failed", "Error when uploading file to media server... could not complete");
+        afb_req_fail (request, "failed", "Error when uploading file to media server... could not complete");
     }
     free(path);
 }
