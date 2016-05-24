@@ -1,0 +1,15 @@
+body {
+	background: #fff url(triskel_iot_bzh.svg) no-repeat fixed right top;
+	font-family: "Verdana";
+	color: #000;
+}
+
+h1, h2, h3 { color: #306; }
+
+pre {
+	border: medium dashed #306;
+	background: #ccc;
+	margin-left: 4em;
+	padding: 1em;
+}
+
