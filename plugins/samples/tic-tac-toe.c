@@ -305,7 +305,7 @@ static void changed(struct board *board, const char *reason)
 /*
  * retrieves the board of the request
  */
-static struct board *board_of_req(struct afb_req req)
+static inline struct board *board_of_req(struct afb_req req)
 {
 	return afb_req_context(req, (void*)get_new_board, (void*)release_board);
 }
@@ -440,7 +440,7 @@ static void level(struct afb_req req)
  */
 static void join(struct afb_req req)
 {
-	struct board *board;
+	struct board *board, *new_board;
 	const char *id;
 
 	/* retrieves the context for the session */
@@ -448,23 +448,34 @@ static void join(struct afb_req req)
 	INFO(afbitf, "method 'join' called for boardid %d", board->id);
 
 	/* retrieves the parameters */
-	board = board_of_req(req);
 	id = afb_req_value(req, "boardid");
 	if (id == NULL)
 		goto bad_request;
 
-	/* check validity of parameters */
+	/* none is a special id for joining a new session */
 	if (strcmp(id, "none") == 0) {
-		board = get_new_board();
+		new_board = get_new_board();
 		goto success;
 	}
-	board = search_board(atoi(id));
-	if (board == NULL)
+
+	/* searchs the board to join */
+	new_board = search_board(atoi(id));
+	if (new_board == NULL)
 		goto bad_request;
 
-	board->use_count++;
+	/*
+	 * joining its board is stupid but possible
+	 * however when called with the same stored pointer
+	 * afb_req_context_set will not call the release
+	 * function 'release_board'. So the use_count MUST not
+	 * be incremented.
+	 */
+	if (new_board != board)
+		new_board->use_count++;
+
 success:
-	afb_req_context_set(req, board, (void*)release_board);
+	/* set the new board (and leaves the previous one) */
+	afb_req_context_set(req, new_board, (void*)release_board);
 
 	/* replies */
 	afb_req_success(req, NULL, NULL);
@@ -579,7 +590,7 @@ static const struct AFB_verb_desc_v1 verbs[] = {
    { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
    { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
    { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
-   { .name= "join",  .session= AFB_SESSION_NONE, .callback= join,  .info= "Join a board" },
+   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
    { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
    { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
    /* marker for end of the array */
