@@ -63,8 +63,6 @@ SET(link_libraries
 
 SET(plugin_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
-ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
-
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(plugins)

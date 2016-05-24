@@ -26,5 +26,5 @@ Version: @PROJECT_VERSION@
 URL: @PROJECT_URL@
 
 Requires: json-c
-Cflags: -DPLUGIN_INSTALL_DIR=\"${plugin_install_dir}\" -I${includedir}
+Cflags: -I${includedir}
 
