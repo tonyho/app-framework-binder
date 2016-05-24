@@ -28,17 +28,27 @@
 const struct AFB_interface *afbitf;
 
 /*
+ * definition of waiters
+ */
+struct waiter
+{
+	struct waiter *next;
+	struct afb_req req;
+};
+
+/*
  * definition of a board
  */
 struct board
 {
 	struct board *next;
-	int refcount;
+	int use_count;
 	int moves;
 	int history[9];
 	int id;
 	int level;
 	char board[9];
+	struct waiter *waiters;
 };
 
 /*
@@ -47,7 +57,8 @@ struct board
 static struct board *all_boards;
 
 /*
- * Search a board
+ * Searchs a board having the 'id'.
+ * Returns it if found or NULL otherwise.
  */
 static struct board *search_board(int id)
 {
@@ -58,18 +69,23 @@ static struct board *search_board(int id)
 }
 
 /*
- * Creates a new board
+ * Creates a new board and returns it.
  */
 static struct board *get_new_board()
 {
+	/* allocation */
 	struct board *board = calloc(1, sizeof *board);
+
+	/* initialisation */
 	memset(board->board, ' ', sizeof board->board);
-	board->refcount = 1;
+	board->use_count = 1;
 	board->level = 1;
 	board->moves = 0;
 	do {
 		board->id = (rand() >> 2) % 1000;
 	} while(board->id == 0 || search_board(board->id) != NULL);
+
+	/* link */
 	board->next = all_boards;
 	all_boards = board;
 	return board;
@@ -81,7 +97,7 @@ static struct board *get_new_board()
 static void release_board(struct board *board)
 {
 	/* decrease the reference count ... */
-	if (--board->refcount == 0) {
+	if (--board->use_count == 0) {
 		/* ... no more use */
 		/* unlink from the list of boards */
 		struct board **prv = &all_boards;
@@ -267,8 +283,23 @@ static struct json_object *describe(struct board *board)
  */
 static void changed(struct board *board, const char *reason)
 {
-	/* TODO */
-	WARNING(afbitf, "changed is unimplmented (reason was %s)", reason);
+	struct waiter *waiter, *next;
+	struct json_object *description;
+
+	/* get the description */
+	description = describe(board);
+
+	waiter = board->waiters;
+	board->waiters = NULL;
+	while (waiter != NULL) {
+		next = waiter->next;
+		afb_req_success(waiter->req, json_object_get(description), reason);
+		afb_req_unref(waiter->req);
+		free(waiter);
+		waiter = next;
+	}
+
+	afb_event_sender_push(afb_daemon_get_event_sender(afbitf->daemon), reason, description);
 }
 
 /*
@@ -288,6 +319,7 @@ static void new(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
+	INFO(afbitf, "method 'new' called for boardid %d", board->id);
 
 	/* reset the game */
 	memset(board->board, ' ', sizeof board->board);
@@ -305,7 +337,18 @@ static void new(struct afb_req req)
  */
 static void board(struct afb_req req)
 {
-	afb_req_success(req, describe(board_of_req(req)), NULL);
+	struct board *board;
+	struct json_object *description;
+
+	/* retrieves the context for the session */
+	board = board_of_req(req);
+	INFO(afbitf, "method 'board' called for boardid %d", board->id);
+
+	/* describe the board */
+	description = describe(board);
+
+	/* send the board's description */
+	afb_req_success(req, description, NULL);
 }
 
 /*
@@ -319,6 +362,7 @@ static void move(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
+	INFO(afbitf, "method 'move' called for boardid %d", board->id);
 
 	/* retrieves the parameters of the move */
 	index = afb_req_value(req, "index");
@@ -326,23 +370,27 @@ static void move(struct afb_req req)
 
 	/* checks validity of parameters */
 	if (i < 0 || i > 8) {
+		WARNING(afbitf, "can't move to %s: %s", index?:"?", index?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
 
 	/* checks validity of the state */
 	if (winner(board->board) != 0) {
+		WARNING(afbitf, "can't move to %s: game is terminated", index);
 		afb_req_fail(req, "error", "game terminated");
 		return;
 	}
 
 	/* checks validity of the move */
 	if (board->board[i] != ' ') {
+		WARNING(afbitf, "can't move to %s: room occupied", index);
 		afb_req_fail(req, "error", "occupied");
 		return;
 	}
 
 	/* applies the move */
+	INFO(afbitf, "method 'move' for boardid %d, index=%d", board->id, index);
 	add_move(board, i);
 
 	/* replies */
@@ -363,6 +411,7 @@ static void level(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
+	INFO(afbitf, "method 'level' called for boardid %d", board->id);
 
 	/* retrieves the parameters */
 	level = afb_req_value(req, "level");
@@ -370,9 +419,13 @@ static void level(struct afb_req req)
 
 	/* check validity of parameters */
 	if (l < 1 || l > 10) {
+		WARNING(afbitf, "can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
+
+	/* set the level */
+	INFO(afbitf, "method 'level' for boardid %d, level=%d", board->id, l);
 	board->level = l;
 
 	/* replies */
@@ -392,6 +445,7 @@ static void join(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
+	INFO(afbitf, "method 'join' called for boardid %d", board->id);
 
 	/* retrieves the parameters */
 	board = board_of_req(req);
@@ -400,7 +454,7 @@ static void join(struct afb_req req)
 		goto bad_request;
 
 	/* check validity of parameters */
-	if (strcmp(id, "none")) {
+	if (strcmp(id, "none") == 0) {
 		board = get_new_board();
 		goto success;
 	}
@@ -408,7 +462,7 @@ static void join(struct afb_req req)
 	if (board == NULL)
 		goto bad_request;
 
-	board->refcount++;
+	board->use_count++;
 success:
 	afb_req_context_set(req, board, (void*)release_board);
 
@@ -417,6 +471,7 @@ success:
 	return;
 
 bad_request:
+	WARNING(afbitf, "can't join boardid %s: %s", id ? : "?", !id ? "no boardid" : atoi(id) ? "not found" : "bad boardid");
 	afb_req_fail(req, "error", "bad request");
 	return;
 }
@@ -431,9 +486,11 @@ static void undo(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
+	INFO(afbitf, "method 'undo' called for boardid %d", board->id);
 
 	/* checks the state */
 	if (board->moves == 0) {
+		WARNING(afbitf, "can't undo");
 		afb_req_fail(req, "error", "bad request");
 		return;
 	}
@@ -459,9 +516,11 @@ static void play(struct afb_req req)
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
+	INFO(afbitf, "method 'play' called for boardid %d", board->id);
 
 	/* checks validity of the state */
 	if (winner(board->board) != 0 || board->moves == 9) {
+		WARNING(afbitf, "can't play: game terminated (%s)", winner(board->board) ? "has winner" : "no room left");
 		afb_req_fail(req, "error", "game terminated");
 		return;
 	}
@@ -477,6 +536,39 @@ static void play(struct afb_req req)
 	changed(board, "play");
 }
 
+static void wait(struct afb_req req)
+{
+	int count;
+	struct board *board;
+	struct waiter *waiter;
+
+	/* retrieves the context for the session */
+	board = board_of_req(req);
+	INFO(afbitf, "method 'wait' called for boardid %d", board->id);
+
+	/* counts the waiters */
+	count = 0;
+	waiter = board->waiters;
+	while (waiter != NULL) {
+		count++;
+		waiter = waiter->next;
+	}
+
+	/* checks ability to wait */
+	if (count + 1 >= board->use_count) {
+		WARNING(afbitf, "can't wait: count=%d and use_count=%d", count, board->use_count);
+		afb_req_fail(req, "error", "can't wait");
+		return;
+	}
+
+	/* creates the waiter and enqueues it */
+	waiter = calloc(1, sizeof *waiter);
+	waiter->req = req;
+	waiter->next = board->waiters;
+	afb_req_addref(req);
+	board->waiters = waiter;
+}
+
 /*
  * array of the verbs exported to afb-daemon
  */
@@ -489,6 +581,7 @@ static const struct AFB_verb_desc_v1 verbs[] = {
    { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
    { .name= "join",  .session= AFB_SESSION_NONE, .callback= join,  .info= "Join a board" },
    { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
+   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
    /* marker for end of the array */
    { .name= NULL }
 };
