@@ -611,6 +611,7 @@ struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
 
 static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
 {
+	const char *value;
 	struct hreq_data *hdat = get_data(hreq, name, 0);
 	if (hdat)
 		return (struct afb_arg){
@@ -618,10 +619,11 @@ static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
 			.value = hdat->value,
 			.path = hdat->path
 		};
-		
+
+	value = MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name);
 	return (struct afb_arg){
-		.name = name,
-		.value = MHD_lookup_connection_value(hreq->connection, MHD_GET_ARGUMENT_KIND, name),
+		.name = value == NULL ? NULL : name,
+		.value = value,
 		.path = NULL
 	};
 }
