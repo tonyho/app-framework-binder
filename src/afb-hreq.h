@@ -23,6 +23,10 @@ struct hreq_data;
 struct afb_hsrv;
 
 struct afb_hreq {
+	/*
+	 * CAUTION: 'context' field should be the first because there
+	 * is an implicit convertion to struct afb_context
+	 */
 	struct afb_context context;
 	int refcount;
 	struct afb_hsrv *hsrv;

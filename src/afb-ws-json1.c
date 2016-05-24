@@ -129,6 +129,10 @@ static void aws_on_hangup(struct afb_ws_json1 *ws)
 
 struct afb_wsreq
 {
+	/*
+	 * CAUTION: 'context' field should be the first because there
+	 * is an implicit convertion to struct afb_context
+	 */
 	struct afb_context context;
 	int refcount;
 	struct afb_ws_json1 *aws;
