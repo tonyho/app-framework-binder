@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdarg.h>
+
 /*****************************************************************************
  * This files is the main file to include for writing plugins dedicated to
  *
@@ -142,6 +144,7 @@ struct afb_daemon_itf {
        struct sd_event *(*get_event_loop)(void *closure);      /* get the common systemd's event loop */
        struct sd_bus *(*get_user_bus)(void *closure);          /* get the common systemd's user d-bus */
        struct sd_bus *(*get_system_bus)(void *closure);        /* get the common systemd's system d-bus */
+       void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
 };
 
 /*
@@ -204,4 +207,24 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
 	return daemon.itf->get_system_bus(daemon.closure);
 }
 
+/*
+ * Send a message described by 'fmt' and following parameters
+ * to the journal for the verbosity 'level'.
+ * 'file' and 'line' are indicators of position of the code in source files.
+ * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ */
+static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	return daemon.itf->vverbose(daemon.closure, level, file, line, fmt, args);
+	va_end(args);
+}
 
+#if !defined(NO_PLUGIN_VERBOSE_MACRO)
+# define ERROR(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# define WARNING(itf,...) do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# define NOTICE(itf,...)  do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# define INFO(itf,...)    do{if(itf->verbosity>=2)afb_daemon_verbose(itf->daemon,6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# define DEBUG(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#endif

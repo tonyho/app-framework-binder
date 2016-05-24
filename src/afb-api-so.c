@@ -16,6 +16,7 @@
  */
 
 #define _GNU_SOURCE
+#define NO_PLUGIN_VERBOSE_MACRO
 
 #include <stdio.h>
 #include <assert.h>
@@ -39,16 +40,19 @@
 #include "afb-sig-handler.h"
 #include "verbose.h"
 
+/*
+ * Description of a plugin
+ */
 struct api_so_desc {
 	struct AFB_plugin *plugin;	/* descriptor */
-	size_t apilength;
+	size_t apilength;		/* length of the API name */
 	void *handle;			/* context of dlopen */
-	struct AFB_interface interface;	/* interface */
+	struct AFB_interface interface;	/* interface for the plugin */
 };
 
 static int api_timeout = 15;
 
-static const char plugin_register_function[] = "pluginAfbV1Register";
+static const char plugin_register_function_v1[] = "pluginAfbV1Register";
 
 static void afb_api_so_event_sender_push(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
@@ -73,11 +77,24 @@ static struct afb_event_sender afb_api_so_get_event_sender(struct api_so_desc *d
 	return (struct afb_event_sender){ .itf = &event_sender_itf, .closure = desc };
 }
 
+static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char *file, int line, const char *fmt, va_list args)
+{
+	char *p;
+
+	if (vasprintf(&p, fmt, args) < 0)
+		vverbose(level, file, line, fmt, args);
+	else {
+		verbose(level, file, line, "%s {plugin %s}", p, desc->plugin->v1.prefix);
+		free(p);
+	}
+}
+
 static const struct afb_daemon_itf daemon_itf = {
 	.get_event_sender = (void*)afb_api_so_get_event_sender,
 	.get_event_loop = (void*)afb_common_get_event_loop,
 	.get_user_bus = (void*)afb_common_get_user_bus,
-	.get_system_bus = (void*)afb_common_get_system_bus
+	.get_system_bus = (void*)afb_common_get_system_bus,
+	.vverbose = (void*)afb_api_so_vverbose
 };
 
 struct monitoring {
@@ -174,7 +191,7 @@ int afb_api_so_add_plugin(const char *path)
 	}
 
 	/* retrieves the register function */
-	pluginAfbV1RegisterFct = dlsym(handle, plugin_register_function);
+	pluginAfbV1RegisterFct = dlsym(handle, plugin_register_function_v1);
 	if (!pluginAfbV1RegisterFct) {
 		ERROR("plugin [%s] is not an AFB plugin", path);
 		goto error2;
@@ -191,7 +208,7 @@ int afb_api_so_add_plugin(const char *path)
 	desc->handle = handle;
 
 	/* init the interface */
-	desc->interface.verbosity = 0;
+	desc->interface.verbosity = verbosity;
 	desc->interface.mode = AFB_MODE_LOCAL;
 	desc->interface.daemon.itf = &daemon_itf;
 	desc->interface.daemon.closure = desc;
