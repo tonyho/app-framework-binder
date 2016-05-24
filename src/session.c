@@ -463,6 +463,6 @@ void ctxClientValueSet(struct AFB_clientCtx *clientCtx, int index, void *value, 
 	assert(index < sessions.apicount);
 	prev = clientCtx->values[index];
 	clientCtx->values[index] = (struct client_value){.value = value, .free_value = free_value};
-	if (prev.value !=  NULL && prev.free_value != NULL)
+	if (prev.value != NULL && prev.value != value && prev.free_value != NULL)
 		prev.free_value(prev.value);
 }
