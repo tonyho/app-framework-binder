@@ -49,7 +49,7 @@ static void clientContextLogin (struct afb_req request)
 
     afb_req_success(request, jresp, NULL);
     
-    setLOA(request, 1);
+    afb_req_session_set_LOA(request, 1);
 }
 
 // Before entering here token will be check and renew
@@ -89,7 +89,7 @@ static void clientContextLogout (struct afb_req request) {
     // WARNING: if you free context resource manually here do not forget to set *request.context=NULL; 
     afb_req_success(request, jresp, NULL);
     
-    setLOA(request, 0);
+    afb_req_session_set_LOA(request, 0);
 }
 // Close and Free context
 static void clientGetPing (struct afb_req request) {
