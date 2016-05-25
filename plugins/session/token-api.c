@@ -105,18 +105,18 @@ static void clientGetPing (struct afb_req request) {
 
 static const struct AFB_verb_desc_v1 verbs[]= {
   {"ping"    , AFB_SESSION_NONE                        , clientGetPing       ,"Ping Rest Test Service"},
-  {"create"  , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextLogin ,"Request Client Context Creation"},
-  {"refresh" , AFB_SESSION_LOA_GE_1 | AFB_SESSION_RENEW, clientContextRefresh,"Refresh Client Context Token"},
-  {"check"   , AFB_SESSION_LOA_GE_1                    , clientContextCheck  ,"Check Client Context Token"},
-  {"reset"   , AFB_SESSION_LOA_GE_1 | AFB_SESSION_CLOSE, clientContextLogout  ,"Close Client Context and Free resources"},
+  {"login"  , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextLogin   ,"Login Client"},
+  {"refresh" , AFB_SESSION_LOA_GE_1 | AFB_SESSION_RENEW, clientContextRefresh,"Refresh Client Authentication Token"},
+  {"check"   , AFB_SESSION_LOA_GE_1                    , clientContextCheck  ,"Check Client Authentication Token"},
+  {"logout"  , AFB_SESSION_LOA_GE_1 | AFB_SESSION_CLOSE, clientContextLogout ,"Logout Client and Free resources"},
   {NULL}
 };
 
 static const struct AFB_plugin plugin_desc = {
 	.type = AFB_PLUGIN_VERSION_1,
 	.v1 = {
-		.info = "Application Framework Binder Service",
-		.prefix = "token",
+		.info = "Application Framework Binder Authentication sample",
+		.prefix = "auth",
 		.verbs = verbs
 	}
 };
