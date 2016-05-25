@@ -1,7 +1,7 @@
 HOWTO WRITE a PLUGIN for AFB-DAEMON
 ===================================
     version: 1
-    Date:    24 mai 2016
+    Date:    25 May 2016
     Author:  José Bollo
 
 TABLE-OF-CONTENT-HERE
@@ -295,7 +295,20 @@ Here is its listing:
 	}
 
 This examples show many aspects of writing a synchronous
-verb implementation.
+verb implementation. Let summarize it:
+
+1. The function **board_of_req** retrieves the context stored
+for the plugin: the board.
+
+2. The macro **INFO** sends a message of kind *INFO*
+to the logging system. The global variable named **afbitf**
+used represents the interface to afb-daemon.
+
+3. The function **describe** creates a json_object representing
+the board.
+
+4. The function **afb_req_success** sends the reply, attaching to
+it the object *description*.
 
 ### The incoming request
 
@@ -358,10 +371,10 @@ its context: the board. This function is *board_of_req*:
 		return afb_req_context(req, (void*)get_new_board, (void*)release_board);
 	}
 
-This function is very simple because it merely wraps
-a call to the function **afb_req_context**, providing
-all needed arguments.
-The casts are required to avoid a warning when compiling.
+The function **afb_req_context** ensure an existing context
+for the session of the request.
+Its two last arguments are functions. Here, the casts are required
+to avoid a warning when compiling.
 
 Here is the definition of the function **afb_req_context**
 
@@ -382,23 +395,95 @@ Here is the definition of the function **afb_req_context**
 		return result;
 	}
 
-This powerful function ensures that the context exists and is
-stored for the session.
-
+The second argument if the function that creates the context.
+For the plugin *tic-tac-toe* it is the function **get_new_board**.
 The function **get_new_board** creates a new board and set its
 count of use to 1. The boards are counting their count of use
 to free there ressources when no more used.
 
-The function **release_board** 
+The third argument if the function that frees the context.
+For the plugin *tic-tac-toe* it is the function **release_board**.
+The function **release_board** decrease the the count of use of
+the board given as argument. If the use count decrease to zero,
+the board data are freed.
 
 ### Sending the reply to a request
+
+Sending a reply to a request must be done at most one time.
+
+Two kinds of replies can be made: successful replies and
+failure replies.
+
+The functions to send replies are defined as below:
+
+	/*
+	 * Sends a reply of kind success to the request 'req'.
+	 * The status of the reply is automatically set to "success".
+	 * Its send the object 'obj' (can be NULL) with an
+	 * informationnal comment 'info (can also be NULL).
+	 */
+	static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
+	{
+		req.itf->success(req.closure, obj, info);
+	}
+
+	/*
+	 * Same as 'afb_req_success' but the 'info' is a formatting
+	 * string followed by arguments.
+	 */
+	static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...)
+	{
+		char *message;
+		va_list args;
+		va_start(args, info);
+		if (info == NULL || vasprintf(&message, info, args) < 0)
+			message = NULL;
+		va_end(args);
+		afb_req_success(req, obj, message);
+		free(message);
+	}
+
+	/*
+	 * Sends a reply of kind failure to the request 'req'.
+	 * The status of the reply is set to 'status' and an
+	 * informationnal comment 'info' (can also be NULL) can be added.
+	 *
+	 * Note that calling afb_req_fail("success", info) is equivalent
+	 * to call afb_req_success(NULL, info). Thus even if possible it
+	 * is strongly recommanded to NEVER use "success" for status.
+	 */
+	static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
+	{
+		req.itf->fail(req.closure, status, info);
+	}
+
+	/*
+	 * Same as 'afb_req_fail' but the 'info' is a formatting
+	 * string followed by arguments.
+	 */
+	static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...)
+	{
+		char *message;
+		va_list args;
+		va_start(args, info);
+		if (info == NULL || vasprintf(&message, info, args) < 0)
+			message = NULL;
+		va_end(args);
+		afb_req_fail(req, status, message);
+		free(message);
+	}
+
+
 
 Getting argument of invocation
 ------------------------------
 
+Sending messages to the log system
+----------------------------------
+
 How to build a plugin
 ---------------------
 
-Afb-daemon provides a The packaging of afb-daemon
+Afb-daemon provides a *pkg-config* configuration file.
 
 
