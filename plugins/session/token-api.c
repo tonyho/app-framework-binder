@@ -36,7 +36,7 @@ static void clientContextFree(void *context) {
 }
 
 // Request Creation of new context if it does not exist
-static void clientContextCreate (struct afb_req request)
+static void clientContextLogin (struct afb_req request)
 {
     json_object *jresp;
 
@@ -48,6 +48,8 @@ static void clientContextCreate (struct afb_req request)
     json_object_object_add(jresp, "token", json_object_new_string ("A New Token and Session Context Was Created"));
 
     afb_req_success(request, jresp, NULL);
+    
+    setLOA(request, 1);
 }
 
 // Before entering here token will be check and renew
@@ -73,7 +75,7 @@ static void clientContextCheck (struct afb_req request) {
 
 
 // Close and Free context
-static void clientContextReset (struct afb_req request) {
+static void clientContextLogout (struct afb_req request) {
     json_object *jresp;
    
     /* after this call token will be reset
@@ -86,6 +88,8 @@ static void clientContextReset (struct afb_req request) {
     
     // WARNING: if you free context resource manually here do not forget to set *request.context=NULL; 
     afb_req_success(request, jresp, NULL);
+    
+    setLOA(request, 0);
 }
 // Close and Free context
 static void clientGetPing (struct afb_req request) {
@@ -101,10 +105,10 @@ static void clientGetPing (struct afb_req request) {
 
 static const struct AFB_verb_desc_v1 verbs[]= {
   {"ping"    , AFB_SESSION_NONE                        , clientGetPing       ,"Ping Rest Test Service"},
-  {"create"  , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextCreate ,"Request Client Context Creation"},
+  {"create"  , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextLogin ,"Request Client Context Creation"},
   {"refresh" , AFB_SESSION_LOA_GE_1 | AFB_SESSION_RENEW, clientContextRefresh,"Refresh Client Context Token"},
   {"check"   , AFB_SESSION_LOA_GE_1                    , clientContextCheck  ,"Check Client Context Token"},
-  {"reset"   , AFB_SESSION_LOA_GE_1 | AFB_SESSION_CLOSE, clientContextReset  ,"Close Client Context and Free resources"},
+  {"reset"   , AFB_SESSION_LOA_GE_1 | AFB_SESSION_CLOSE, clientContextLogout  ,"Close Client Context and Free resources"},
   {NULL}
 };
 
