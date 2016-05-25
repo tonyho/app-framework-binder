@@ -100,11 +100,11 @@ static void clientGetPing (struct afb_req request) {
 
 
 static const struct AFB_verb_desc_v1 verbs[]= {
-  {"ping"    , AFB_SESSION_NONE  , clientGetPing       ,"Ping Rest Test Service"},
-  {"create"  , AFB_SESSION_CREATE, clientContextCreate ,"Request Client Context Creation"},
-  {"refresh" , AFB_SESSION_RENEW , clientContextRefresh,"Refresh Client Context Token"},
-  {"check"   , AFB_SESSION_CHECK , clientContextCheck  ,"Check Client Context Token"},
-  {"reset"   , AFB_SESSION_CLOSE , clientContextReset  ,"Close Client Context and Free resources"},
+  {"ping"    , AFB_SESSION_NONE                        , clientGetPing       ,"Ping Rest Test Service"},
+  {"create"  , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextCreate ,"Request Client Context Creation"},
+  {"refresh" , AFB_SESSION_LOA_GE_1 | AFB_SESSION_RENEW, clientContextRefresh,"Refresh Client Context Token"},
+  {"check"   , AFB_SESSION_LOA_GE_1                    , clientContextCheck  ,"Check Client Context Token"},
+  {"reset"   , AFB_SESSION_LOA_GE_1 | AFB_SESSION_CLOSE, clientContextReset  ,"Close Client Context and Free resources"},
   {NULL}
 };
 
