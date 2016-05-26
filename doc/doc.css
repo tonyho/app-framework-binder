@@ -4,12 +4,19 @@ body {
 	color: #000;
 }
 
-h1, h2, h3 { color: #306; }
+h1, h2, h3 {
+	color: #306;
+	text-decoration: underline;
+}
 
 pre {
 	border: medium dashed #306;
-	background: #ccc;
-	margin-left: 4em;
+	border-width: 0.1em;
+	background-color: #eee;
+	margin-left: 2em;
+	margin-right: 2em;
 	padding: 1em;
+	outline: #555;
 }
+
 
