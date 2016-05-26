@@ -28,6 +28,32 @@ The plugin is loaded and activated by afb-daemon when afb-daemon
 starts.
 
 Technically, a plugin is not linked to any library of afb-daemon.
+
+### Kinds of plugins
+
+There is two kinds of plugins: application plugins and service
+plugins.
+
+#### Application plugins
+
+Application plugins are intended to be instanciated for each
+application: when an application using that plugin is started,
+its binder starts a new instance of the plugin.
+
+It means that the application plugins mainly have only one
+context to manage for one client.
+
+#### Service plugins
+
+Service plugins are intended to be instanciated only one time
+only and connected to many clients.
+
+So either it does not manage context at all or otherwise,
+if it manages context, it should be able to manage one context
+per client.
+
+In details, it may be useful to have service plugins at a user
+level.
  
 ### Live cycle of a plugin within afb-daemon
 
@@ -312,12 +338,27 @@ it the object *description*.
 
 ### The incoming request
 
-For any implementation,  the request is received by a structure of type
+For any implementation, the request is received by a structure of type
 **struct afb_req**.
 
-***Important: note that this is a PLAIN structure, not a pointer to a structure.***
+> Note that this is a PLAIN structure, not a pointer to a structure.
 
-This structure, here named *req*, is used
+The definition of **struct afb_req** is:
+
+	/*
+	 * Describes the request by plugins from afb-daemon
+	 */
+	struct afb_req {
+		const struct afb_req_itf *itf;	/* the interfacing functions */
+		void *closure;			/* the closure for functions */
+	};
+
+It contains two pointers: one, *itf*, points to the functions needed
+to handle the internal request represented by the second pointer, *closure*.
+
+> The structure must never be used directly.
+> Insted, use the intended functions provided
+> by afb-daemon and described here.
 
 *req* is used to get arguments of the request, to send
 answer, to store session data.
@@ -333,7 +374,7 @@ the session of the request.
 The second time, it is used to send the reply: an object that
 describes the current board.
 
-### Associating an object to the session for the plugin
+### Associating a context to the session
 
 When the plugin *tic-tac-toe* receives a request, it musts regain
 the board that describes the game associated to the session.
@@ -407,14 +448,41 @@ The function **release_board** decrease the the count of use of
 the board given as argument. If the use count decrease to zero,
 the board data are freed.
 
-### Sending the reply to a request
+The definition of the other functions for dealing with contexts are:
 
-Sending a reply to a request must be done at most one time.
+	/*
+	 * Gets the pointer stored by the plugin for the session of 'req'.
+	 * When the plugin has not yet recorded a pointer, NULL is returned.
+	 */
+	void *afb_req_context_get(struct afb_req req);
+
+	/*
+	 * Stores for the plugin the pointer 'context' to the session of 'req'.
+	 * The function 'free_context' will be called when the session is closed
+	 * or if plugin stores an other pointer.
+	 */
+	void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*));
+
+	/*
+	 * Frees the pointer stored by the plugin for the session of 'req'
+	 * and sets it to NULL.
+	 *
+	 * Shortcut for: afb_req_context_set(req, NULL, NULL)
+	 */
+	static inline void afb_req_context_clear(struct afb_req req)
+	{
+		afb_req_context_set(req, NULL, NULL);
+	}
+
+### Sending the reply to a request
 
 Two kinds of replies can be made: successful replies and
 failure replies.
 
-The functions to send replies are defined as below:
+> Sending a reply to a request must be done at most one time.
+
+The two functions to send a reply of kind "success" are
+**afb_req_success** and **afb_req_success_f**.
 
 	/*
 	 * Sends a reply of kind success to the request 'req'.
@@ -422,26 +490,16 @@ The functions to send replies are defined as below:
 	 * Its send the object 'obj' (can be NULL) with an
 	 * informationnal comment 'info (can also be NULL).
 	 */
-	static inline void afb_req_success(struct afb_req req, struct json_object *obj, const char *info)
-	{
-		req.itf->success(req.closure, obj, info);
-	}
+	void afb_req_success(struct afb_req req, struct json_object *obj, const char *info);
 
 	/*
 	 * Same as 'afb_req_success' but the 'info' is a formatting
 	 * string followed by arguments.
 	 */
-	static inline void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...)
-	{
-		char *message;
-		va_list args;
-		va_start(args, info);
-		if (info == NULL || vasprintf(&message, info, args) < 0)
-			message = NULL;
-		va_end(args);
-		afb_req_success(req, obj, message);
-		free(message);
-	}
+	void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...);
+
+The two functions to send a reply of kind "failure" are
+**afb_req_fail** and **afb_req_fail_f**.
 
 	/*
 	 * Sends a reply of kind failure to the request 'req'.
@@ -452,31 +510,187 @@ The functions to send replies are defined as below:
 	 * to call afb_req_success(NULL, info). Thus even if possible it
 	 * is strongly recommanded to NEVER use "success" for status.
 	 */
-	static inline void afb_req_fail(struct afb_req req, const char *status, const char *info)
-	{
-		req.itf->fail(req.closure, status, info);
-	}
+	void afb_req_fail(struct afb_req req, const char *status, const char *info);
 
 	/*
 	 * Same as 'afb_req_fail' but the 'info' is a formatting
 	 * string followed by arguments.
 	 */
-	static inline void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...)
-	{
-		char *message;
-		va_list args;
-		va_start(args, info);
-		if (info == NULL || vasprintf(&message, info, args) < 0)
-			message = NULL;
-		va_end(args);
-		afb_req_fail(req, status, message);
-		free(message);
-	}
-
-
+	void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
 
 Getting argument of invocation
 ------------------------------
+
+Many verbs expect arguments. Afb-daemon let plugins
+retrieve their arguments by name not by position.
+
+Arguments are given by the requests either through HTTP
+or through WebSockets.
+
+For example, the verb **join** of the plugin **tic-tac-toe**
+expects one argument: the *boardid* to join. Here is an extract:
+
+	/*
+	 * Join a board
+	 */
+	static void join(struct afb_req req)
+	{
+		struct board *board, *new_board;
+		const char *id;
+
+		/* retrieves the context for the session */
+		board = board_of_req(req);
+		INFO(afbitf, "method 'join' called for boardid %d", board->id);
+
+		/* retrieves the argument */
+		id = afb_req_value(req, "boardid");
+		if (id == NULL)
+			goto bad_request;
+		...
+
+The function **afb_req_value** search in the request *req*
+for an argument whose name is given. When no argument of the
+given name was passed, **afb_req_value** returns NULL.
+
+> The search is case sensitive. So the name *boardid* is not the
+> same name than *BoardId*. But this must not be assumed so two
+> expected names of argument should not differ only by case.
+
+### Basic functions for querying arguments
+
+The function **afb_req_value** is defined as below:
+
+	/*
+	 * Gets from the request 'req' the string value of the argument of 'name'.
+	 * Returns NULL if when there is no argument of 'name'.
+	 * Returns the value of the argument of 'name' otherwise.
+	 *
+	 * Shortcut for: afb_req_get(req, name).value
+	 */
+	static inline const char *afb_req_value(struct afb_req req, const char *name)
+	{
+		return afb_req_get(req, name).value;
+	}
+
+It is defined as a shortcut to call the function **afb_req_get**.
+That function is defined as below:
+
+	/*
+	 * Gets from the request 'req' the argument of 'name'.
+	 * Returns a PLAIN structure of type 'struct afb_arg'.
+	 * When the argument of 'name' is not found, all fields of result are set to NULL.
+	 * When the argument of 'name' is found, the fields are filled,
+	 * in particular, the field 'result.name' is set to 'name'.
+	 *
+	 * There is a special name value: the empty string.
+	 * The argument of name "" is defined only if the request was made using
+	 * an HTTP POST of Content-Type "application/json". In that case, the
+	 * argument of name "" receives the value of the body of the HTTP request.
+	 */
+	struct afb_arg afb_req_get(struct afb_req req, const char *name);
+
+That function takes 2 parameters: the request and the name
+of the argument to retrieve. It returns a PLAIN structure of
+type **struct afb_arg**.
+
+There is a special name that is defined when the request is
+of type HTTP/POST with a Content-Type being application/json.
+This name is **""** (the empty string). In that case, the value
+of this argument of empty name is the string received as a body
+of the post and is supposed to be a JSON string.
+
+The definition of **struct afb_arg** is:
+
+	/*
+	 * Describes an argument (or parameter) of a request
+	 */
+	struct afb_arg {
+		const char *name;	/* name of the argument or NULL if invalid */
+		const char *value;	/* string representation of the value of the argument */
+					/* original filename of the argument if path != NULL */
+		const char *path;	/* if not NULL, path of the received file for the argument */
+					/* when the request is finalized this file is removed */
+	};
+
+The structure returns the data arguments that are known for the
+request. This data include a field named **path**. This **path**
+can be accessed using the function **afb_req_path** defined as
+below:
+
+	/*
+	 * Gets from the request 'req' the path for file attached to the argument of 'name'.
+	 * Returns NULL if when there is no argument of 'name' or when there is no file.
+	 * Returns the path of the argument of 'name' otherwise.
+	 *
+	 * Shortcut for: afb_req_get(req, name).path
+	 */
+	static inline const char *afb_req_path(struct afb_req req, const char *name)
+	{
+		return afb_req_get(req, name).path;
+	}
+
+The path is only defined for HTTP/POST requests that send file.
+
+### Arguments for received files
+
+As it is explained just above, clients can send files using
+HTTP/POST requests.
+
+Received files are attached to a arguments. For example, the
+following HTTP fragment (from test/sample-post.html)
+will send an HTTP/POST request to the method
+**post/upload-image** with 2 arguments named *file* and
+*hidden*.
+
+	<h2>Sample Post File</h2>
+	<form enctype="multipart/form-data">
+	    <input type="file" name="file" />
+	    <input type="hidden" name="hidden" value="bollobollo" />
+	    <br>
+	    <button formmethod="POST" formaction="api/post/upload-image">Post File</button>
+	</form>
+
+In that case, the argument named **file** has its value and its
+path defined and not NULL.
+
+The value is the name of the file as it was
+set by the HTTP client and is generally the filename on the
+client side.
+
+The path is the path of the file saved on the temporary local storage
+area of the application. This is a randomly generated and unic filename
+not linked in any way with the original filename on the client.
+
+The plugin can use the file at the given path the way that it wants:
+read, write, remove, copy, rename...
+But when the reply is sent and the query is terminated, the file at
+this path is destroyed if it still exist.
+
+### Arguments as a JSON object
+
+Plugins can get all the arguments as one single object.
+This feature is provided by the function **afb_req_json**
+that is defined as below:
+
+	/*
+	 * Gets from the request 'req' the json object hashing the arguments.
+	 * The returned object must not be released using 'json_object_put'.
+	 */
+	struct json_object *afb_req_json(struct afb_req req);
+
+It returns a json object. This object depends on how the request was
+made:
+
+- For HTTP requests, this is an object whose keys are the names of the
+arguments and whose values are either a string for common arguments or
+an object like { "file": "...", "path": "..." }
+
+- For WebSockets requests, the returned object is the object
+given by the client transparently transported.
+
+> In fact, for Websockets requests, the function **afb_req_value**
+> can be seen as a shortcut to
+> *json_object_get_string(json_object_object_get(afb_req_json(req), name))*
 
 Sending messages to the log system
 ----------------------------------

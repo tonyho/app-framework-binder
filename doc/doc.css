@@ -19,4 +19,11 @@ pre {
 	outline: #555;
 }
 
+pre:first-of-type { width: 20em; }
 
+blockquote {
+	border-left: solid thick black;
+	background-color: #ff8;
+	font: bolder;
+	padding: 0.7em 1.5em;
+}
