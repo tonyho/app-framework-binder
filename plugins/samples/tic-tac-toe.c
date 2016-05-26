@@ -364,11 +364,11 @@ static void move(struct afb_req req)
 	board = board_of_req(req);
 	INFO(afbitf, "method 'move' called for boardid %d", board->id);
 
-	/* retrieves the parameters of the move */
+	/* retrieves the arguments of the move */
 	index = afb_req_value(req, "index");
 	i = index == NULL ? -1 : atoi(index);
 
-	/* checks validity of parameters */
+	/* checks validity of arguments */
 	if (i < 0 || i > 8) {
 		WARNING(afbitf, "can't move to %s: %s", index?:"?", index?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
@@ -413,11 +413,11 @@ static void level(struct afb_req req)
 	board = board_of_req(req);
 	INFO(afbitf, "method 'level' called for boardid %d", board->id);
 
-	/* retrieves the parameters */
+	/* retrieves the arguments */
 	level = afb_req_value(req, "level");
 	l = level == NULL ? -1 : atoi(level);
 
-	/* check validity of parameters */
+	/* check validity of arguments */
 	if (l < 1 || l > 10) {
 		WARNING(afbitf, "can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
@@ -447,7 +447,7 @@ static void join(struct afb_req req)
 	board = board_of_req(req);
 	INFO(afbitf, "method 'join' called for boardid %d", board->id);
 
-	/* retrieves the parameters */
+	/* retrieves the arguments */
 	id = afb_req_value(req, "boardid");
 	if (id == NULL)
 		goto bad_request;
