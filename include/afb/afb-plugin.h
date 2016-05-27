@@ -51,16 +51,16 @@ enum  AFB_plugin_version
 };
 
 /*
- * Enum for Session/Token/Authentication middleware.
+ * Enum for Session/Token/Assurance middleware.
  * This enumeration is valid for plugins of type 1
  */
 enum AFB_session_v1
 {
        AFB_SESSION_NONE = 0,   /* no session and no authentification required */
-       AFB_SESSION_CREATE = 1, /* requires authentification and first call of the session */
+       AFB_SESSION_CREATE = 1, /* obsolete */
        AFB_SESSION_CLOSE = 2,  /* closes the session after authentification */
        AFB_SESSION_RENEW = 4,  /* refreshes the token after authentification */
-       AFB_SESSION_CHECK = 8,  /* enforce authentification */
+       AFB_SESSION_CHECK = 8,  /* Requires token authentification */
 
        AFB_SESSION_LOA_GE = 16, /* check that the LOA is greater or equal to the given value */
        AFB_SESSION_LOA_LE = 32, /* check that the LOA is lesser or equal to the given value */

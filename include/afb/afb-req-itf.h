@@ -259,7 +259,7 @@ static inline void afb_req_session_close(struct afb_req req)
 }
 
 /*
- * Sets the level of authorisation of the session of 'req'
+ * Sets the level of assurance of the session of 'req'
  * to 'level'. The effect of this function is subject of
  * security policies.
  * Returns 1 on success or 0 if failed.
