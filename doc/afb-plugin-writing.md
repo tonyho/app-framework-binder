@@ -1,7 +1,7 @@
 HOWTO WRITE a PLUGIN for AFB-DAEMON
 ===================================
     version: 1
-    Date:    25 May 2016
+    Date:    27 mai 2016
     Author:  José Bollo
 
 TABLE-OF-CONTENT-HERE
@@ -690,14 +690,345 @@ given by the client transparently transported.
 
 > In fact, for Websockets requests, the function **afb_req_value**
 > can be seen as a shortcut to
-> *json_object_get_string(json_object_object_get(afb_req_json(req), name))*
+> ***json_object_get_string(json_object_object_get(afb_req_json(req), name))***
+
+Initialisation of the plugin and declaration of verbs
+-----------------------------------------------------
+
+To be active, the verbs of the plugin should be declared to
+afb-daemon. And even more, the plugin itself must be recorded.
+
+The mechanism for doing this is very simple: when afb-need starts,
+it loads the plugins that are listed in its argument or configuration.
+
+Loading a plugin follows the following steps:
+
+1. It loads the plugin using *dlopen*.
+
+2. It searchs for the symbol named **pluginAfbV1Register** using *dlsym*.
+This symbol is assumed to be the exported initialisation function of the plugin.
+
+3. It build an interface object for the plugin.
+
+4. It calls the found function **pluginAfbV1Register** and pass it the pointer
+to its interface.
+
+5. The function **pluginAfbV1Register** setup the plugin, initialize it.
+
+6. The function **pluginAfbV1Register** returns the pointer to a structure
+that describes the plugin: its version, its name (prefix or API name), and the
+list of its verbs.
+
+7. Afb-daemon checks that the returned version and name can be managed.
+If it can manage it, the plugin and its verbs are recorded and can be used
+when afb-daemon finishes it initialisation.
+
+Here is the listing of the function **pluginAfbV1Register** of the plugin
+*tic-tac-toe*:
+
+	/*
+	 * activation function for registering the plugin called by afb-daemon
+	 */
+	const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
+	{
+	   afbitf = itf;         // records the interface for accessing afb-daemon
+	   return &plugin_description;  // returns the description of the plugin
+	}
+
+This is a very small function because the *tic-tac-toe* plugin doesn't have initialisation step.
+It merely record the daemon's interface and returns its descritption.
+
+The variable **afbitf** is a variable global to the plugin. It records the
+interface to afb-daemon and is used for logging and pushing events.
+Here is its declaration:
+
+	/*
+	 * the interface to afb-daemon
+	 */
+	const struct AFB_interface *afbitf;
+
+The description of the plugin is defined as below.
+
+	/*
+	 * array of the verbs exported to afb-daemon
+	 */
+	static const struct AFB_verb_desc_v1 plugin_verbs[] = {
+	   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
+	   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
+	   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Tells the server to play" },
+	   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
+	   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
+	   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
+	   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
+	   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
+	   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
+	   { .name= NULL } /* marker for end of the array */
+	};
+
+	/*
+	 * description of the plugin for afb-daemon
+	 */
+	static const struct AFB_plugin plugin_description =
+	{
+	   /* description conforms to VERSION 1 */
+	   .type= AFB_PLUGIN_VERSION_1,
+	   .v1= {				/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
+	      .prefix= "tictactoe",		/* the API name (or plugin name or prefix) */
+	      .info= "Sample tac-tac-toe game",	/* short description of of the plugin */
+	      .verbs = plugin_verbs		/* the array describing the verbs of the API */
+	   }
+	};
+
+The structure **plugin_description** describes the plugin.
+It declares the type and version of the plugin, its name, a description
+and a list of its verbs.
+
+The list of verbs is an array of structures describing the verbs and terminated by a marker:
+a verb whose name is NULL.
+
+The description of the verbs for this version is made of 4 fields:
+
+- the name of the verbs,
+
+- the session management flags,
+
+- the implementation function to be call for the verb,
+
+- a short description.
+
+The structure describing verbs is defined as follows:
+
+	/*
+	 * Description of one verb of the API provided by the plugin
+	 * This enumeration is valid for plugins of type 1
+	 */
+	struct AFB_verb_desc_v1
+	{
+	       const char *name;                       /* name of the verb */
+	       enum AFB_session_v1 session;            /* authorisation and session requirements of the verb */
+	       void (*callback)(struct afb_req req);   /* callback function implementing the verb */
+	       const char *info;                       /* textual description of the verb */
+	};
+
+For technical reasons, the enumeration **enum AFB_session_v1** is not exactly an
+enumeration but the wrapper of constant definitions that can be mixed using bitwise or
+(the C operator |).
+
+The constants that can bit mixed are:
+
+Constant name            | Meaning
+-------------------------|-------------------------------------------------------------
+**AFB_SESSION_CREATE**   | Equals to AFB_SESSION_LOA_EQ_0|AFB_SESSION_RENEW
+**AFB_SESSION_CLOSE**    | Closes the session after the reply and set the LOA to 0
+**AFB_SESSION_RENEW**    | Refreshes the token of authentification
+**AFB_SESSION_CHECK**    | Just requires the token authentification
+**AFB_SESSION_LOA_LE_0** | Requires the current LOA to be lesser then or equal to 0
+**AFB_SESSION_LOA_LE_1** | Requires the current LOA to be lesser then or equal to 1
+**AFB_SESSION_LOA_LE_2** | Requires the current LOA to be lesser then or equal to 2
+**AFB_SESSION_LOA_LE_3** | Requires the current LOA to be lesser then or equal to 3
+**AFB_SESSION_LOA_GE_0** | Requires the current LOA to be greater then or equal to 0
+**AFB_SESSION_LOA_GE_1** | Requires the current LOA to be greater then or equal to 1
+**AFB_SESSION_LOA_GE_2** | Requires the current LOA to be greater then or equal to 2
+**AFB_SESSION_LOA_GE_3** | Requires the current LOA to be greater then or equal to 3
+**AFB_SESSION_LOA_EQ_0** | Requires the current LOA to be equal to 0
+**AFB_SESSION_LOA_EQ_1** | Requires the current LOA to be equal to 1
+**AFB_SESSION_LOA_EQ_2** | Requires the current LOA to be equal to 2
+**AFB_SESSION_LOA_EQ_3** | Requires the current LOA to be equal to 3
+
+If any of this flags is set, afb-daemon requires the token authentification
+as if the flag **AFB_SESSION_CHECK** had been set.
+
+The special value **AFB_SESSION_NONE** is zero and can be used to avoid any check.
+
+> Note that **AFB_SESSION_CREATE** and **AFB_SESSION_CLOSE** might be removed in later versions.
 
 Sending messages to the log system
 ----------------------------------
 
+Afb-daemon provides 4 levels of verbosity and 5 verbs for logging messages.
+
+The verbosity is managed. Options allow the change the verbosity of afb-daemon
+and the verbosity of the plugins can be set plugin by plugin.
+
+The verbs for logging messages are defined as macros that test the
+verbosity level and that call the real logging function only if the
+message must be output. This avoid evaluation of arguments of the
+formatting messages if the message must not be output.
+
+### Verbs for logging messages
+
+The 5 logging verbs are:
+
+Macro   | Verbosity | Meaning                           | syslog level
+--------|:---------:|-----------------------------------|:-----------:
+ERROR   |     0     | Error conditions                  |     3
+WARNING |     1     | Warning conditions                |     4
+NOTICE  |     1     | Normal but significant condition  |     5
+INFO    |     2     | Informational                     |     6
+DEBUG   |     3     | Debug-level messages              |     7
+
+You can note that the 2 verbs **WARNING** and **INFO** have the same level
+of verbosity. But they don't have the same *syslog level*. It means that
+they are output with a different level on the logging system.
+
+All of these verbs have the same signature:
+
+	void ERROR(const struct AFB_interface *afbitf, const char *message, ...);
+
+The first argument **afbitf** is the interface to afb daemon that the
+plugin received at its initialisation when **pluginAfbV1Register** was called.
+
+The second argument **message** is a formatting string compatible with printf/sprintf.
+
+The remaining arguments are arguments of the formating message like for printf.
+
+### Managing verbosity
+
+Depending on the level of verbosity, the messages are output or not.
+The following table explains what messages will be output depending
+ont the verbosity level.
+
+Level of verbosity | Outputed macro
+:-----------------:|--------------------------
+        0          | ERROR
+        1          | ERROR + WARNING + NOTICE
+        2          | ERROR + WARNING + NOTICE + INFO
+        3          | ERROR + WARNING + NOTICE + INFO + DEBUG
+
+### Output format and destination
+
+The syslog level is used for forging a prefix to the message.
+The prefixes are:
+
+syslog level | prefix
+:-----------:|---------------
+      0      | <0> EMERGENCY
+      1      | <1> ALERT
+      2      | <2> CRITICAL
+      3      | <3> ERROR
+      4      | <4> WARNING
+      5      | <5> NOTICE
+      6      | <6> INFO
+      7      | <7> DEBUG
+
+
+The message is issued to the standard error.
+The final destination of the message depends on how the systemd service
+was configured through the variable **StandardError**: It can be
+journal, syslog or kmsg. (See man sd-daemon).
+
+Sending events
+--------------
+
+
+Writing an asynchronous verb implementation
+-------------------------------------------
+
+
 How to build a plugin
 ---------------------
 
-Afb-daemon provides a *pkg-config* configuration file.
+Afb-daemon provides a *pkg-config* configuration file that can be
+queried by the name **afb-daemon**.
+This configuration file provides data that should be used
+for compiling plugins. Examples:
 
+	$ pkg-config --cflags afb-daemon
+	$ pkg-config --libs afb-daemon
+
+### Example for cmake meta build system
+
+This example is the extract for building the plugin *afm-main* using *CMAKE*.
+
+	pkg_check_modules(afb afb-daemon)
+	if(afb_FOUND)
+		message(STATUS "Creation afm-main-plugin for AFB-DAEMON")
+		add_library(afm-main-plugin MODULE afm-main-plugin.c)
+		target_compile_options(afm-main-plugin PRIVATE ${afb_CFLAGS})
+		target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
+		target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+		set_target_properties(afm-main-plugin PROPERTIES
+			PREFIX ""
+			LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+		)
+		install(TARGETS afm-main-plugin LIBRARY DESTINATION ${plugin_dir})
+	else()
+		message(STATUS "Not creating the plugin for AFB-DAEMON")
+	endif()
+
+Let now describe some of these lines.
+
+	pkg_check_modules(afb afb-daemon)
+
+This first lines searches to the *pkg-config* configuration file for
+**afb-daemon**. Resulting data are stored in the following variables:
+
+Variable          | Meaning
+------------------|------------------------------------------------
+afb_FOUND         | Set to 1 if afb-daemon plugin development files exist
+afb_LIBRARIES     | Only the libraries (w/o the '-l') for compiling afb-daemon plugins
+afb_LIBRARY_DIRS  | The paths of the libraries (w/o the '-L') for compiling afb-daemon plugins
+afb_LDFLAGS       | All required linker flags for compiling afb-daemon plugins
+afb_INCLUDE_DIRS  | The '-I' preprocessor flags (w/o the '-I') for compiling afb-daemon plugins
+afb_CFLAGS        | All required cflags for compiling afb-daemon plugins
+
+If development files are found, the plugin can be added to the set of
+target to build.
+
+	add_library(afm-main-plugin MODULE afm-main-plugin.c)
+
+This line asks to create a shared library having only the
+source file afm-main-plugin.c (that is compiled).
+The default name of the created shared object is
+**libafm-main-plugin.so**.
+
+	set_target_properties(afm-main-plugin PROPERTIES
+		PREFIX ""
+		LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+	)
+
+This lines are doing two things:
+
+1. It renames the built library from **libafm-main-plugin.so** to **afm-main-plugin.so**
+by removing the implicitely added prefix *lib*. This step is not mandatory
+at all because afb-daemon doesn't check names of files when loading it.
+The only convention that use afb-daemon is that extension is **.so**
+but this convention is used only when afb-daemon discovers plugin
+from a directory hierarchy.
+
+2. It applies a version script at link to only export the conventional name
+of the entry point: **pluginAfbV1Register**. See below. By default, the linker
+that creates the shared object exports all the public symbols (C functions that
+are not **static**).
+
+Next line are:
+
+	target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
+	target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+
+As you can see it uses the variables computed by ***pkg_check_modules(afb afb-daemon)***
+to configure the compiler and the linker.
+
+### Exporting the function pluginAfbV1Register
+
+The function **pluginAfbV1Register** must be exported. This can be achieved
+using a version script when linking. Here is the version script that is
+used for *tic-tac-toe* (plugins/samples/export.map).
+
+	{ global: pluginAfbV1Register; local: *; };
+
+This sample [version script](https://sourceware.org/binutils/docs-2.26/ld/VERSION.html#VERSION)
+exports as global the symbol *pluginAfbV1Register* and hides any
+other symbols.
+
+This version script is added to the link options using the
+option **--version-script=export.map** is given directly to the
+linker or using th option **-Wl,--version-script=export.map**
+when the option is given to the C compiler.
+
+### Building within yocto
+
+Adding a dependency to afb-daemon is enough. See below:
+
+	DEPENDS += " afb-daemon "
 

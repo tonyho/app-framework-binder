@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
 </head>
 <body>
-<h1 id="HOWTO.WRITE.a.PLUGIN.for.AFB-DAEMON">HOWTO WRITE a PLUGIN for AFB-DAEMON</h1>
+<a name="HOWTO.WRITE.a.PLUGIN.for.AFB-DAEMON"></a>
+<h1>HOWTO WRITE a PLUGIN for AFB-DAEMON</h1>
 
 <pre><code>version: 1
-Date:    25 May 2016
+Date:    27 mai 2016
 Author:  José Bollo
 </code></pre>
 
@@ -60,13 +61,29 @@ Author:  José Bollo
    <li><a href="#Arguments.as.a.JSON.object">Arguments as a JSON object</a></li>
   </ul>
   </li>
-  <li><a href="#Sending.messages.to.the.log.system">Sending messages to the log system</a></li>
-  <li><a href="#How.to.build.a.plugin">How to build a plugin</a></li>
+  <li><a href="#Initialisation.of.the.plugin.and.declaration.of.verbs">Initialisation of the plugin and declaration of verbs</a></li>
+  <li><a href="#Sending.messages.to.the.log.system">Sending messages to the log system</a>
+  <ul>
+   <li><a href="#Verbs.for.logging.messages">Verbs for logging messages</a></li>
+   <li><a href="#Managing.verbosity">Managing verbosity</a></li>
+   <li><a href="#Output.format.and.destination">Output format and destination</a></li>
+  </ul>
+  </li>
+  <li><a href="#Sending.events">Sending events</a></li>
+  <li><a href="#Writing.an.asynchronous.verb.implementation">Writing an asynchronous verb implementation</a></li>
+  <li><a href="#How.to.build.a.plugin">How to build a plugin</a>
+  <ul>
+   <li><a href="#Example.for.cmake.meta.build.system">Example for cmake meta build system</a></li>
+   <li><a href="#Exporting.the.function.pluginAfbV1Register">Exporting the function pluginAfbV1Register</a></li>
+   <li><a href="#Building.within.yocto">Building within yocto</a></li>
+  </ul>
+  </li>
  </ul>
  </li>
 </ul></p>
 
-<h2 id="Summary">Summary</h2>
+<a name="Summary"></a>
+<h2>Summary</h2>
 
 <p>The binder afb-daemon serves files through
 the HTTP protocol and offers access to API&rsquo;s through
@@ -80,7 +97,8 @@ by developpers.</p>
 <p>Before going into details, through a tiny example,
 a short overview plugins basis is needed.</p>
 
-<h3 id="Nature.of.a.plugin">Nature of a plugin</h3>
+<a name="Nature.of.a.plugin"></a>
+<h3>Nature of a plugin</h3>
 
 <p>A plugin is a separate piece of code made of a shared library.
 The plugin is loaded and activated by afb-daemon when afb-daemon
@@ -88,12 +106,14 @@ starts.</p>
 
 <p>Technically, a plugin is not linked to any library of afb-daemon.</p>
 
-<h3 id="Kinds.of.plugins">Kinds of plugins</h3>
+<a name="Kinds.of.plugins"></a>
+<h3>Kinds of plugins</h3>
 
 <p>There is two kinds of plugins: application plugins and service
 plugins.</p>
 
-<h4 id="Application.plugins">Application plugins</h4>
+<a name="Application.plugins"></a>
+<h4>Application plugins</h4>
 
 <p>Application plugins are intended to be instanciated for each
 application: when an application using that plugin is started,
@@ -102,7 +122,8 @@ its binder starts a new instance of the plugin.</p>
 <p>It means that the application plugins mainly have only one
 context to manage for one client.</p>
 
-<h4 id="Service.plugins">Service plugins</h4>
+<a name="Service.plugins"></a>
+<h4>Service plugins</h4>
 
 <p>Service plugins are intended to be instanciated only one time
 only and connected to many clients.</p>
@@ -114,7 +135,8 @@ per client.</p>
 <p>In details, it may be useful to have service plugins at a user
 level.</p>
 
-<h3 id="Live.cycle.of.a.plugin.within.afb-daemon">Live cycle of a plugin within afb-daemon</h3>
+<a name="Live.cycle.of.a.plugin.within.afb-daemon"></a>
+<h3>Live cycle of a plugin within afb-daemon</h3>
 
 <p>The plugins are loaded and activated when afb-daemon starts.</p>
 
@@ -132,7 +154,8 @@ Consequently, developpers of plugins should use &lsquo;atexit&rsquo;
 or &lsquo;on_exit&rsquo; during initialisation if they need to
 perform specific actions when stopping.</p>
 
-<h3 id="Content.of.a.plugin">Content of a plugin</h3>
+<a name="Content.of.a.plugin"></a>
+<h3>Content of a plugin</h3>
 
 <p>For afb-daemon, a plugin contains 2 different
 things: names and functions.</p>
@@ -158,7 +181,8 @@ and upper case when searching for a method.
 Thus, The names <strong>TicTacToe/Board</strong> and <strong>tictactoe/borad</strong>
 are equals.</p>
 
-<h4 id="The.name.of.the.plugin">The name of the plugin</h4>
+<a name="The.name.of.the.plugin"></a>
+<h4>The name of the plugin</h4>
 
 <p>The name of the plugin is also known as the name
 of the API that defines the plugin.</p>
@@ -173,7 +197,8 @@ extracts the prefix <strong>foo</strong> and the suffix <strong>bar</strong>.
 <strong>foo</strong> is the API name and must match a plugin name,
 the plugin that implements the verb <strong>bar</strong>.</p>
 
-<h4 id="Names.of.verbs">Names of verbs</h4>
+<a name="Names.of.verbs"></a>
+<h4>Names of verbs</h4>
 
 <p>Each plugin exposes a set of verbs that can be called
 by client of afb-daemon.</p>
@@ -186,7 +211,8 @@ when clients emit requests for that verb.</p>
 <p>For example, when a client of afb-daemon
 calls a method named <strong>foo/bar</strong>.</p>
 
-<h4 id="The.initialisation.function">The initialisation function</h4>
+<a name="The.initialisation.function"></a>
+<h4>The initialisation function</h4>
 
 <p>The initialisation function serves several purposes.</p>
 
@@ -202,7 +228,8 @@ requirements and implmentations of the verbs that it exposes.</p></li>
 </ol>
 
 
-<h4 id="Functions.implementing.verbs">Functions implementing verbs</h4>
+<a name="Functions.implementing.verbs"></a>
+<h4>Functions implementing verbs</h4>
 
 <p>When a method is called, afb-daemon constructs a request
 object and pass it to the implementation function for verb
@@ -228,7 +255,8 @@ returning are named <em>asynchronous implementations</em>.</p>
 asynchronous action and record to send the reply
 on completion of this action.</p>
 
-<h2 id="The.Tic-Tac-Toe.example">The Tic-Tac-Toe example</h2>
+<a name="The.Tic-Tac-Toe.example"></a>
+<h2>The Tic-Tac-Toe example</h2>
 
 <p>This part explains how to write an afb-plugin.
 For the sake of being practical we will use many
@@ -237,7 +265,8 @@ This plugin example is in <em>plugins/samples/tic-tac-toe.c</em>.</p>
 
 <p>This plugin is named <strong><em>tictactoe</em></strong>.</p>
 
-<h2 id="Choosing.names">Choosing names</h2>
+<a name="Choosing.names"></a>
+<h2>Choosing names</h2>
 
 <p>The designer of a plugin must defines names for its plugin
 (or its API) and for the verbs of its API. He also
@@ -249,7 +278,8 @@ the names easy to use across plaforms.</p>
 
 <p>The names and strings used ALL are UTF-8 encoded.</p>
 
-<h3 id="Names.for.API..plugin.">Names for API (plugin)</h3>
+<a name="Names.for.API..plugin."></a>
+<h3>Names for API (plugin)</h3>
 
 <p>The names of the API are checked.
 All characters are authorised except:</p>
@@ -268,7 +298,8 @@ All characters are authorised except:</p>
 <p>Afb-daemon make no distinction between lower case
 and upper case when searching for an API by its name.</p>
 
-<h3 id="Names.for.verbs">Names for verbs</h3>
+<a name="Names.for.verbs"></a>
+<h3>Names for verbs</h3>
 
 <p>The names of the verbs are not checked.</p>
 
@@ -279,7 +310,8 @@ is forbidden.</p>
 <p>Afb-daemon make no distinction between lower case
 and upper case when searching for an API by its name.</p>
 
-<h3 id="Names.for.arguments">Names for arguments</h3>
+<a name="Names.for.arguments"></a>
+<h3>Names for arguments</h3>
 
 <p>The names for arguments are not restricted and can be
 anything.</p>
@@ -288,7 +320,8 @@ anything.</p>
 string comparison. Thus the names &ldquo;index&rdquo; and &ldquo;Index&rdquo;
 are not the same.</p>
 
-<h3 id="Forging.names.widely.available">Forging names widely available</h3>
+<a name="Forging.names.widely.available"></a>
+<h3>Forging names widely available</h3>
 
 <p>The key names of javascript object can be almost
 anything using the arrayed notation:</p>
@@ -311,7 +344,8 @@ valid javascript identifier.</p>
 rely on the case sensitivity and to avoid the use of
 names different only by the case.</p>
 
-<h2 id="Options.to.set.when.compiling.plugins">Options to set when compiling plugins</h2>
+<a name="Options.to.set.when.compiling.plugins"></a>
+<h2>Options to set when compiling plugins</h2>
 
 <p>Afb-daemon provides a configuration file for <em>pkg-config</em>.
 Typing the command</p>
@@ -336,7 +370,8 @@ This is done through the <strong>Requires</strong> keyword of pkg-config.</p>
 
 <p>If this behaviour is a problem, let us know.</p>
 
-<h2 id="Header.files.to.include">Header files to include</h2>
+<a name="Header.files.to.include"></a>
+<h2>Header files to include</h2>
 
 <p>The plugin <em>tictactoe</em> has the following lines for its includes:</p>
 
@@ -363,7 +398,8 @@ if it needs it:</p>
 <p>When including <em>afb/afb-plugin.h</em>, the macro <strong>_GNU_SOURCE</strong> must be
 defined.</p>
 
-<h2 id="Writing.a.synchronous.verb.implementation">Writing a synchronous verb implementation</h2>
+<a name="Writing.a.synchronous.verb.implementation"></a>
+<h2>Writing a synchronous verb implementation</h2>
 
 <p>The verb <strong>tictactoe/board</strong> is a synchronous implementation.
 Here is its listing:</p>
@@ -404,7 +440,8 @@ it the object <em>description</em>.</p></li>
 </ol>
 
 
-<h3 id="The.incoming.request">The incoming request</h3>
+<a name="The.incoming.request"></a>
+<h3>The incoming request</h3>
 
 <p>For any implementation, the request is received by a structure of type
 <strong>struct afb_req</strong>.</p>
@@ -443,7 +480,8 @@ the session of the request.</p>
 <p>The second time, it is used to send the reply: an object that
 describes the current board.</p>
 
-<h3 id="Associating.a.context.to.the.session">Associating a context to the session</h3>
+<a name="Associating.a.context.to.the.session"></a>
+<h3>Associating a context to the session</h3>
 
 <p>When the plugin <em>tic-tac-toe</em> receives a request, it musts regain
 the board that describes the game associated to the session.</p>
@@ -546,7 +584,8 @@ static inline void afb_req_context_clear(struct afb_req req)
 }
 </code></pre>
 
-<h3 id="Sending.the.reply.to.a.request">Sending the reply to a request</h3>
+<a name="Sending.the.reply.to.a.request"></a>
+<h3>Sending the reply to a request</h3>
 
 <p>Two kinds of replies can be made: successful replies and
 failure replies.</p>
@@ -592,7 +631,8 @@ void afb_req_fail(struct afb_req req, const char *status, const char *info);
 void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
 </code></pre>
 
-<h2 id="Getting.argument.of.invocation">Getting argument of invocation</h2>
+<a name="Getting.argument.of.invocation"></a>
+<h2>Getting argument of invocation</h2>
 
 <p>Many verbs expect arguments. Afb-daemon let plugins
 retrieve their arguments by name not by position.</p>
@@ -630,7 +670,8 @@ given name was passed, <strong>afb_req_value</strong> returns NULL.</p>
 same name than <em>BoardId</em>. But this must not be assumed so two
 expected names of argument should not differ only by case.</p></blockquote>
 
-<h3 id="Basic.functions.for.querying.arguments">Basic functions for querying arguments</h3>
+<a name="Basic.functions.for.querying.arguments"></a>
+<h3>Basic functions for querying arguments</h3>
 
 <p>The function <strong>afb_req_value</strong> is defined as below:</p>
 
@@ -709,7 +750,8 @@ static inline const char *afb_req_path(struct afb_req req, const char *name)
 
 <p>The path is only defined for HTTP/POST requests that send file.</p>
 
-<h3 id="Arguments.for.received.files">Arguments for received files</h3>
+<a name="Arguments.for.received.files"></a>
+<h3>Arguments for received files</h3>
 
 <p>As it is explained just above, clients can send files using
 HTTP/POST requests.</p>
@@ -745,7 +787,8 @@ read, write, remove, copy, rename&hellip;
 But when the reply is sent and the query is terminated, the file at
 this path is destroyed if it still exist.</p>
 
-<h3 id="Arguments.as.a.JSON.object">Arguments as a JSON object</h3>
+<a name="Arguments.as.a.JSON.object"></a>
+<h3>Arguments as a JSON object</h3>
 
 <p>Plugins can get all the arguments as one single object.
 This feature is provided by the function <strong>afb_req_json</strong>
@@ -772,12 +815,535 @@ given by the client transparently transported.</p></li>
 
 <blockquote><p>In fact, for Websockets requests, the function <strong>afb_req_value</strong>
 can be seen as a shortcut to
-<em>json_object_get_string(json_object_object_get(afb_req_json(req), name))</em></p></blockquote>
+<strong><em>json_object_get_string(json_object_object_get(afb_req_json(req), name))</em></strong></p></blockquote>
 
-<h2 id="Sending.messages.to.the.log.system">Sending messages to the log system</h2>
+<a name="Initialisation.of.the.plugin.and.declaration.of.verbs"></a>
+<h2>Initialisation of the plugin and declaration of verbs</h2>
 
-<h2 id="How.to.build.a.plugin">How to build a plugin</h2>
+<p>To be active, the verbs of the plugin should be declared to
+afb-daemon. And even more, the plugin itself must be recorded.</p>
 
-<p>Afb-daemon provides a <em>pkg-config</em> configuration file.</p>
+<p>The mechanism for doing this is very simple: when afb-need starts,
+it loads the plugins that are listed in its argument or configuration.</p>
+
+<p>Loading a plugin follows the following steps:</p>
+
+<ol>
+<li><p>It loads the plugin using <em>dlopen</em>.</p></li>
+<li><p>It searchs for the symbol named <strong>pluginAfbV1Register</strong> using <em>dlsym</em>.
+This symbol is assumed to be the exported initialisation function of the plugin.</p></li>
+<li><p>It build an interface object for the plugin.</p></li>
+<li><p>It calls the found function <strong>pluginAfbV1Register</strong> and pass it the pointer
+to its interface.</p></li>
+<li><p>The function <strong>pluginAfbV1Register</strong> setup the plugin, initialize it.</p></li>
+<li><p>The function <strong>pluginAfbV1Register</strong> returns the pointer to a structure
+that describes the plugin: its version, its name (prefix or API name), and the
+list of its verbs.</p></li>
+<li><p>Afb-daemon checks that the returned version and name can be managed.
+If it can manage it, the plugin and its verbs are recorded and can be used
+when afb-daemon finishes it initialisation.</p></li>
+</ol>
+
+
+<p>Here is the listing of the function <strong>pluginAfbV1Register</strong> of the plugin
+<em>tic-tac-toe</em>:</p>
+
+<pre><code>/*
+ * activation function for registering the plugin called by afb-daemon
+ */
+const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
+{
+   afbitf = itf;         // records the interface for accessing afb-daemon
+   return &amp;plugin_description;  // returns the description of the plugin
+}
+</code></pre>
+
+<p>This is a very small function because the <em>tic-tac-toe</em> plugin doesn&rsquo;t have initialisation step.
+It merely record the daemon&rsquo;s interface and returns its descritption.</p>
+
+<p>The variable <strong>afbitf</strong> is a variable global to the plugin. It records the
+interface to afb-daemon and is used for logging and pushing events.
+Here is its declaration:</p>
+
+<pre><code>/*
+ * the interface to afb-daemon
+ */
+const struct AFB_interface *afbitf;
+</code></pre>
+
+<p>The description of the plugin is defined as below.</p>
+
+<pre><code>/*
+ * array of the verbs exported to afb-daemon
+ */
+static const struct AFB_verb_desc_v1 plugin_verbs[] = {
+   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
+   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
+   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Tells the server to play" },
+   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
+   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
+   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
+   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
+   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
+   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
+   { .name= NULL } /* marker for end of the array */
+};
+
+/*
+ * description of the plugin for afb-daemon
+ */
+static const struct AFB_plugin plugin_description =
+{
+   /* description conforms to VERSION 1 */
+   .type= AFB_PLUGIN_VERSION_1,
+   .v1= {               /* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
+      .prefix= "tictactoe",     /* the API name (or plugin name or prefix) */
+      .info= "Sample tac-tac-toe game", /* short description of of the plugin */
+      .verbs = plugin_verbs     /* the array describing the verbs of the API */
+   }
+};
+</code></pre>
+
+<p>The structure <strong>plugin_description</strong> describes the plugin.
+It declares the type and version of the plugin, its name, a description
+and a list of its verbs.</p>
+
+<p>The list of verbs is an array of structures describing the verbs and terminated by a marker:
+a verb whose name is NULL.</p>
+
+<p>The description of the verbs for this version is made of 4 fields:</p>
+
+<ul>
+<li><p>the name of the verbs,</p></li>
+<li><p>the session management flags,</p></li>
+<li><p>the implementation function to be call for the verb,</p></li>
+<li><p>a short description.</p></li>
+</ul>
+
+
+<p>The structure describing verbs is defined as follows:</p>
+
+<pre><code>/*
+ * Description of one verb of the API provided by the plugin
+ * This enumeration is valid for plugins of type 1
+ */
+struct AFB_verb_desc_v1
+{
+       const char *name;                       /* name of the verb */
+       enum AFB_session_v1 session;            /* authorisation and session requirements of the verb */
+       void (*callback)(struct afb_req req);   /* callback function implementing the verb */
+       const char *info;                       /* textual description of the verb */
+};
+</code></pre>
+
+<p>For technical reasons, the enumeration <strong>enum AFB_session_v1</strong> is not exactly an
+enumeration but the wrapper of constant definitions that can be mixed using bitwise or
+(the C operator |).</p>
+
+<p>The constants that can bit mixed are:</p>
+
+<table>
+<thead>
+<tr>
+<th>Constant name        </th>
+<th> Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AFB_SESSION_CREATE</strong>   </td>
+<td> Equals to AFB_SESSION_LOA_EQ_0|AFB_SESSION_RENEW</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_CLOSE</strong>    </td>
+<td> Closes the session after the reply and set the LOA to 0</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_RENEW</strong>    </td>
+<td> Refreshes the token of authentification</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_CHECK</strong>    </td>
+<td> Just requires the token authentification</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_LE_0</strong> </td>
+<td> Requires the current LOA to be lesser then or equal to 0</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_LE_1</strong> </td>
+<td> Requires the current LOA to be lesser then or equal to 1</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_LE_2</strong> </td>
+<td> Requires the current LOA to be lesser then or equal to 2</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_LE_3</strong> </td>
+<td> Requires the current LOA to be lesser then or equal to 3</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_GE_0</strong> </td>
+<td> Requires the current LOA to be greater then or equal to 0</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_GE_1</strong> </td>
+<td> Requires the current LOA to be greater then or equal to 1</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_GE_2</strong> </td>
+<td> Requires the current LOA to be greater then or equal to 2</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_GE_3</strong> </td>
+<td> Requires the current LOA to be greater then or equal to 3</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_EQ_0</strong> </td>
+<td> Requires the current LOA to be equal to 0</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_EQ_1</strong> </td>
+<td> Requires the current LOA to be equal to 1</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_EQ_2</strong> </td>
+<td> Requires the current LOA to be equal to 2</td>
+</tr>
+<tr>
+<td><strong>AFB_SESSION_LOA_EQ_3</strong> </td>
+<td> Requires the current LOA to be equal to 3</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>If any of this flags is set, afb-daemon requires the token authentification
+as if the flag <strong>AFB_SESSION_CHECK</strong> had been set.</p>
+
+<p>The special value <strong>AFB_SESSION_NONE</strong> is zero and can be used to avoid any check.</p>
+
+<blockquote><p>Note that <strong>AFB_SESSION_CREATE</strong> and <strong>AFB_SESSION_CLOSE</strong> might be removed in later versions.</p></blockquote>
+
+<a name="Sending.messages.to.the.log.system"></a>
+<h2>Sending messages to the log system</h2>
+
+<p>Afb-daemon provides 4 levels of verbosity and 5 verbs for logging messages.</p>
+
+<p>The verbosity is managed. Options allow the change the verbosity of afb-daemon
+and the verbosity of the plugins can be set plugin by plugin.</p>
+
+<p>The verbs for logging messages are defined as macros that test the
+verbosity level and that call the real logging function only if the
+message must be output. This avoid evaluation of arguments of the
+formatting messages if the message must not be output.</p>
+
+<a name="Verbs.for.logging.messages"></a>
+<h3>Verbs for logging messages</h3>
+
+<p>The 5 logging verbs are:</p>
+
+<table>
+<thead>
+<tr>
+<th>Macro   </th>
+<th style="text-align:center;"> Verbosity </th>
+<th> Meaning                       </th>
+<th style="text-align:center;"> syslog level</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ERROR   </td>
+<td style="text-align:center;">     0     </td>
+<td> Error conditions              </td>
+<td style="text-align:center;">     3</td>
+</tr>
+<tr>
+<td>WARNING </td>
+<td style="text-align:center;">     1     </td>
+<td> Warning conditions            </td>
+<td style="text-align:center;">     4</td>
+</tr>
+<tr>
+<td>NOTICE  </td>
+<td style="text-align:center;">     1     </td>
+<td> Normal but significant condition  </td>
+<td style="text-align:center;">     5</td>
+</tr>
+<tr>
+<td>INFO    </td>
+<td style="text-align:center;">     2     </td>
+<td> Informational                 </td>
+<td style="text-align:center;">     6</td>
+</tr>
+<tr>
+<td>DEBUG   </td>
+<td style="text-align:center;">     3     </td>
+<td> Debug-level messages          </td>
+<td style="text-align:center;">     7</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>You can note that the 2 verbs <strong>WARNING</strong> and <strong>INFO</strong> have the same level
+of verbosity. But they don&rsquo;t have the same <em>syslog level</em>. It means that
+they are output with a different level on the logging system.</p>
+
+<p>All of these verbs have the same signature:</p>
+
+<pre><code>void ERROR(const struct AFB_interface *afbitf, const char *message, ...);
+</code></pre>
+
+<p>The first argument <strong>afbitf</strong> is the interface to afb daemon that the
+plugin received at its initialisation when <strong>pluginAfbV1Register</strong> was called.</p>
+
+<p>The second argument <strong>message</strong> is a formatting string compatible with printf/sprintf.</p>
+
+<p>The remaining arguments are arguments of the formating message like for printf.</p>
+
+<a name="Managing.verbosity"></a>
+<h3>Managing verbosity</h3>
+
+<p>Depending on the level of verbosity, the messages are output or not.
+The following table explains what messages will be output depending
+ont the verbosity level.</p>
+
+<table>
+<thead>
+<tr>
+<th style="text-align:center;">Level of verbosity </th>
+<th> Outputed macro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">0          </td>
+<td> ERROR</td>
+</tr>
+<tr>
+<td style="text-align:center;">1          </td>
+<td> ERROR + WARNING + NOTICE</td>
+</tr>
+<tr>
+<td style="text-align:center;">2          </td>
+<td> ERROR + WARNING + NOTICE + INFO</td>
+</tr>
+<tr>
+<td style="text-align:center;">3          </td>
+<td> ERROR + WARNING + NOTICE + INFO + DEBUG</td>
+</tr>
+</tbody>
+</table>
+
+
+<a name="Output.format.and.destination"></a>
+<h3>Output format and destination</h3>
+
+<p>The syslog level is used for forging a prefix to the message.
+The prefixes are:</p>
+
+<table>
+<thead>
+<tr>
+<th style="text-align:center;">syslog level </th>
+<th> prefix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">0      </td>
+<td> <0> EMERGENCY</td>
+</tr>
+<tr>
+<td style="text-align:center;">1      </td>
+<td> <1> ALERT</td>
+</tr>
+<tr>
+<td style="text-align:center;">2      </td>
+<td> <2> CRITICAL</td>
+</tr>
+<tr>
+<td style="text-align:center;">3      </td>
+<td> <3> ERROR</td>
+</tr>
+<tr>
+<td style="text-align:center;">4      </td>
+<td> <4> WARNING</td>
+</tr>
+<tr>
+<td style="text-align:center;">5      </td>
+<td> <5> NOTICE</td>
+</tr>
+<tr>
+<td style="text-align:center;">6      </td>
+<td> <6> INFO</td>
+</tr>
+<tr>
+<td style="text-align:center;">7      </td>
+<td> <7> DEBUG</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>The message is issued to the standard error.
+The final destination of the message depends on how the systemd service
+was configured through the variable <strong>StandardError</strong>: It can be
+journal, syslog or kmsg. (See man sd-daemon).</p>
+
+<a name="Sending.events"></a>
+<h2>Sending events</h2>
+
+<a name="Writing.an.asynchronous.verb.implementation"></a>
+<h2>Writing an asynchronous verb implementation</h2>
+
+<a name="How.to.build.a.plugin"></a>
+<h2>How to build a plugin</h2>
+
+<p>Afb-daemon provides a <em>pkg-config</em> configuration file that can be
+queried by the name <strong>afb-daemon</strong>.
+This configuration file provides data that should be used
+for compiling plugins. Examples:</p>
+
+<pre><code>$ pkg-config --cflags afb-daemon
+$ pkg-config --libs afb-daemon
+</code></pre>
+
+<a name="Example.for.cmake.meta.build.system"></a>
+<h3>Example for cmake meta build system</h3>
+
+<p>This example is the extract for building the plugin <em>afm-main</em> using <em>CMAKE</em>.</p>
+
+<pre><code>pkg_check_modules(afb afb-daemon)
+if(afb_FOUND)
+        message(STATUS "Creation afm-main-plugin for AFB-DAEMON")
+        add_library(afm-main-plugin MODULE afm-main-plugin.c)
+        target_compile_options(afm-main-plugin PRIVATE ${afb_CFLAGS})
+        target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
+        target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+        set_target_properties(afm-main-plugin PROPERTIES
+                PREFIX ""
+                LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+        )
+        install(TARGETS afm-main-plugin LIBRARY DESTINATION ${plugin_dir})
+else()
+        message(STATUS "Not creating the plugin for AFB-DAEMON")
+endif()
+</code></pre>
+
+<p>Let now describe some of these lines.</p>
+
+<pre><code>pkg_check_modules(afb afb-daemon)
+</code></pre>
+
+<p>This first lines searches to the <em>pkg-config</em> configuration file for
+<strong>afb-daemon</strong>. Resulting data are stored in the following variables:</p>
+
+<table>
+<thead>
+<tr>
+<th>Variable      </th>
+<th> Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>afb_FOUND     </td>
+<td> Set to 1 if afb-daemon plugin development files exist</td>
+</tr>
+<tr>
+<td>afb_LIBRARIES     </td>
+<td> Only the libraries (w/o the &lsquo;-l&rsquo;) for compiling afb-daemon plugins</td>
+</tr>
+<tr>
+<td>afb_LIBRARY_DIRS  </td>
+<td> The paths of the libraries (w/o the &lsquo;-L&rsquo;) for compiling afb-daemon plugins</td>
+</tr>
+<tr>
+<td>afb_LDFLAGS       </td>
+<td> All required linker flags for compiling afb-daemon plugins</td>
+</tr>
+<tr>
+<td>afb_INCLUDE_DIRS  </td>
+<td> The &lsquo;-I&rsquo; preprocessor flags (w/o the &lsquo;-I&rsquo;) for compiling afb-daemon plugins</td>
+</tr>
+<tr>
+<td>afb_CFLAGS    </td>
+<td> All required cflags for compiling afb-daemon plugins</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>If development files are found, the plugin can be added to the set of
+target to build.</p>
+
+<pre><code>add_library(afm-main-plugin MODULE afm-main-plugin.c)
+</code></pre>
+
+<p>This line asks to create a shared library having only the
+source file afm-main-plugin.c (that is compiled).
+The default name of the created shared object is
+<strong>libafm-main-plugin.so</strong>.</p>
+
+<pre><code>set_target_properties(afm-main-plugin PROPERTIES
+        PREFIX ""
+        LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+)
+</code></pre>
+
+<p>This lines are doing two things:</p>
+
+<ol>
+<li><p>It renames the built library from <strong>libafm-main-plugin.so</strong> to <strong>afm-main-plugin.so</strong>
+by removing the implicitely added prefix <em>lib</em>. This step is not mandatory
+at all because afb-daemon doesn&rsquo;t check names of files when loading it.
+The only convention that use afb-daemon is that extension is <strong>.so</strong>
+but this convention is used only when afb-daemon discovers plugin
+from a directory hierarchy.</p></li>
+<li><p>It applies a version script at link to only export the conventional name
+of the entry point: <strong>pluginAfbV1Register</strong>. See below. By default, the linker
+that creates the shared object exports all the public symbols (C functions that
+are not <strong>static</strong>).</p></li>
+</ol>
+
+
+<p>Next line are:</p>
+
+<pre><code>target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
+target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+</code></pre>
+
+<p>As you can see it uses the variables computed by <strong><em>pkg_check_modules(afb afb-daemon)</em></strong>
+to configure the compiler and the linker.</p>
+
+<a name="Exporting.the.function.pluginAfbV1Register"></a>
+<h3>Exporting the function pluginAfbV1Register</h3>
+
+<p>The function <strong>pluginAfbV1Register</strong> must be exported. This can be achieved
+using a version script when linking. Here is the version script that is
+used for <em>tic-tac-toe</em> (plugins/samples/export.map).</p>
+
+<pre><code>{ global: pluginAfbV1Register; local: *; };
+</code></pre>
+
+<p>This sample <a href="https://sourceware.org/binutils/docs-2.26/ld/VERSION.html#VERSION">version script</a>
+exports as global the symbol <em>pluginAfbV1Register</em> and hides any
+other symbols.</p>
+
+<p>This version script is added to the link options using the
+option <strong>&ndash;version-script=export.map</strong> is given directly to the
+linker or using th option <strong>-Wl,&ndash;version-script=export.map</strong>
+when the option is given to the C compiler.</p>
+
+<a name="Building.within.yocto"></a>
+<h3>Building within yocto</h3>
+
+<p>Adding a dependency to afb-daemon is enough. See below:</p>
+
+<pre><code>DEPENDS += " afb-daemon "
+</code></pre>
 </body>
 </html>

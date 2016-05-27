@@ -4,7 +4,7 @@ body {
 	color: #000;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
 	color: #306;
 	text-decoration: underline;
 }
@@ -27,3 +27,13 @@ blockquote {
 	font: bolder;
 	padding: 0.7em 1.5em;
 }
+
+table  {
+	margin-left: 2em;
+	background-color: #dff;
+	outline: 0.25em solid #a6f;
+/*	padding: 0.25em;*/
+}
+thead {background-color: #a6f;}
+tr:nth-child(even) {background-color: #aee;}
+td { padding: 0.1em 0.5em; }
