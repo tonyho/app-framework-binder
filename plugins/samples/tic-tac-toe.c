@@ -549,28 +549,12 @@ static void play(struct afb_req req)
 
 static void wait(struct afb_req req)
 {
-	int count;
 	struct board *board;
 	struct waiter *waiter;
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
 	INFO(afbitf, "method 'wait' called for boardid %d", board->id);
-
-	/* counts the waiters */
-	count = 0;
-	waiter = board->waiters;
-	while (waiter != NULL) {
-		count++;
-		waiter = waiter->next;
-	}
-
-	/* checks ability to wait */
-	if (count + 1 >= board->use_count) {
-		WARNING(afbitf, "can't wait: count=%d and use_count=%d", count, board->use_count);
-		afb_req_fail(req, "error", "can't wait");
-		return;
-	}
 
 	/* creates the waiter and enqueues it */
 	waiter = calloc(1, sizeof *waiter);
