@@ -212,6 +212,10 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
  * Broadcasts widely the event of 'name' with the data 'object'.
  * 'object' can be NULL.
  * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'object'.
+ * Thus, in the case where 'object' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 static inline void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
 {

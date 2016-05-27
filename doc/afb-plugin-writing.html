@@ -612,12 +612,20 @@ failure replies.</p>
  * The status of the reply is automatically set to "success".
  * Its send the object 'obj' (can be NULL) with an
  * informationnal comment 'info (can also be NULL).
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 void afb_req_success(struct afb_req req, struct json_object *obj, const char *info);
 
 /*
  * Same as 'afb_req_success' but the 'info' is a formatting
  * string followed by arguments.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...);
 </code></pre>
@@ -633,15 +641,28 @@ void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *
  * Note that calling afb_req_fail("success", info) is equivalent
  * to call afb_req_success(NULL, info). Thus even if possible it
  * is strongly recommanded to NEVER use "success" for status.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 void afb_req_fail(struct afb_req req, const char *status, const char *info);
 
 /*
  * Same as 'afb_req_fail' but the 'info' is a formatting
  * string followed by arguments.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
 </code></pre>
+
+<blockquote><p>For conveniency, these functions call <strong>json_object_put</strong> to release the object <strong>obj</strong>
+that they send. Then <strong>obj</strong> can not be used after calling one of these reply functions.
+When it is not the expected behaviour, calling the function <strong>json_object_get</strong> on the object <strong>obj</strong>
+before cancels the effect of <strong>json_object_put</strong>.</p></blockquote>
 
 <a name="Getting.argument.of.invocation"></a>
 <h2>Getting argument of invocation</h2>
@@ -1245,9 +1266,18 @@ object that is transmitted with the event.</p>
  * Broadcasts widely the event of 'name' with the data 'object'.
  * 'object' can be NULL.
  * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'object'.
+ * Thus, in the case where 'object' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
  */
 void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
 </code></pre>
+
+<blockquote><p>Be aware, as for reply functions, the <strong>object</strong> is automatically released using
+<strong>json_object_put</strong> by the function. Then call <strong>json_object_get</strong> before
+calling <strong>afb_daemon_broadcast_event</strong> to keep <strong>object</strong> available
+after the returning of the function.</p></blockquote>
 
 <p>In fact the event name received by the listener is prefixed with
 the name of the plugin. So when the change occurs after a move, the
@@ -1261,31 +1291,106 @@ Thus it is safe to compare event using a case sensitive comparison.</p></blockqu
 <a name="Writing.an.asynchronous.verb.implementation"></a>
 <h2>Writing an asynchronous verb implementation</h2>
 
-<p>/<em>
- * signals a change of the board
- </em>/
-static void changed(struct board <em>board, const char </em>reason)
-{
-    struct waiter <em>waiter, </em>next;
-    struct json_object *description;</p>
+<p>The <em>tic-tac-toe</em> example allows two clients or more to share the same board.
+This is implemented by the verb <strong>join</strong> that illustrated partly the how to
+retrieve arguments.</p>
 
-<pre><code>/* get the description */
-description = describe(board);
+<p>When two or more clients are sharing a same board, one of them can wait
+until the state of the board changes. (This coulded also be implemented using
+events because an even is generated each time the board changes).</p>
 
-waiter = board-&gt;waiters;
-board-&gt;waiters = NULL;
-while (waiter != NULL) {
-        next = waiter-&gt;next;
-        afb_req_success(waiter-&gt;req, json_object_get(description), reason);
-        afb_req_unref(waiter-&gt;req);
-        free(waiter);
-        waiter = next;
-}
+<p>In this case, the reply to the wait is sent only when the board changes.
+See the diagram below:</p>
 
-afb_event_sender_push(afb_daemon_get_event_sender(afbitf-&gt;daemon), reason, description);
+<pre><code>CLIENT A       CLIENT B         TIC-TAC-TOE
+   |              |                  |
+   +--------------|-----------------&gt;| wait . . . . . . . .
+   |              |                  |                     .
+   :              :                  :                      .
+   :              :                  :                      .
+   |              |                  |                      .
+   |              +-----------------&gt;| move . . .           .
+   |              |                  |          V           .
+   |              |&lt;-----------------+ success of move      .
+   |              |                  |                    .
+   |&lt;-------------|------------------+ success of wait  &lt;
 </code></pre>
 
-<p>}</p>
+<p>Here, this is an invocation of the plugin by an other client that
+unblock the suspended <em>wait</em> call.
+But in general, this will be a timer, a hardware event, the sync with
+a concurrent process or thread, &hellip;</p>
+
+<p>So the case is common, this is an asynchronous implementation.</p>
+
+<p>Here is the listing of the function <strong>wait</strong>:</p>
+
+<pre><code>static void wait(struct afb_req req)
+{
+        struct board *board;
+        struct waiter *waiter;
+
+        /* retrieves the context for the session */
+        board = board_of_req(req);
+        INFO(afbitf, "method 'wait' called for boardid %d", board-&gt;id);
+
+        /* creates the waiter and enqueues it */
+        waiter = calloc(1, sizeof *waiter);
+        waiter-&gt;req = req;
+        waiter-&gt;next = board-&gt;waiters;
+        afb_req_addref(req);
+        board-&gt;waiters = waiter;
+}
+</code></pre>
+
+<p>After retrieving the board, the function adds a new waiter to the
+current list of waiters and returns without sending a reply.</p>
+
+<p>Before returning, it increases the reference count of the
+request <strong>req</strong> using the function <strong>afb_req_addref</strong>.</p>
+
+<blockquote><p>When the implentation of a verb returns without sending a reply,
+it <strong>MUST</strong> increment the reference count of the request
+using <strong>afb_req_addref</strong>. If it doesn&rsquo;t bad things can happen.</p></blockquote>
+
+<p>Later, when the board changes, it calls the function <strong>changed</strong>
+of <em>tic-tac-toe</em> with the reason of the change.</p>
+
+<p>Here is the full listing of the function <strong>changed</strong>:</p>
+
+<pre><code>/*
+ * signals a change of the board
+ */
+static void changed(struct board *board, const char *reason)
+{
+        struct waiter *waiter, *next;
+        struct json_object *description;
+
+        /* get the description */
+        description = describe(board);
+
+        waiter = board-&gt;waiters;
+        board-&gt;waiters = NULL;
+        while (waiter != NULL) {
+                next = waiter-&gt;next;
+                afb_req_success(waiter-&gt;req, json_object_get(description), reason);
+                afb_req_unref(waiter-&gt;req);
+                free(waiter);
+                waiter = next;
+        }
+
+        afb_event_sender_push(afb_daemon_get_event_sender(afbitf-&gt;daemon), reason, description);
+}
+</code></pre>
+
+<p>The list of waiters is walked and a reply is sent to each waiter.
+After the sending the reply, the reference count of the request
+is decremented using <strong>afb_req_unref</strong> to allow its resources to be freed.</p>
+
+<blockquote><p>The reference count <strong>MUST</strong> be decremented using <strong>afb_req_unref</strong> because,
+otherwise, there is a leak of resources.
+It must be decremented <strong>AFTER</strong> the sending of the reply, because, otherwise,
+bad things may happen.</p></blockquote>
 
 <a name="How.to.build.a.plugin"></a>
 <h2>How to build a plugin</h2>
