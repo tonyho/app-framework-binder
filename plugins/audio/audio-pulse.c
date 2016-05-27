@@ -58,14 +58,16 @@ unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
     /* 1 second should be sufficient to retrieve sink info */
     gettimeofday (&tv_start, NULL);
     gettimeofday (&tv_now, NULL);
-    while (tv_now.tv_sec - tv_start.tv_sec <= 1) {
+    while (tv_now.tv_sec - tv_start.tv_sec <= 2) {
         pa_mainloop_iterate (pa_loop, 0, &ret);
 
         if (ret == -1) {
 			fprintf (stderr, "Stopping PulseAudio backend...\n");
             return 0;
         }
-        if (ret > 0) {
+
+	/* 0 and >100 are returned by PulseAudio itself */
+        if ((ret > 0)&&(ret < 100)) {
             /* found a matching sink from callback */
             fprintf (stderr, "Success : using sink n.%d\n", ret-1);
             ctx->audio_dev = (void*)dev_ctx_p[ret-1];
@@ -395,7 +397,6 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
     found = strstr (device, ":");
     if (found) device[found-device] = '\0';
 
-fprintf(stderr, "BEFORE PULSE_FIND_CARDS\n");
     /* new sink, find all the cards it manages, fail if none */
     cards = _pulse_find_cards (device);
     free (device);
@@ -403,7 +404,6 @@ fprintf(stderr, "BEFORE PULSE_FIND_CARDS\n");
         return;
 
     /* everything is well, register it in global array */
-fprintf(stderr, "NEW SINK IN GLOBAL ARRAY\n");
     dev_ctx_p_t->sink_name = strdup (info->name);
     dev_ctx_p_t->card_name = cards;
     dev_ctx_p_t->mute = info->mute;
