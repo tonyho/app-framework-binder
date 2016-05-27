@@ -390,7 +390,7 @@ static void move(struct afb_req req)
 	}
 
 	/* applies the move */
-	INFO(afbitf, "method 'move' for boardid %d, index=%d", board->id, index);
+	INFO(afbitf, "method 'move' for boardid %d, index=%s", board->id, index);
 	add_move(board, i);
 
 	/* replies */
