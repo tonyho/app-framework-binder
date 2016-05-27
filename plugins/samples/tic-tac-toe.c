@@ -583,7 +583,7 @@ static void wait(struct afb_req req)
 /*
  * array of the verbs exported to afb-daemon
  */
-static const struct AFB_verb_desc_v1 verbs[] = {
+static const struct AFB_verb_desc_v1 plugin_verbs[] = {
    /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
    { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
    { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Tells the server to play" },
@@ -593,8 +593,7 @@ static const struct AFB_verb_desc_v1 verbs[] = {
    { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
    { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
    { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
-   /* marker for end of the array */
-   { .name= NULL }
+   { .name= NULL } /* marker for end of the array */
 };
 
 /*
@@ -607,7 +606,7 @@ static const struct AFB_plugin plugin_description =
    .v1= {				/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
       .prefix= "tictactoe",		/* the API name (or plugin name or prefix) */
       .info= "Sample tac-tac-toe game",	/* short description of of the plugin */
-      .verbs = verbs			/* the array describing the verbs of the API */
+      .verbs = plugin_verbs		/* the array describing the verbs of the API */
    }
 };
 
