@@ -23,7 +23,7 @@
 extern int verbosity;
 
 extern void verbose_set_name(const char *name, int authority);
-extern void verbose(int level, const char *file, int line, const char *fmt, ...);
+extern void verbose(int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
 extern void vverbose(int level, const char *file, int line, const char *fmt, va_list args);
 
 # define ERROR(...)   do{if(verbosity>=0)verbose(3,__FILE__,__LINE__,__VA_ARGS__);}while(0)

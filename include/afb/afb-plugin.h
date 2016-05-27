@@ -213,6 +213,7 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
  * 'file' and 'line' are indicators of position of the code in source files.
  * 'daemon' MUST be the daemon given in interface when activating the plugin.
  */
+static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
