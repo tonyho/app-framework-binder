@@ -30,7 +30,7 @@
 
 #include <systemd/sd-event.h>
 
-#include "afb-common.h"
+#include "afb-common.h"  /* TODO: remove dependency to afb-common.h */
 #include "afb-wsj1.h"
 #include "afb-ws-client.h"
 

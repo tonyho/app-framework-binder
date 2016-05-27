@@ -51,6 +51,9 @@ ADD_LIBRARY(afb-lib STATIC
 	websock.c
 )
 
+###########################################
+# build and install afb-daemon
+###########################################
 ADD_EXECUTABLE(afb-daemon main.c)
 TARGET_LINK_LIBRARIES(afb-daemon
 	afb-lib
@@ -66,11 +69,29 @@ TARGET_LINK_LIBRARIES(afb-daemon
 INSTALL(TARGETS afb-daemon
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+###########################################
+# build and install libafbwsc
+###########################################
+ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c afb-common.c)
+TARGET_LINK_LIBRARIES(afbwsc
+	${libsystemd_LIBRARIES}
+	-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-afbwsc.map
+	-Wl,--as-needed
+	-Wl,--gc-sections
+)
+INSTALL(TARGETS afbwsc LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+INSTALL(FILES afb-wsj1.h afb-ws-client.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/afb)
+
+###########################################
+# build and install afb-client-demo
+###########################################
 ADD_EXECUTABLE(afb-client-demo afb-client-demo.c)
 TARGET_LINK_LIBRARIES(afb-client-demo
-	afb-lib
+	afbwsc
 	${link_libraries}
 	${libsystemd_LIBRARIES}
 )
 INSTALL(TARGETS afb-client-demo
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+
