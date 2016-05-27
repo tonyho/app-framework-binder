@@ -25,7 +25,6 @@ add_compile_options(-Wno-sign-compare -Wno-sign-conversion)
 add_compile_options(-Werror=maybe-uninitialized)
 add_compile_options(-Werror=implicit-function-declaration)
 add_compile_options(-ffunction-sections -fdata-sections)
-add_compile_options(-Wl,--as-needed -Wl,--gc-sections)
 add_compile_options(-fPIC)
 add_compile_options(-g)
 
