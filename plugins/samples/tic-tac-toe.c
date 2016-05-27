@@ -299,7 +299,7 @@ static void changed(struct board *board, const char *reason)
 		waiter = next;
 	}
 
-	afb_event_sender_push(afb_daemon_get_event_sender(afbitf->daemon), reason, description);
+	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
 }
 
 /*
@@ -586,7 +586,7 @@ static void wait(struct afb_req req)
 static const struct AFB_verb_desc_v1 plugin_verbs[] = {
    /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
    { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
-   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Tells the server to play" },
+   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
    { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
    { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
    { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },

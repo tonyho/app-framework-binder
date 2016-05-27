@@ -56,10 +56,10 @@ enum  AFB_plugin_version
  */
 enum AFB_session_v1
 {
-       AFB_SESSION_NONE = 0,   /* no session and no authentification required */
-       AFB_SESSION_CREATE = 1, /* obsolete */
-       AFB_SESSION_CLOSE = 2,  /* closes the session after authentification */
-       AFB_SESSION_RENEW = 4,  /* refreshes the token after authentification */
+       AFB_SESSION_NONE = 0,   /* nothing required */
+       AFB_SESSION_CREATE = 1, /* Obsolete */
+       AFB_SESSION_CLOSE = 2,  /* After token authentification, closes the session at end */
+       AFB_SESSION_RENEW = 4,  /* After token authentification, refreshes the token at end */
        AFB_SESSION_CHECK = 8,  /* Requires token authentification */
 
        AFB_SESSION_LOA_GE = 16, /* check that the LOA is greater or equal to the given value */
@@ -67,12 +67,13 @@ enum AFB_session_v1
        AFB_SESSION_LOA_EQ = 48, /* check that the LOA is equal to the given value */
 
        AFB_SESSION_LOA_SHIFT = 6, /* shift for LOA */
-       AFB_SESSION_LOA_MASK = 3,  /* mask for LOA */
+       AFB_SESSION_LOA_MASK = 7,  /* mask for LOA */
 
        AFB_SESSION_LOA_0 = 0,   /* value for LOA of 0 */
        AFB_SESSION_LOA_1 = 64,  /* value for LOA of 1 */
        AFB_SESSION_LOA_2 = 128, /* value for LOA of 2 */
        AFB_SESSION_LOA_3 = 192, /* value for LOA of 3 */
+       AFB_SESSION_LOA_4 = 256, /* value for LOA of 4 */
 
        AFB_SESSION_LOA_LE_0 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_0, /* check LOA <= 0 */
        AFB_SESSION_LOA_LE_1 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_1, /* check LOA <= 1 */
@@ -205,6 +206,16 @@ static inline struct sd_bus *afb_daemon_get_user_bus(struct afb_daemon daemon)
 static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
 {
 	return daemon.itf->get_system_bus(daemon.closure);
+}
+
+/*
+ * Broadcasts widely the event of 'name' with the data 'object'.
+ * 'object' can be NULL.
+ * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ */
+static inline void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
+{
+	return afb_event_sender_push(afb_daemon_get_event_sender(daemon), name, object);
 }
 
 /*

@@ -37,6 +37,8 @@ Author:  José Bollo
   </ul>
   </li>
   <li><a href="#The.Tic-Tac-Toe.example">The Tic-Tac-Toe example</a></li>
+  <li><a href="#Dependencies.when.compiling">Dependencies when compiling</a></li>
+  <li><a href="#Header.files.to.include">Header files to include</a></li>
   <li><a href="#Choosing.names">Choosing names</a>
   <ul>
    <li><a href="#Names.for.API..plugin.">Names for API (plugin)</a></li>
@@ -45,8 +47,6 @@ Author:  José Bollo
    <li><a href="#Forging.names.widely.available">Forging names widely available</a></li>
   </ul>
   </li>
-  <li><a href="#Options.to.set.when.compiling.plugins">Options to set when compiling plugins</a></li>
-  <li><a href="#Header.files.to.include">Header files to include</a></li>
   <li><a href="#Writing.a.synchronous.verb.implementation">Writing a synchronous verb implementation</a>
   <ul>
    <li><a href="#The.incoming.request">The incoming request</a></li>
@@ -265,6 +265,72 @@ This plugin example is in <em>plugins/samples/tic-tac-toe.c</em>.</p>
 
 <p>This plugin is named <strong><em>tictactoe</em></strong>.</p>
 
+<a name="Dependencies.when.compiling"></a>
+<h2>Dependencies when compiling</h2>
+
+<p>Afb-daemon provides a configuration file for <em>pkg-config</em>.
+Typing the command</p>
+
+<pre><code>pkg-config --cflags afb-daemon
+</code></pre>
+
+<p>will print the flags to use for compiling, like this:</p>
+
+<pre><code>$ pkg-config --cflags afb-daemon
+-I/opt/local/include -I/usr/include/json-c 
+</code></pre>
+
+<p>For linking, you should use</p>
+
+<pre><code>$ pkg-config --libs afb-daemon
+-ljson-c
+</code></pre>
+
+<p>As you see, afb-daemon automatically includes dependency to json-c.
+This is done through the <strong>Requires</strong> keyword of pkg-config
+because almost all plugin will use <strong>json-c</strong>.</p>
+
+<p>If this behaviour is a problem, let us know.</p>
+
+<p>Internally, afb-daemon uses <strong>libsystemd</strong> for its event loop
+and for its binding to D-Bus.
+Plugins developpers are encouraged to also use this library.
+But it is a matter of choice.
+Thus there is no dependency to <strong>libsystemd</strong>.</p>
+
+<blockquote><p>Afb-daemon provides no library for plugins.
+The functions that the plugin need to have are given
+to the plugin at runtime through pointer using read-only
+memory.</p></blockquote>
+
+<a name="Header.files.to.include"></a>
+<h2>Header files to include</h2>
+
+<p>The plugin <em>tictactoe</em> has the following lines for its includes:</p>
+
+<pre><code>#define _GNU_SOURCE
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;json-c/json.h&gt;
+#include &lt;afb/afb-plugin.h&gt;
+</code></pre>
+
+<p>The header <em>afb/afb-plugin.h</em> includes all the features that a plugin
+needs except two foreign header that must be included by the plugin
+if it needs it:</p>
+
+<ul>
+<li><em>json-c/json.h</em>: this header must be include to handle json objects;</li>
+<li><em>systemd/sd-event.h</em>: this must be include to access the main loop;</li>
+<li><em>systemd/sd-bus.h</em>: this may be include to use dbus connections.</li>
+</ul>
+
+
+<p>The <em>tictactoe</em> plugin does not use systemd features so it is not included.</p>
+
+<p>When including <em>afb/afb-plugin.h</em>, the macro <strong>_GNU_SOURCE</strong> must be
+defined.</p>
+
 <a name="Choosing.names"></a>
 <h2>Choosing names</h2>
 
@@ -343,60 +409,6 @@ valid javascript identifier.</p>
 <p>It is also a good practice, even for arguments, to not
 rely on the case sensitivity and to avoid the use of
 names different only by the case.</p>
-
-<a name="Options.to.set.when.compiling.plugins"></a>
-<h2>Options to set when compiling plugins</h2>
-
-<p>Afb-daemon provides a configuration file for <em>pkg-config</em>.
-Typing the command</p>
-
-<pre><code>pkg-config --cflags afb-daemon
-</code></pre>
-
-<p>will print the flags to use for compiling, like this:</p>
-
-<pre><code>$ pkg-config --cflags afb-daemon
--I/opt/local/include -I/usr/include/json-c 
-</code></pre>
-
-<p>For linking, you should use</p>
-
-<pre><code>$ pkg-config --libs afb-daemon
--ljson-c
-</code></pre>
-
-<p>As you see, afb-daemon automatically includes dependency to json-c.
-This is done through the <strong>Requires</strong> keyword of pkg-config.</p>
-
-<p>If this behaviour is a problem, let us know.</p>
-
-<a name="Header.files.to.include"></a>
-<h2>Header files to include</h2>
-
-<p>The plugin <em>tictactoe</em> has the following lines for its includes:</p>
-
-<pre><code>#define _GNU_SOURCE
-#include &lt;stdio.h&gt;
-#include &lt;string.h&gt;
-#include &lt;json-c/json.h&gt;
-#include &lt;afb/afb-plugin.h&gt;
-</code></pre>
-
-<p>The header <em>afb/afb-plugin.h</em> includes all the features that a plugin
-needs except two foreign header that must be included by the plugin
-if it needs it:</p>
-
-<ul>
-<li><em>json-c/json.h</em>: this header must be include to handle json objects;</li>
-<li><em>systemd/sd-event.h</em>: this must be include to access the main loop;</li>
-<li><em>systemd/sd-bus.h</em>: this may be include to use dbus connections.</li>
-</ul>
-
-
-<p>The <em>tictactoe</em> plugin does not use systemd features so it is not included.</p>
-
-<p>When including <em>afb/afb-plugin.h</em>, the macro <strong>_GNU_SOURCE</strong> must be
-defined.</p>
 
 <a name="Writing.a.synchronous.verb.implementation"></a>
 <h2>Writing a synchronous verb implementation</h2>
@@ -879,7 +891,7 @@ const struct AFB_interface *afbitf;
 static const struct AFB_verb_desc_v1 plugin_verbs[] = {
    /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
    { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
-   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Tells the server to play" },
+   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
    { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
    { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
    { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
@@ -1196,8 +1208,84 @@ journal, syslog or kmsg. (See man sd-daemon).</p>
 <a name="Sending.events"></a>
 <h2>Sending events</h2>
 
+<p>Since version 0.5, plugins can broadcast events to any potential listener.
+This kind of bradcast is not targeted. Event targeted will come in a future
+version of afb-daemon.</p>
+
+<p>The plugin <em>tic-tac-toe</em> broadcasts events when the board changes.
+This is done in the function <strong>changed</strong>:</p>
+
+<pre><code>/*
+ * signals a change of the board
+ */
+static void changed(struct board *board, const char *reason)
+{
+        ...
+        struct json_object *description;
+
+        /* get the description */
+        description = describe(board);
+
+        ...
+
+        afb_daemon_broadcast_event(afbitf-&gt;daemon, reason, description);
+}
+</code></pre>
+
+<p>The description of the changed board is pushed via the daemon interface.</p>
+
+<p>Within the plugin <em>tic-tac-toe</em>, the <em>reason</em> indicates the origin of
+the change. For the function <strong>afb_daemon_broadcast_event</strong>, the second
+parameter is the name of the broadcasted event. The third argument is the
+object that is transmitted with the event.</p>
+
+<p>The function <strong>afb_daemon_broadcast_event</strong> is defined as below:</p>
+
+<pre><code>/*
+ * Broadcasts widely the event of 'name' with the data 'object'.
+ * 'object' can be NULL.
+ * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ */
+void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
+</code></pre>
+
+<p>In fact the event name received by the listener is prefixed with
+the name of the plugin. So when the change occurs after a move, the
+reason is <strong>move</strong> and then the clients receive the event <strong>tictactoe/move</strong>.</p>
+
+<blockquote><p>Note that nothing is said about the case sensitivity of event names.
+However, the event is always prefixed with the name that the plugin
+declared, with the same case, followed with a slash /.
+Thus it is safe to compare event using a case sensitive comparison.</p></blockquote>
+
 <a name="Writing.an.asynchronous.verb.implementation"></a>
 <h2>Writing an asynchronous verb implementation</h2>
+
+<p>/<em>
+ * signals a change of the board
+ </em>/
+static void changed(struct board <em>board, const char </em>reason)
+{
+    struct waiter <em>waiter, </em>next;
+    struct json_object *description;</p>
+
+<pre><code>/* get the description */
+description = describe(board);
+
+waiter = board-&gt;waiters;
+board-&gt;waiters = NULL;
+while (waiter != NULL) {
+        next = waiter-&gt;next;
+        afb_req_success(waiter-&gt;req, json_object_get(description), reason);
+        afb_req_unref(waiter-&gt;req);
+        free(waiter);
+        waiter = next;
+}
+
+afb_event_sender_push(afb_daemon_get_event_sender(afbitf-&gt;daemon), reason, description);
+</code></pre>
+
+<p>}</p>
 
 <a name="How.to.build.a.plugin"></a>
 <h2>How to build a plugin</h2>
