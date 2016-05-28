@@ -427,18 +427,18 @@ struct afb_wsj1 *afb_wsj1_msg_wsj1(struct afb_wsj1_msg *msg)
 static int wsj1_send_isot(struct afb_wsj1 *wsj1, int i1, const char *s1, const char *o1, const char *t1)
 {
 	char code[2] = { (char)('0' + i1), 0 };
-	return afb_ws_texts(wsj1->ws, "[", code, ",\"", s1, "\",", o1, t1 != NULL ? ",\"" : "]", t1, "\"]", NULL);
+	return afb_ws_texts(wsj1->ws, "[", code, ",\"", s1, "\",", o1 == NULL ? "null" : o1, t1 != NULL ? ",\"" : "]", t1, "\"]", NULL);
 }
 
 static int wsj1_send_issot(struct afb_wsj1 *wsj1, int i1, const char *s1, const char *s2, const char *o1, const char *t1)
 {
 	char code[2] = { (char)('0' + i1), 0 };
-	return afb_ws_texts(wsj1->ws, "[", code, ",\"", s1, "\",\"", s2, "\",", o1, t1 != NULL ? ",\"" : "]", t1, "\"]", NULL);
+	return afb_ws_texts(wsj1->ws, "[", code, ",\"", s1, "\",\"", s2, "\",", o1 == NULL ? "null" : o1, t1 != NULL ? ",\"" : "]", t1, "\"]", NULL);
 }
 
 int afb_wsj1_send_event_j(struct afb_wsj1 *wsj1, const char *event, struct json_object *object)
 {
-	return afb_wsj1_send_event_s(wsj1, event, json_object_to_json_string(object));
+	return afb_wsj1_send_event_s(wsj1, event, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN));
 }
 
 int afb_wsj1_send_event_s(struct afb_wsj1 *wsj1, const char *event, const char *object)
@@ -448,7 +448,7 @@ int afb_wsj1_send_event_s(struct afb_wsj1 *wsj1, const char *event, const char *
 
 int afb_wsj1_call_j(struct afb_wsj1 *wsj1, const char *api, const char *verb, struct json_object *object, void (*on_reply)(void *closure, struct afb_wsj1_msg *msg), void *closure)
 {
-	return afb_wsj1_call_s(wsj1, api, verb, json_object_to_json_string(object), on_reply, closure);
+	return afb_wsj1_call_s(wsj1, api, verb, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN), on_reply, closure);
 }
 
 int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *verb, const char *object, void (*on_reply)(void *closure, struct afb_wsj1_msg *msg), void *closure)
@@ -480,7 +480,7 @@ int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *verb, co
 
 int afb_wsj1_reply_ok_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
 {
-	return afb_wsj1_reply_ok_s(msg, json_object_to_json_string(object), token);
+	return afb_wsj1_reply_ok_s(msg, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN), token);
 }
 
 int afb_wsj1_reply_ok_s(struct afb_wsj1_msg *msg, const char *object, const char *token)
@@ -490,7 +490,7 @@ int afb_wsj1_reply_ok_s(struct afb_wsj1_msg *msg, const char *object, const char
 
 int afb_wsj1_reply_error_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
 {
-	return afb_wsj1_reply_error_s(msg, json_object_to_json_string(object), token);
+	return afb_wsj1_reply_error_s(msg, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN), token);
 }
 
 int afb_wsj1_reply_error_s(struct afb_wsj1_msg *msg, const char *object, const char *token)

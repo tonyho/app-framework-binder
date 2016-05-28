@@ -677,7 +677,7 @@ static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size)
 
 static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t max)
 {
-	ssize_t len = stpncpy(buf, json_object_to_json_string(obj)+pos, max) - buf;
+	ssize_t len = stpncpy(buf, json_object_to_json_string_ext(obj, JSON_C_TO_STRING_PLAIN)+pos, max) - buf;
 	return len ? : (ssize_t)MHD_CONTENT_READER_END_OF_STREAM;
 }
 
@@ -698,7 +698,7 @@ static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *statu
 	if (reqid != NULL && json_object_object_get_ex(reply, "request", &request))
 		json_object_object_add (request, short_key_for_reqid, json_object_new_string(reqid));
 
-	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string(reply)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
+	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string_ext(reply, JSON_C_TO_STRING_PLAIN)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
 	afb_hreq_reply(hreq, retcode, response, NULL);
 }
 
