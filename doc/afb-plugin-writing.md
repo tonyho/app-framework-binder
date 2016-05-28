@@ -1,7 +1,7 @@
 HOWTO WRITE a PLUGIN for AFB-DAEMON
 ===================================
     version: 1
-    Date:    27 mai 2016
+    Date:    29 mai 2016
     Author:  José Bollo
 
 TABLE-OF-CONTENT-HERE
@@ -86,7 +86,7 @@ As an example, URI **foo/bar** translates to API verb named **bar** within plugi
 To serve such a request, afb-daemon looks for an active plugin named **foo** and then within this plugin for an API verb named **bar**.
 When find afb-daemon calls corresponding function with attached parameter if any.
 
-Afb-daemon ignores letter case when parsing URI. Thus **TicTacToe/Board** and **tictactoe/borad** are equivalent.
+Afb-daemon ignores letter case when parsing URI. Thus **TicTacToe/Board** and **tictactoe/board** are equivalent.
 
 #### The name of the plugin
 
