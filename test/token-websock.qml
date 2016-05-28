@@ -7,7 +7,7 @@ Window {
 
 	property string address_str: "ws://localhost:1234/api?token=123456"
 	property string token_str: ""
-	property string api_str: "token"
+	property string api_str: "auth"
 	property string verb_str: ""
 	property var msgid_enu: { "call":2, "retok":3, "reterr":4, "event":5 }
 	property string request_str: ""
@@ -91,7 +91,7 @@ Window {
 			id: create_button
 			text: "Create token"
 			onClicked: {
-				verb_str = "create"
+				verb_str = "connect"
 				request_str = '[' + msgid_enu.call + ',"99999","' + api_str+'/'+verb_str + '", ]';
 				if (!websocket.active)
 					websocket.active = true
@@ -115,7 +115,7 @@ Window {
 			id: reset_button
 			text: "Reset token"
 			onClicked: {
-				verb_str = "reset"
+				verb_str = "logout"
 				request_str = '[' + msgid_enu.call + ',"99999","' + api_str+'/'+verb_str + '", ]';
 				websocket.sendTextMessage (request_str)
 			}
