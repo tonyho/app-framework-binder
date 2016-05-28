@@ -9,95 +9,84 @@ TABLE-OF-CONTENT-HERE
 Summary
 -------
 
-The binder afb-daemon serves files through
-the HTTP protocol and offers access to API's through
+The binder afb-daemon serves files through HTTP protocol
+and offers to developers the capability to expose application APIs through
 HTTP or WebSocket protocol.
 
-The plugins are used to add API's to afb-daemon.
+Binder plugins are used to add API to afb-daemon.
 This part describes how to write a plugin for afb-daemon.
 Excepting this summary, this part is intended to be read
-by developpers.
+by developers.
 
-Before going into details, through a tiny example,
-a short overview plugins basis is needed.
+Before moving further through an example, here after
+a short overview of binder plugins fundamentals.
 
 ### Nature of a plugin
 
-A plugin is a separate piece of code made of a shared library.
-The plugin is loaded and activated by afb-daemon when afb-daemon
-starts.
+A plugin is an independent piece of software, self contain and expose as a dynamically loadable library.
+A plugin is loaded by afb-daemon that exposes contained API dynamically at runtime.
 
-Technically, a plugin is not linked to any library of afb-daemon.
+Technically, a binder plugins does not reference and is not linked with any library from afb-daemon.
 
-### Kinds of plugins
+### Class of plugins
 
-There is two kinds of plugins: application plugins and service
-plugins.
+Application binder supports two kinds of plugins: application plugins and service
+plugins. Technically both class of plugin are equivalent and coding API is shared. Only sharing mode and security context diverge.
 
-#### Application plugins
+#### Application-plugins
 
-Application plugins are intended to be instanciated for each
-application: when an application using that plugin is started,
-its binder starts a new instance of the plugin.
+Application-plugins implements the glue in between application's UI and services. Every AGL application
+has a corresponding binder that typically activates one or many plugins to interface the application logic with lower platform services.
+When an application is started by AGL application framework, a dedicate binder is started that loads/activates application plugin(s). 
+The API expose by application-plugin are executed within corresponding application security context.
 
-It means that the application plugins mainly have only one
-context to manage for one client.
+Application plugins generally handle a unique context for a unique client. As the application framework start
+a dedicated instance of afb_daemon for each AGL application, if a given plugin is used within multiple application each of those
+application get a new and private instance of this "shared" plugin.
 
-#### Service plugins
+#### Service-plugins
 
-Service plugins are intended to be instanciated only one time
-only and connected to many clients.
+Service-plugins enable API activation within corresponding service security context and not within calling application context. 
+Service-plugins are intended to run as a unique instance that is shared in between multiple clients.
 
-So either it does not manage context at all or otherwise,
-if it manages context, it should be able to manage one context
-per client.
+Service-plugins can either be stateless or manage client context. When managing context each client get a private context.
 
-In details, it may be useful to have service plugins at a user
-level.
+Sharing may either be global to the platform (ie: GPS service) or dedicated to a given user (ie: preference management)
  
-### Live cycle of a plugin within afb-daemon
+### Live cycle of plugins within afb-daemon
 
-The plugins are loaded and activated when afb-daemon starts.
+Application and service plugins are loaded and activated each time a new afb-daemon is started.
 
-At start, the plugin initialise itself.
-If it fails to initialise then afb-daemon stops.
+At launch time, every loaded plugin initialise itself.
+If a single plugin initialisation fail corresponding instance of afb-daemon self aborts.
 
-Conversely, if it success to initialize, it must declare
-a name, that must be unique, and a list of API's verbs.
+Conversely, when plugin initialisation succeeds, it should register 
+its unique name and the list of API verbs it exposes.
 
-When initialized, the functions implementing the API's verbs
-of the plugin are activated on call.
+When initialised, on request from clients plugin's function corresponding to expose API verbs
+are activated by the afb-daemon instance attached to the application or service.
 
-At the end, nothing special is done by afb-daemon.
-Consequently, developpers of plugins should use 'atexit'
-or 'on_exit' during initialisation if they need to
-perform specific actions when stopping.
+At exit time, no special action is enforced by afb-daemon. When a specific actions is required at afb-daemon stop,
+developers should use 'atexit/on_exit' during plugin initialisation sequence to register a custom exit function.
 
-### Content of a plugin
+### Plugin Contend
 
-For afb-daemon, a plugin contains 2 different
-things: names and functions.
+Afb-daemon's plugin register two classes of objects: names and functions.
 
-There is two kind of names:
- - the name of the plugin,
- - the names of the verbs.
+Plugins declare categories of names:
+ - A unique plugin name,
+ - Multiple API verb's names.
 
-There is two kind of functions:
- - the initialisation function
- - functions implementing verbs
+Plugins declare two categories of functions:
+ - initialisation function
+ - API functions implementing verbs
 
-Afb-daemon translates the name of the method that is
-invoked to a pair of API and verb names. For example,
-the method named **foo/bar** translated to the API
-name **foo** and the verb name **bar**.
-To serve it, afb-daemon search the plugin that record
-the name **foo** and if it also recorded the verb **bar**,
-it calls the implementation function declared for this verb.
+Afb-daemon parses URI requests to extract plugin name and API verb.
+As an example, URI **foo/bar** translates to API verb named **bar** within plugin named **foo**.
+To serve such a request, afb-daemon looks for an active plugin named **foo** and then within this plugin for an API verb named **bar**.
+When find afb-daemon calls corresponding function with attached parameter if any.
 
-Afb-daemon make no distinction between lower case
-and upper case when searching for a method.
-Thus, The names **TicTacToe/Board** and **tictactoe/borad**
-are equals.
+Afb-daemon ignores letter case when parsing URI. Thus **TicTacToe/Board** and **tictactoe/borad** are equivalent.
 
 #### The name of the plugin
 
@@ -271,7 +260,7 @@ and upper case when searching for an API by its name.
 The names of the verbs are not checked.
 
 However, the validity rules for verb's names are the
-same as for API's names except that the dot (.) character
+same as for API names except that the dot (.) character
 is forbidden.
 
 Afb-daemon make no distinction between lower case
