@@ -4,12 +4,36 @@ body {
 	color: #000;
 }
 
-h1, h2, h3 { color: #306; }
+h1, h2, h3, h4 {
+	color: #306;
+	text-decoration: underline;
+}
 
 pre {
 	border: medium dashed #306;
-	background: #ccc;
-	margin-left: 4em;
+	border-width: 0.1em;
+	background-color: #eee;
+	margin-left: 2em;
+	margin-right: 2em;
 	padding: 1em;
+	outline: #555;
 }
 
+pre:first-of-type { width: 20em; }
+
+blockquote {
+	border-left: solid thick black;
+	background-color: #ff8;
+	font: bolder;
+	padding: 0.7em 1.5em;
+}
+
+table  {
+	margin-left: 2em;
+	background-color: #dff;
+	outline: 0.25em solid #a6f;
+/*	padding: 0.25em;*/
+}
+thead {background-color: #a6f;}
+tr:nth-child(even) {background-color: #aee;}
+td { padding: 0.1em 0.5em; }

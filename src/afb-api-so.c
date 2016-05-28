@@ -214,6 +214,7 @@ int afb_api_so_add_plugin(const char *path)
 	desc->interface.daemon.closure = desc;
 
 	/* init the plugin */
+	NOTICE("plugin [%s] calling registering function %s", path, plugin_register_function_v1);
 	desc->plugin = pluginAfbV1RegisterFct(&desc->interface);
 	if (desc->plugin == NULL) {
 		ERROR("plugin [%s] register function failed. continuing...", path);

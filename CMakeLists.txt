@@ -25,7 +25,6 @@ add_compile_options(-Wno-sign-compare -Wno-sign-conversion)
 add_compile_options(-Werror=maybe-uninitialized)
 add_compile_options(-Werror=implicit-function-declaration)
 add_compile_options(-ffunction-sections -fdata-sections)
-add_compile_options(-Wl,--as-needed -Wl,--gc-sections)
 add_compile_options(-fPIC)
 add_compile_options(-g)
 
@@ -68,11 +67,13 @@ ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(plugins)
 
 ############################################################
-# installs the pkgconfig file
+# installs the pkgconfig files
 CONFIGURE_FILE(afb-daemon.pc.in afb-daemon.pc @ONLY)
+CONFIGURE_FILE(afb-wsc.pc.in afb-wsc.pc @ONLY)
 
 INSTALL(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/afb-daemon.pc
+    ${CMAKE_CURRENT_BINARY_DIR}/afb-wsc.pc
     DESTINATION
     ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )

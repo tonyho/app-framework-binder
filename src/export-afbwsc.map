@@ -1,0 +1,9 @@
+{
+global:
+	afb_ws_client_connect_wsj1;
+	afb_wsj1_*;
+	afb_common_*;
+local:
+	*;
+};
+

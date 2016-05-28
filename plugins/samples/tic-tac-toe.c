@@ -299,7 +299,7 @@ static void changed(struct board *board, const char *reason)
 		waiter = next;
 	}
 
-	afb_event_sender_push(afb_daemon_get_event_sender(afbitf->daemon), reason, description);
+	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
 }
 
 /*
@@ -364,11 +364,11 @@ static void move(struct afb_req req)
 	board = board_of_req(req);
 	INFO(afbitf, "method 'move' called for boardid %d", board->id);
 
-	/* retrieves the parameters of the move */
+	/* retrieves the arguments of the move */
 	index = afb_req_value(req, "index");
 	i = index == NULL ? -1 : atoi(index);
 
-	/* checks validity of parameters */
+	/* checks validity of arguments */
 	if (i < 0 || i > 8) {
 		WARNING(afbitf, "can't move to %s: %s", index?:"?", index?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
@@ -390,7 +390,7 @@ static void move(struct afb_req req)
 	}
 
 	/* applies the move */
-	INFO(afbitf, "method 'move' for boardid %d, index=%d", board->id, index);
+	INFO(afbitf, "method 'move' for boardid %d, index=%s", board->id, index);
 	add_move(board, i);
 
 	/* replies */
@@ -413,11 +413,11 @@ static void level(struct afb_req req)
 	board = board_of_req(req);
 	INFO(afbitf, "method 'level' called for boardid %d", board->id);
 
-	/* retrieves the parameters */
+	/* retrieves the arguments */
 	level = afb_req_value(req, "level");
 	l = level == NULL ? -1 : atoi(level);
 
-	/* check validity of parameters */
+	/* check validity of arguments */
 	if (l < 1 || l > 10) {
 		WARNING(afbitf, "can't set level to %s: %s", level?:"?", level?"wrong value":"not set");
 		afb_req_fail(req, "error", "bad request");
@@ -447,7 +447,7 @@ static void join(struct afb_req req)
 	board = board_of_req(req);
 	INFO(afbitf, "method 'join' called for boardid %d", board->id);
 
-	/* retrieves the parameters */
+	/* retrieves the arguments */
 	id = afb_req_value(req, "boardid");
 	if (id == NULL)
 		goto bad_request;
@@ -549,28 +549,12 @@ static void play(struct afb_req req)
 
 static void wait(struct afb_req req)
 {
-	int count;
 	struct board *board;
 	struct waiter *waiter;
 
 	/* retrieves the context for the session */
 	board = board_of_req(req);
 	INFO(afbitf, "method 'wait' called for boardid %d", board->id);
-
-	/* counts the waiters */
-	count = 0;
-	waiter = board->waiters;
-	while (waiter != NULL) {
-		count++;
-		waiter = waiter->next;
-	}
-
-	/* checks ability to wait */
-	if (count + 1 >= board->use_count) {
-		WARNING(afbitf, "can't wait: count=%d and use_count=%d", count, board->use_count);
-		afb_req_fail(req, "error", "can't wait");
-		return;
-	}
 
 	/* creates the waiter and enqueues it */
 	waiter = calloc(1, sizeof *waiter);
@@ -583,18 +567,17 @@ static void wait(struct afb_req req)
 /*
  * array of the verbs exported to afb-daemon
  */
-static const struct AFB_verb_desc_v1 verbs[] = {
+static const struct AFB_verb_desc_v1 plugin_verbs[] = {
    /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
    { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
-   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Tells the server to play" },
+   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
    { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
    { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
    { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
    { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
    { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
    { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
-   /* marker for end of the array */
-   { .name= NULL }
+   { .name= NULL } /* marker for end of the array */
 };
 
 /*
@@ -607,7 +590,7 @@ static const struct AFB_plugin plugin_description =
    .v1= {				/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
       .prefix= "tictactoe",		/* the API name (or plugin name or prefix) */
       .info= "Sample tac-tac-toe game",	/* short description of of the plugin */
-      .verbs = verbs			/* the array describing the verbs of the API */
+      .verbs = plugin_verbs		/* the array describing the verbs of the API */
    }
 };
 

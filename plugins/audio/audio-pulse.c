@@ -58,17 +58,19 @@ unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
     /* 1 second should be sufficient to retrieve sink info */
     gettimeofday (&tv_start, NULL);
     gettimeofday (&tv_now, NULL);
-    while (tv_now.tv_sec - tv_start.tv_sec <= 1) {
+    while (tv_now.tv_sec - tv_start.tv_sec <= 2) {
         pa_mainloop_iterate (pa_loop, 0, &ret);
 
         if (ret == -1) {
 			fprintf (stderr, "Stopping PulseAudio backend...\n");
             return 0;
         }
-        if (ret >= 0) {
+
+	/* 0 and >100 are returned by PulseAudio itself */
+        if ((ret > 0)&&(ret < 100)) {
             /* found a matching sink from callback */
-            fprintf (stderr, "Success : using sink n.%d\n", error);
-            ctx->audio_dev = (void*)dev_ctx_p[ret];
+            fprintf (stderr, "Success : using sink n.%d\n", ret-1);
+            ctx->audio_dev = (void*)dev_ctx_p[ret-1];
             break;
         }
         gettimeofday (&tv_now, NULL);
@@ -78,11 +80,11 @@ unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
       return 0;
 
     /* make the client context aware of current card state */
-    ctx->mute = (unsigned char)dev_ctx_p[ret]->mute;
-    ctx->channels = (unsigned int)dev_ctx_p[ret]->volume.channels;
+    ctx->mute = (unsigned char)dev_ctx_p[ret-1]->mute;
+    ctx->channels = (unsigned int)dev_ctx_p[ret-1]->volume.channels;
     for (i = 0; i < ctx->channels; i++)
-        ctx->volume[i] = dev_ctx_p[ret]->volume.values[i];
-    ctx->idx = ret;
+        ctx->volume[i] = dev_ctx_p[ret-1]->volume.values[i];
+    ctx->idx = ret-1;
 
     /* open matching sink for playback */
     pa_spec = (pa_sample_spec*) malloc (sizeof(pa_sample_spec));
@@ -90,13 +92,13 @@ unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
     pa_spec->rate = 22050;
     pa_spec->channels = (uint8_t)ctx->channels;
 
-    if (!(pa = pa_simple_new (NULL, "afb-audio-plugin", PA_STREAM_PLAYBACK, dev_ctx_p[ret]->sink_name,
+    if (!(pa = pa_simple_new (NULL, "afb-audio-plugin", PA_STREAM_PLAYBACK, dev_ctx_p[ret-1]->sink_name,
                               "afb-audio-output", pa_spec, NULL, NULL, &error))) {
         fprintf (stderr, "Error opening PulseAudio sink %s : %s\n",
-                          dev_ctx_p[ret]->sink_name, pa_strerror(error));
+                          dev_ctx_p[ret-1]->sink_name, pa_strerror(error));
         return 0;
     }
-    dev_ctx_p[ret]->pa = pa;
+    dev_ctx_p[ret-1]->pa = pa;
     free (pa_spec);
 
     client_count++;
@@ -113,7 +115,7 @@ void _pulse_free (audioCtxHandleT *ctx) {
     client_count--;
     if (client_count > 0) return;
 
-    for (num = 0; num < (sizeof(dev_ctx_p)/sizeof(dev_ctx_pulse_T)); num++) {
+    for (num = 0; num < (sizeof(dev_ctx_p)/sizeof(dev_ctx_pulse_T*)); num++) {
 
          for (i = 0; num < (sizeof(dev_ctx_p[num]->card_name)/sizeof(char*)); i++) {
              free (dev_ctx_p[num]->card_name[i]);
@@ -245,7 +247,7 @@ void _pulse_enumerate_cards () {
     int new_info, i, num = 0;
 
     /* allocate the global alsa array */
-    alsa_info = (alsa_info_T**) malloc (sizeof(alsa_info_T));
+    alsa_info = (alsa_info_T**) malloc (sizeof(alsa_info_T*));
     alsa_info[0] = (alsa_info_T*) malloc (sizeof(alsa_info_T));
     alsa_info[0]->device = NULL;
     alsa_info[0]->synonyms = NULL;
@@ -276,7 +278,7 @@ void _pulse_enumerate_cards () {
         if (found) card_name[found-card_name] = '\0';
 
         /* was the card name already listed in the global alsa array ? */
-        for (i = 0; i < (sizeof(alsa_info)/sizeof(alsa_info_T)); i++) {
+        for (i = 0; i < (sizeof(alsa_info)/sizeof(alsa_info_T*)); i++) {
 
             if (alsa_info[i]->device &&
                 !strcmp (alsa_info[i]->device, card_name)) {
@@ -288,7 +290,7 @@ void _pulse_enumerate_cards () {
         }
         /* it was not ; create it */
         if (new_info) {
-            alsa_info = (alsa_info_T**) realloc (alsa_info, (num+1)*sizeof(alsa_info_T));
+            alsa_info = (alsa_info_T**) realloc (alsa_info, (num+1)*sizeof(alsa_info_T*));
             alsa_info[num]->device = strdup (card_name);
             asprintf (&alsa_info[num]->synonyms, ":%s", alsa_name);
             num++;
@@ -309,12 +311,12 @@ char** _pulse_find_cards (const char *name) {
 
     asprintf (&needle, ":%s", name);
 
-    for (num = 0; num < (sizeof(alsa_info)/sizeof(alsa_info_T)); num++) {
+    for (num = 0; num < (sizeof(alsa_info)/sizeof(alsa_info_T*)); num++) {
 
         found = strstr (alsa_info[num]->synonyms, needle);
         while (found) {
             /* if next character is not ':' or '\0', we are wrong */
-            if ((found[strlen(name)] != ':') && (found[strlen(name)] != '\0')) {
+            if ((found[strlen(name)+1] != ':') && (found[strlen(name)+1] != '\0')) {
                 found = strstr (found+1, needle);
                 continue;
             }
@@ -322,11 +324,12 @@ char** _pulse_find_cards (const char *name) {
             found = strstr (alsa_info[num]->synonyms, ":");
             while (found) {
                 next = strstr (found+1, ":");
+                if (!next) break;
                 cards = (char**) realloc (cards, (i+1)*sizeof(char*));
                 cards[i] = (char*) malloc (next-found+1);
                 strncpy (cards[i], found+1, next-found);
-                cards[i][next-found] = '\0';
-                i++;
+                cards[i][next-found-1] = '\0';
+                found = next; i++;
             }
         }
     }
@@ -356,20 +359,20 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
 
     dev_ctx_pulse_T *dev_ctx_p_t = (dev_ctx_pulse_T *)data;
     const char *device_string;
+    char *device, *found;
     char **cards;
     int num, i;
 
     if (eol != 0)
         return;
 
+    device_string = pa_proplist_gets (info->proplist, "device.string");
     /* ignore sinks with no cards */
-    if (!pa_proplist_contains (info->proplist, "device.string"))
+    if (!device_string)
         return;
 
-    device_string = pa_proplist_gets (info->proplist, "device.string");
-
     /* was a sink with similar name already found ? */
-    for (num = 0; num < (sizeof(dev_ctx_p)/sizeof(dev_ctx_pulse_T)); num++) {
+    for (num = 0; num < (sizeof(dev_ctx_p)/sizeof(dev_ctx_pulse_T*)); num++) {
         if (dev_ctx_p[num]->sink_name &&
            !strcmp (dev_ctx_p[num]->sink_name, info->name)) {
 
@@ -379,7 +382,8 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
                 if (!strcmp (cards[i], dev_ctx_p_t->card_name[0])) {
                     /* it did : stop there and succeed */
                     fprintf (stderr, "Found matching sink : %s\n", info->name);
-                    pa_mainloop_quit (dev_ctx_p_t->pa_loop, num);
+                    /* we return num+1 because '0' is already used */
+                    pa_mainloop_quit (dev_ctx_p_t->pa_loop, num+1);
                 }
             }
             /* it did not, ignore and return */
@@ -388,9 +392,16 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
     }
     num++;
 
+    /* remove ending ":0",":1"... in device name */
+    device = strdup (device_string);
+    found = strstr (device, ":");
+    if (found) device[found-device] = '\0';
+
     /* new sink, find all the cards it manages, fail if none */
-    cards = _pulse_find_cards (device_string);
-    if (!cards) return;
+    cards = _pulse_find_cards (device);
+    free (device);
+    if (!cards)
+        return;
 
     /* everything is well, register it in global array */
     dev_ctx_p_t->sink_name = strdup (info->name);
@@ -406,7 +417,8 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
         if (!strcmp (cards[i], dev_ctx_p_t->card_name[0])) {
              /* it did : stop there and succeed */
              fprintf (stderr, "Found matching sink : %s\n", info->name);
-             pa_mainloop_quit (dev_ctx_p_t->pa_loop, num);
+             /* we return num+1 because '0' is already used */
+             pa_mainloop_quit (dev_ctx_p_t->pa_loop, num+1);
         }
     }
 }

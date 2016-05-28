@@ -51,28 +51,29 @@ enum  AFB_plugin_version
 };
 
 /*
- * Enum for Session/Token/Authentication middleware.
+ * Enum for Session/Token/Assurance middleware.
  * This enumeration is valid for plugins of type 1
  */
 enum AFB_session_v1
 {
-       AFB_SESSION_NONE = 0,   /* no session and no authentification required */
-       AFB_SESSION_CREATE = 1, /* requires authentification and first call of the session */
-       AFB_SESSION_CLOSE = 2,  /* closes the session after authentification */
-       AFB_SESSION_RENEW = 4,  /* refreshes the token after authentification */
-       AFB_SESSION_CHECK = 8,  /* enforce authentification */
+       AFB_SESSION_NONE = 0,   /* nothing required */
+       AFB_SESSION_CREATE = 1, /* Obsolete */
+       AFB_SESSION_CLOSE = 2,  /* After token authentification, closes the session at end */
+       AFB_SESSION_RENEW = 4,  /* After token authentification, refreshes the token at end */
+       AFB_SESSION_CHECK = 8,  /* Requires token authentification */
 
        AFB_SESSION_LOA_GE = 16, /* check that the LOA is greater or equal to the given value */
        AFB_SESSION_LOA_LE = 32, /* check that the LOA is lesser or equal to the given value */
        AFB_SESSION_LOA_EQ = 48, /* check that the LOA is equal to the given value */
 
        AFB_SESSION_LOA_SHIFT = 6, /* shift for LOA */
-       AFB_SESSION_LOA_MASK = 3,  /* mask for LOA */
+       AFB_SESSION_LOA_MASK = 7,  /* mask for LOA */
 
        AFB_SESSION_LOA_0 = 0,   /* value for LOA of 0 */
        AFB_SESSION_LOA_1 = 64,  /* value for LOA of 1 */
        AFB_SESSION_LOA_2 = 128, /* value for LOA of 2 */
        AFB_SESSION_LOA_3 = 192, /* value for LOA of 3 */
+       AFB_SESSION_LOA_4 = 256, /* value for LOA of 4 */
 
        AFB_SESSION_LOA_LE_0 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_0, /* check LOA <= 0 */
        AFB_SESSION_LOA_LE_1 = AFB_SESSION_LOA_LE | AFB_SESSION_LOA_1, /* check LOA <= 1 */
@@ -208,11 +209,26 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
 }
 
 /*
+ * Broadcasts widely the event of 'name' with the data 'object'.
+ * 'object' can be NULL.
+ * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'object'.
+ * Thus, in the case where 'object' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+static inline void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
+{
+	return afb_event_sender_push(afb_daemon_get_event_sender(daemon), name, object);
+}
+
+/*
  * Send a message described by 'fmt' and following parameters
  * to the journal for the verbosity 'level'.
  * 'file' and 'line' are indicators of position of the code in source files.
  * 'daemon' MUST be the daemon given in interface when activating the plugin.
  */
+static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
@@ -222,9 +238,18 @@ static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const
 }
 
 #if !defined(NO_PLUGIN_VERBOSE_MACRO)
-# define ERROR(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define WARNING(itf,...) do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define NOTICE(itf,...)  do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define INFO(itf,...)    do{if(itf->verbosity>=2)afb_daemon_verbose(itf->daemon,6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
-# define DEBUG(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# if !defined(NO_PLUGIN_FILE_LINE_INDICATION)
+#  define ERROR(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define WARNING(itf,...) do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,4,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define NOTICE(itf,...)  do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,5,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define INFO(itf,...)    do{if(itf->verbosity>=2)afb_daemon_verbose(itf->daemon,6,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+#  define DEBUG(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,__FILE__,__LINE__,__VA_ARGS__);}while(0)
+# else
+#  define ERROR(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,NULL,0,__VA_ARGS__);}while(0)
+#  define WARNING(itf,...) do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,4,NULL,0,__VA_ARGS__);}while(0)
+#  define NOTICE(itf,...)  do{if(itf->verbosity>=1)afb_daemon_verbose(itf->daemon,5,NULL,0,__VA_ARGS__);}while(0)
+#  define INFO(itf,...)    do{if(itf->verbosity>=2)afb_daemon_verbose(itf->daemon,6,NULL,0,__VA_ARGS__);}while(0)
+#  define DEBUG(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,NULL,0,__VA_ARGS__);}while(0)
+# endif
 #endif
+
