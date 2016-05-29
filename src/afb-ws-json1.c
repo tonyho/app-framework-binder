@@ -416,7 +416,7 @@ static void aws_emit(struct afb_ws_json1 *aws, int code, const char *id, size_t 
 		json_object_array_add(msg, json_object_new_string(token));
 
 	/* emits the reply */
-	txt = json_object_to_json_string(msg);
+	txt = json_object_to_json_string_ext(msg, JSON_C_TO_STRING_PLAIN);
 	afb_ws_text(aws->ws, txt, strlen(txt));
 	json_object_put(msg);
 }

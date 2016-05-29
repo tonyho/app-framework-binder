@@ -27,12 +27,18 @@ AfbWsItf = (function(){
 	var RETERR = 4;
 
 	function AfbWsItf(base, onopen, onabort, ctx) {
+		ctx = ctx || new AfbCtxItf();
 		var wl = window.location;
 		var u = "ws://"+wl.host+"/"+base;
+		if (ctx.token) {
+			u = u + '?x-afb-token=' + ctx.token;
+			if (ctx.uuid)
+				u = u + '&x-afb-uuid=' + ctx.uuid;
+		}
 		this.ws = new (WebSocket || MozWebSocket)(u, [ "x-afb-ws-json1" ]);
 		this.pendings = {};
 		this.counter = 0;
-		this.ctx = ctx || new AfbCtxItf();
+		this.ctx = ctx;
 		this.ws.onopen = onopen.bind(this);
 		this.ws.onerror = onerror.bind(this);
 		this.ws.onclose = onclose.bind(this);

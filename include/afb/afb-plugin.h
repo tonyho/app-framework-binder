@@ -39,7 +39,6 @@
  */
 
 #include <afb/afb-req-itf.h>
-#include <afb/afb-event-sender-itf.h>
 
 /*
  * Definition of the versions of the plugin.
@@ -141,10 +140,10 @@ struct sd_bus;
  * Definition of the facilities provided by the daemon.
  */
 struct afb_daemon_itf {
-       struct afb_event_sender (*get_event_sender)(void *closure);           /* get the event manager */
-       struct sd_event *(*get_event_loop)(void *closure);      /* get the common systemd's event loop */
-       struct sd_bus *(*get_user_bus)(void *closure);          /* get the common systemd's user d-bus */
-       struct sd_bus *(*get_system_bus)(void *closure);        /* get the common systemd's system d-bus */
+       void (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
+       struct sd_event *(*get_event_loop)(void *closure);      /* gets the common systemd's event loop */
+       struct sd_bus *(*get_user_bus)(void *closure);          /* gets the common systemd's user d-bus */
+       struct sd_bus *(*get_system_bus)(void *closure);        /* gets the common systemd's system d-bus */
        void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
 };
 
@@ -171,15 +170,6 @@ struct AFB_interface
  * Function for registering the plugin
  */
 extern const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *interface);
-
-/*
- * Retrieves the event sender of AFB
- * 'daemon' MUST be the daemon given in interface when activating the plugin.
- */
-static inline struct afb_event_sender afb_daemon_get_event_sender(struct afb_daemon daemon)
-{
-	return daemon.itf->get_event_sender(daemon.closure);
-}
 
 /*
  * Retrieves the common systemd's event loop of AFB
@@ -219,7 +209,7 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
  */
 static inline void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
 {
-	return afb_event_sender_push(afb_daemon_get_event_sender(daemon), name, object);
+	return daemon.itf->event_broadcast(daemon.closure, name, object);
 }
 
 /*
@@ -237,6 +227,9 @@ static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const
 	va_end(args);
 }
 
+/*
+ * Macros for logging messages
+ */
 #if !defined(NO_PLUGIN_VERBOSE_MACRO)
 # if !defined(NO_PLUGIN_FILE_LINE_INDICATION)
 #  define ERROR(itf,...)   do{if(itf->verbosity>=0)afb_daemon_verbose(itf->daemon,3,__FILE__,__LINE__,__VA_ARGS__);}while(0)

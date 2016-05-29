@@ -10,6 +10,9 @@ SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application fr
 SET(PROJECT_VERSION "0.5")
 SET(PROJECT_URL "https://github.com/iotbzh/afb-daemon")
 
+SET(LIBAFBWSC_VERSION "0.5")
+SET(LIBAFBWSC_SOVERSION "0")
+
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
@@ -69,11 +72,11 @@ ADD_SUBDIRECTORY(plugins)
 ############################################################
 # installs the pkgconfig files
 CONFIGURE_FILE(afb-daemon.pc.in afb-daemon.pc @ONLY)
-CONFIGURE_FILE(afb-wsc.pc.in afb-wsc.pc @ONLY)
+CONFIGURE_FILE(libafbwsc.pc.in libafbwsc.pc @ONLY)
 
 INSTALL(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/afb-daemon.pc
-    ${CMAKE_CURRENT_BINARY_DIR}/afb-wsc.pc
+    ${CMAKE_CURRENT_BINARY_DIR}/libafbwsc.pc
     DESTINATION
     ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )

@@ -423,7 +423,7 @@ static void dbus_req_reply(struct dbus_req *dreq, uint8_t type, const char *firs
 
 static void dbus_req_success(struct dbus_req *dreq, struct json_object *obj, const char *info)
 {
-	dbus_req_reply(dreq, RETOK, json_object_to_json_string(obj), info);
+	dbus_req_reply(dreq, RETOK, json_object_to_json_string_ext(obj, JSON_C_TO_STRING_PLAIN), info);
 }
 
 static void dbus_req_fail(struct dbus_req *dreq, const char *status, const char *info)
@@ -516,7 +516,7 @@ static void afb_api_dbus_server_send_event(struct api_dbus *api, const char *eve
 	int rc;
 
 	rc = sd_bus_emit_signal(api->sdbus, api->path, api->name,
-			"event", "ss", event, json_object_to_json_string(object));
+			"event", "ss", event, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN));
 	if (rc < 0)
 		ERROR("error while emiting event %s", event);
 	json_object_put(object);

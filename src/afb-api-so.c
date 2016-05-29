@@ -30,7 +30,6 @@
 
 #include <afb/afb-plugin.h>
 #include <afb/afb-req-itf.h>
-#include <afb/afb-event-sender-itf.h>
 
 #include "session.h"
 #include "afb-common.h"
@@ -54,7 +53,7 @@ static int api_timeout = 15;
 
 static const char plugin_register_function_v1[] = "pluginAfbV1Register";
 
-static void afb_api_so_event_sender_push(struct api_so_desc *desc, const char *name, struct json_object *object)
+static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
 	size_t length;
 	char *event;
@@ -65,16 +64,7 @@ static void afb_api_so_event_sender_push(struct api_so_desc *desc, const char *n
 	memcpy(event, desc->plugin->v1.prefix, desc->apilength);
 	event[desc->apilength] = '/';
 	memcpy(event + desc->apilength + 1, name, length + 1);
-	ctxClientEventSend(NULL, event, object);
-}
-
-static const struct afb_event_sender_itf event_sender_itf = {
-	.push = (void*)afb_api_so_event_sender_push
-};
-
-static struct afb_event_sender afb_api_so_get_event_sender(struct api_so_desc *desc)
-{
-	return (struct afb_event_sender){ .itf = &event_sender_itf, .closure = desc };
+	return ctxClientEventSend(NULL, event, object);
 }
 
 static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char *file, int line, const char *fmt, va_list args)
@@ -90,7 +80,7 @@ static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char 
 }
 
 static const struct afb_daemon_itf daemon_itf = {
-	.get_event_sender = (void*)afb_api_so_get_event_sender,
+	.event_broadcast = (void*)afb_api_so_event_broadcast,
 	.get_event_loop = (void*)afb_common_get_event_loop,
 	.get_user_bus = (void*)afb_common_get_user_bus,
 	.get_system_bus = (void*)afb_common_get_system_bus,

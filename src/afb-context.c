@@ -58,7 +58,7 @@ int afb_context_connect(struct afb_context *context, const char *uuid, const cha
 	init_context(context, session, token);
 	if (created) {
 		context->created = 1;
-		context->refreshing = 1;
+		/* context->refreshing = 1; */
 	}
 	return 0;
 }
