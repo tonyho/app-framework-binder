@@ -1,0 +1,40 @@
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="doc.css">
+  <meta charset="UTF-8">
+</head>
+<body>
+<a name="HOWTO.WRITE.an.APPLICATION.above.AGL.FRAMEWORK"></a>
+<h1>HOWTO WRITE an APPLICATION above AGL FRAMEWORK</h1>
+
+<pre><code>version: 1
+Date:    29 mai 2016
+Author:  José Bollo
+</code></pre>
+
+<p><ul>
+ <li><a href="#HOWTO.WRITE.an.APPLICATION.above.AGL.FRAMEWORK">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</a>
+ <ul>
+  <li><a href="#Writing.a.C.application">Writing a C application</a></li>
+ </ul>
+ </li>
+</ul></p>
+
+<a name="Writing.a.C.application"></a>
+<h2>Writing a C application</h2>
+
+<p>C applications can use the binder afb-daemon through a websocket connection.</p>
+
+<p>The library <strong>libafbwsc</strong> is made for C clients that want
+to connect to the afb-daemon binder.</p>
+
+<p>The program <strong>afb-client-demo</strong> is the C program that use
+the provided library <strong>libafbwsc</strong>.
+Its source code is here
+<a href="https://github.com/iotbzh/afb-daemon/blob/master/src/afb-client-demo.c">src/afb-client-demo.c</a>.</p>
+
+<p>The current implementation use libsystemd and file descriptors.
+This may be changed in the future to also support secure sockets
+and being less dependant of libsystemd.</p>
+</body>
+</html>

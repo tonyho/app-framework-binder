@@ -1,0 +1,72 @@
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="doc.css">
+  <meta charset="UTF-8">
+</head>
+<body>
+<a name="Overview.of.AFB-DAEMON"></a>
+<h1>Overview of AFB-DAEMON</h1>
+
+<pre><code>version: 1
+Date:    29 mai 2016
+Author:  José Bollo
+</code></pre>
+
+<p><ul>
+ <li><a href="#Overview.of.AFB-DAEMON">Overview of AFB-DAEMON</a>
+ <ul>
+  <li><a href="#Roles.of.afb-daemon">Roles of afb-daemon</a></li>
+ </ul>
+ </li>
+</ul></p>
+
+<a name="Roles.of.afb-daemon"></a>
+<h2>Roles of afb-daemon</h2>
+
+<p>The name <strong>afb-daemon</strong> stands for <em>Application
+Framework Binder Daemon</em>. That is why afb-daemon
+is also named <strong><em>the binder</em></strong>.</p>
+
+<p><strong>Afb-daemon</strong> is in charge to bind one instance of
+an application to the AGL framework and AGL system.</p>
+
+<p>On the following figure, you can use a typical use
+of afb-daemon:</p>
+
+<pre><code>. . . . . . . . . . . . . . . . . . . . . . . . . .
+.        Isolated security context                .
+.                                                 .
+.        +------------------------------+         .
+.        |                              |         .
+.        |    A P P L I C A T I O N     |         .
+.        |                              |         .
+.        +--------------+---------------+         .
+.                       |                         .
+.                       |                         .
+.   +-------------------+----------------------+  .
+.   |                            :             |  .
+.   |    A F B - D A E M O N     :   PLUGINS   |  .
+.   |                            :             |  .
+.   +-------------------+----------------------+  .
+.                       |                         .
+. . . . . . . . . . . . | . . . . . . . . . . . . .
+                        |
+                        v
+                   AGL SYSTEM
+</code></pre>
+
+<p>The application and its companion binder run in secured and isolated
+environment set for them. Applications are intended to access to AGL
+system through the binder.</p>
+
+<p>The binder afb-daemon serves multiple purposes:</p>
+
+<ol>
+<li><p>It acts as a gateway for the application to access the system;</p></li>
+<li><p>It acts as an HTTP server for serving files to HTML5 applications;</p></li>
+<li><p>It allows HTML5 applications to have native extensions subject
+to security enforcement for accessing hardware ressources or
+for speeding parts of algorithm.</p></li>
+</ol>
+</body>
+</html>
