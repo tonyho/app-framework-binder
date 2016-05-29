@@ -390,24 +390,24 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 
 	/* serve directory */
 	if (S_ISDIR(st.st_mode)) {
-		static const char *indexes[] = { "index.html", NULL };
-		int i = 0;
-		rc = 0;
-		while (indexes[i] != NULL) {
-			if (faccessat(fd, indexes[i], R_OK, 0) == 0) {
-				if (hreq->url[hreq->lenurl - 1] != '/') {
-					/* the redirect is needed for reliability of relative path */
-					char *tourl = alloca(hreq->lenurl + 2);
-					memcpy(tourl, hreq->url, hreq->lenurl);
-					tourl[hreq->lenurl] = '/';
-					tourl[hreq->lenurl + 1] = 0;
-					rc = afb_hreq_redirect_to(hreq, tourl);
-				} else {
+		if (hreq->url[hreq->lenurl - 1] != '/') {
+			/* the redirect is needed for reliability of relative path */
+			char *tourl = alloca(hreq->lenurl + 2);
+			memcpy(tourl, hreq->url, hreq->lenurl);
+			tourl[hreq->lenurl] = '/';
+			tourl[hreq->lenurl + 1] = 0;
+			rc = afb_hreq_redirect_to(hreq, tourl, 1);
+		} else {
+			static const char *indexes[] = { "index.html", NULL };
+			int i = 0;
+			rc = 0;
+			while (indexes[i] != NULL) {
+				if (faccessat(fd, indexes[i], R_OK, 0) == 0) {
 					rc = afb_hreq_reply_file_if_exist(hreq, fd, indexes[i]);
+					break;
 				}
-				break;
+				i++;
 			}
-			i++;
 		}
 		close(fd);
 		return rc;
@@ -472,12 +472,103 @@ int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 	return 1;
 }
 
-int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url)
+struct _mkq_ {
+	int count;
+	size_t length;
+	size_t alloc;
+	char *text;
+};
+
+static void _mkq_add_(struct _mkq_ *mkq, char value)
 {
-	/* TODO: append the query part! */
+	char *text = mkq->text;
+	if (text != NULL) {
+		if (mkq->length == mkq->alloc) {
+			mkq->alloc += 100;
+			text = realloc(text, mkq->alloc);
+			if (text == NULL) {
+				free(mkq->text);
+				mkq->text = NULL;
+				return;
+			}
+			mkq->text = text;
+		}
+		text[mkq->length++] = value;
+	}
+}
+
+static void _mkq_add_hex_(struct _mkq_ *mkq, char value)
+{
+	_mkq_add_(mkq, (char)(value < 10 ? value + '0' : value + 'A' - 10));
+}
+
+static void _mkq_add_esc_(struct _mkq_ *mkq, char value)
+{
+	_mkq_add_(mkq, '%');
+	_mkq_add_hex_(mkq, (char)((value >> 4) & 15));
+	_mkq_add_hex_(mkq, (char)(value & 15));
+}
+
+static void _mkq_add_char_(struct _mkq_ *mkq, char value)
+{
+	if (value <= ' ' || value >= 127)
+		_mkq_add_esc_(mkq, value);
+	else
+		switch(value) {
+		case '=':
+		case '&':
+		case '%':
+			_mkq_add_esc_(mkq, value);
+			break;
+		default:
+			_mkq_add_(mkq, value);
+		}
+}
+
+static void _mkq_append_(struct _mkq_ *mkq, const char *value)
+{
+	while(*value)
+		_mkq_add_char_(mkq, *value++);
+}
+
+static int _mkquery_(struct _mkq_ *mkq, enum MHD_ValueKind kind, const char *key, const char *value)
+{
+	_mkq_add_(mkq, mkq->count++ ? '&' : '?');
+	_mkq_append_(mkq, key);
+	if (value != NULL) {
+		_mkq_add_(mkq, '=');
+		_mkq_append_(mkq, value);
+	}
+	return 1;
+}
+
+static char *url_with_query(struct afb_hreq *hreq, const char *url)
+{
+	struct _mkq_ mkq;
+
+	mkq.count = 0;
+	mkq.length = strlen(url);
+	mkq.alloc = mkq.length + 1000;
+	mkq.text = malloc(mkq.alloc);
+	if (mkq.text != NULL) {
+		strcpy(mkq.text, url);
+		MHD_get_connection_values(hreq->connection, MHD_GET_ARGUMENT_KIND, (void*)_mkquery_, &mkq);
+		_mkq_add_(&mkq, 0);
+	}
+	return mkq.text;
+}
+
+int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url, int add_query_part)
+{
+	const char *to;
+	char *wqp;
+
+	wqp = add_query_part ? url_with_query(hreq, url) : NULL;
+	to = wqp ? : url;
 	afb_hreq_reply_static(hreq, MHD_HTTP_MOVED_PERMANENTLY, 0, NULL,
-			MHD_HTTP_HEADER_LOCATION, url, NULL);
+			MHD_HTTP_HEADER_LOCATION, to, NULL);
 	DEBUG("redirect from [%s] to [%s]", hreq->url, url);
+	free(wqp);
 	return 1;
 }
 

@@ -58,7 +58,7 @@ extern int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, con
 
 extern int afb_hreq_reply_file(struct afb_hreq *request, int dirfd, const char *filename);
 
-extern int afb_hreq_redirect_to(struct afb_hreq *request, const char *url);
+extern int afb_hreq_redirect_to(struct afb_hreq *request, const char *url, int add_query_part);
 
 extern const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name);
 

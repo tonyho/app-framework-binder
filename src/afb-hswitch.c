@@ -73,7 +73,7 @@ int afb_hswitch_one_page_api_redirect(struct afb_hreq *hreq, void *data)
 	url[plen++] = '#';
 	url[plen++] = '!';
 	memcpy(&url[plen], &hreq->tail[1], hreq->lentail);
-	return afb_hreq_redirect_to(hreq, url);
+	return afb_hreq_redirect_to(hreq, url, 1);
 }
 
 int afb_hswitch_websocket_switch(struct afb_hreq *hreq, void *data)
