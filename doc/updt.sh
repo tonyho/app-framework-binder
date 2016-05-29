@@ -29,7 +29,7 @@ updadate() {
 mkhtml() {
   local x=$1
   local h=${x%%.md}.html
-  expand -i $x | sed 's:        :    :' > $h.pre
+  expand -i $x | sed 's:^        :    :' > $h.pre
   markdown -f toc,autolink $h.pre > $h.toc.no
   markdown -Tf toc,autolink $h.pre > $h.toc.yes
   head --bytes=-$(stat -c %s $h.toc.no) $h.toc.yes > $h.toc
