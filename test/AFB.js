@@ -42,7 +42,13 @@ var AFB_websocket;
 	var PROTO1 = "x-afb-ws-json1";
 
 	AFB_websocket = function(onopen, onabort) {
-		this.ws = new WebSocket(urlws, [ PROTO1 ]);
+		var u = urlws;
+		if (AFB_context.token) {
+			u = u + '?x-afb-token=' + AFB_context.token;
+			if (AFB_context.uuid)
+				u = u + '&x-afb-uuid=' + AFB_context.uuid;
+		}
+		this.ws = new WebSocket(u, [ PROTO1 ]);
 		this.pendings = {};
 		this.awaitens = {};
 		this.counter = 0;
