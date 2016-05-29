@@ -73,6 +73,9 @@ INSTALL(TARGETS afb-daemon
 # build and install libafbwsc
 ###########################################
 ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c afb-common.c)
+SET_TARGET_PROPERTIES(afbwsc PROPERTIES
+	VERSION ${LIBAFBWSC_VERSION}
+	SOVERSION ${LIBAFBWSC_SOVERSION})
 TARGET_LINK_LIBRARIES(afbwsc
 	${libsystemd_LIBRARIES}
 	-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/export-afbwsc.map

@@ -10,6 +10,9 @@ SET(PROJECT_DESCRIPTION "Secured binder of API for clients of the Application fr
 SET(PROJECT_VERSION "0.5")
 SET(PROJECT_URL "https://github.com/iotbzh/afb-daemon")
 
+SET(LIBAFBWSC_VERSION "0.5")
+SET(LIBAFBWSC_SOVERSION "0")
+
 INCLUDE(FindPkgConfig)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
