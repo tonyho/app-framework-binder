@@ -4,15 +4,13 @@
   <meta charset="UTF-8">
 </head>
 <body>
-<a name="Overview.of.plugins.shipped.with.AFB-Daemon"></a>
 <h1>Overview of plugins shipped with AFB-Daemon</h1>
 
 <pre><code>Version: 1
-Date:    30 mai 2016
+Date:    30 May 2016
 Author:  Manuel Bachmann
 </code></pre>
 
-<a name="List.of.plugins"></a>
 <h2>List of plugins</h2>
 
 <p>Here are the plugins shipped in the source tree:</p>
@@ -22,22 +20,18 @@ Author:  Manuel Bachmann
 <li>Authentication</li>
 <li>Tic Tac Toe</li>
 <li>Audio <em>(2 backends: ALSA/PulseAudio)</em></li>
-<li>Radio <em>(1 backend: RTLSDR RTL2832U)</em></li>
 <li>Media <em>(1 backend: Rygel UPnP)</em></li>
 </ul>
 
-
 <p>All plugins may not be built, depending on the development libraries present on the system at build time.</p>
 
-<a name="Detail.of.plugins"></a>
 <h2>Detail of plugins</h2>
 
-<a name="Hello.World"></a>
 <h3>Hello World</h3>
 
 <p>A sample Hello World plugin for demonstration and learning purposes.</p>
 
-<p>This plugin provides a few unauthenticated requests, all beginning with &ldquo;ping&rdquo;, to demonstrate basic binder capabilities.</p>
+<p>This plugin provides a few unauthenticated requests, all beginning with "ping", to demonstrate basic binder capabilities.</p>
 
 <p><strong>Verbs</strong>:</p>
 
@@ -50,17 +44,15 @@ Author:  Manuel Bachmann
 <li><em>pingevent:</em> broadcasts a global event</li>
 </ul>
 
-
 <p><br /></p>
 
-<a name="Authentication"></a>
 <h3>Authentication</h3>
 
 <p>An sample Authentication plugin for demonstration purposes.</p>
 
-<p>This plugin provides a few requests to demonstrate the binder&rsquo;s token-based security mechanism.</p>
+<p>This plugin provides a few requests to demonstrate the binder's token-based security mechanism.</p>
 
-<p>Calling &ldquo;<em>connect</em>&rdquo; with a security token will initiate a session, calling &ldquo;<em>refresh</em>&rdquo; will issue a new token and invalidate the previous one, calling &ldquo;<em>logout</em>&rdquo; will invalidate all tokens and close the session.</p>
+<p>Calling "<em>connect</em>" with a security token will initiate a session, calling "<em>refresh</em>" will issue a new token and invalidate the previous one, calling "<em>logout</em>" will invalidate all tokens and close the session.</p>
 
 <p><strong>Verbs</strong>:</p>
 
@@ -72,15 +64,13 @@ Author:  Manuel Bachmann
 <li><em>logout:</em> closes the session</li>
 </ul>
 
-
 <p><br /></p>
 
-<a name="Tic.Tac.Toe"></a>
 <h3>Tic Tac Toe</h3>
 
 <p>A sample Tic Tac Toe game plugin.</p>
 
-<p>This plugin provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response.</p>
+<p>This plugin provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response. </p>
 
 <p><strong>Verbs</strong>:</p>
 
@@ -95,10 +85,8 @@ Author:  Manuel Bachmann
 <li><em>wait</em>: wait for a move</li>
 </ul>
 
-
 <p><br /></p>
 
-<a name="Audio"></a>
 <h3>Audio</h3>
 
 <p>A sample Audio plugin with 2 backends:</p>
@@ -108,59 +96,27 @@ Author:  Manuel Bachmann
 <li>PulseAudio (optional)</li>
 </ul>
 
-
-<p>This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo&hellip;), mute sound, and play a 22,050 Hz PCM stream.</p>
+<p>This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo...), mute sound, and play a 22,050 Hz PCM stream.</p>
 
 <p><strong>Verbs</strong>:</p>
 
 <ul>
 <li><em>ping:</em> returns a success response</li>
-<li><em>init:</em> initializes backend, on the &ldquo;default&rdquo; sound card</li>
+<li><em>init:</em> initializes backend, on the "default" sound card</li>
 <li><em>volume:</em> gets or sets volume, in % (0-100)</li>
 <li><em>channels:</em> gets or sets channels count (1-8)</li>
 <li><em>mute:</em> gets or sets the mute status (on-off)</li>
 <li><em>play</em>: gets or sets the playing status (on-off)</li>
 </ul>
 
-
 <p><em>(if PulseAudio development libraries are not found at build time, only ALSA will be available)</em></p>
 
 <p><em>(if a PulseAudio server is not found at runtime, the plugin will dynamically fall back to ALSA)</em></p>
 
-<p><em>(a specifc backend can be forced by using this syntax before running afb-daemon : <strong>$ export AFB_AUDIO_OUTPUT=Alsa</strong>)</em></p>
+<p><em>(a specifc backend can be forced by using this syntax before running afb-daemon : <strong>$ export AFB</em>AUDIO<em>OUTPUT=Alsa</strong>)</em></p>
 
 <p><br /></p>
 
-<a name="Radio"></a>
-<h3>Radio</h3>
-
-<p>A sample AM/FM Radio plugin with 1 backend:</p>
-
-<ul>
-<li>RTLSDR - Realtek RTL2832U dongles (mandatory)</li>
-</ul>
-
-
-<p>This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the <strong>audio</strong> plugin).</p>
-
-<p><strong>Verbs</strong>:</p>
-
-<ul>
-<li><em>ping:</em> returns a success response</li>
-<li><em>init:</em> initializes backend, looking for plugged-in devices</li>
-<li><em>power:</em> sets device power status (on-off)</li>
-<li><em>mode:</em> sets device reception mode (AM-FM)</li>
-<li><em>freq:</em> sets device frequency (in Hz)</li>
-<li><em>mute</em>: sets device mute status (on-off)</li>
-<li><em>play</em>: sets device playing status (on-off)</li>
-</ul>
-
-
-<p><em>(if rtlsdr development libraries are not found at build time, this plugin will not be built)</em></p>
-
-<p><br /></p>
-
-<a name="Media"></a>
 <h3>Media</h3>
 
 <p>A sample Media Server plugin with 1 backend:</p>
@@ -168,7 +124,6 @@ Author:  Manuel Bachmann
 <ul>
 <li>Rygel</li>
 </ul>
-
 
 <p>This plugin is able to detect a local Rygel UPnP media server, list audio files, select an audio file for playback, play/pause/seek in this file, upload an audio file to the server.</p>
 
@@ -178,14 +133,13 @@ Author:  Manuel Bachmann
 <li><em>ping:</em> returns a success response</li>
 <li><em>init:</em> initializes backend, looking for an active local UPnP server</li>
 <li><em>list:</em> returns list of audio files, as a JSON structure</li>
-<li><em>select:</em> select an audio files, by index number (001-&hellip;)</li>
+<li><em>select:</em> select an audio files, by index number (001-...)</li>
 <li><em>play:</em> plays the currently selected audio file</li>
 <li><em>stop:</em> stops the currently selected audio file</li>
 <li><em>pause:</em> pauses the currently selected audio file</li>
 <li><em>seek:</em> seeks in the currently selected audio file, in seconds</li>
 <li><em>upload:</em> uploads an audio file, with a POST request</li>
 </ul>
-
 
 <p><em>(if GUPnP/GSSDP development libraries are not fund at build time, this plugin will not be built)</em></p>
 

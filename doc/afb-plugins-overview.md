@@ -5,14 +5,12 @@
 
 
 ## List of plugins
-
 Here are the plugins shipped in the source tree:
 
 * Hello World
 * Authentication
 * Tic Tac Toe
 * Audio _(2 backends: ALSA/PulseAudio)_
-* Radio _(1 backend: RTLSDR RTL2832U)_
 * Media _(1 backend: Rygel UPnP)_
 
 All plugins may not be built, depending on the development libraries present on the system at build time.
@@ -100,29 +98,6 @@ _(if PulseAudio development libraries are not found at build time, only ALSA wil
 _(if a PulseAudio server is not found at runtime, the plugin will dynamically fall back to ALSA)_
 
 _(a specifc backend can be forced by using this syntax before running afb-daemon : **$ export AFB_AUDIO_OUTPUT=Alsa**)_
-
-<br />
-
-
-### Radio
-
-A sample AM/FM Radio plugin with 1 backend:
-
-* RTLSDR - Realtek RTL2832U dongles (mandatory)
-
-This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the **audio** plugin).
-
-**Verbs**:
-
-* _ping:_ returns a success response
-* _init:_ initializes backend, looking for plugged-in devices
-* _power:_ sets device power status (on-off)
-* _mode:_ sets device reception mode (AM-FM)
-* _freq:_ sets device frequency (in Hz)
-* _mute_: sets device mute status (on-off)
-* _play_: sets device playing status (on-off)
-
-_(if rtlsdr development libraries are not found at build time, this plugin will not be built)_
 
 <br />
 
