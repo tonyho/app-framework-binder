@@ -74,12 +74,14 @@ of the client named session.
 ### Handling sessions
 
 Plugins and features of the binder need to keep track of the client
-instances. In principle, a binder afb-daemon is launched by application
-instance. But for services, a binder 
+instances. This of importance for plugins running as service
+because they may have to separate the data of each client.
+
+For common HTML5 browser running an HTML5 application.
 
 ### Exchanging tokens
 
-At start, the framework communicate a common secret to both the binder
+At start, the framework communicates a common secret to both the binder
 and its client: the application. This initial secret is the
 initial token.
 

@@ -1,0 +1,106 @@
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="doc.css">
+  <meta charset="UTF-8">
+</head>
+<body>
+<a name="Overview.of.tests.shipped.with.AFB-Daemon"></a>
+<h1>Overview of tests shipped with AFB-Daemon</h1>
+
+<pre><code>Version: 1
+Date:    30 mai 2016
+Author:  Manuel Bachmann
+</code></pre>
+
+<a name="List.of.tests"></a>
+<h2>List of tests</h2>
+
+<p>Here are the tests shipped in the source tree:</p>
+
+<ul>
+<li><strong>afb-client-demo</strong> (command-line WebSockets)</li>
+<li><strong>token-websock.qml</strong> (Qt/QML WebSockets)</li>
+<li><strong>*.html</strong> (HTML5/JS HTTP-REST &amp; WebSockets)</li>
+</ul>
+
+
+<a name="Detail.of.tests"></a>
+<h2>Detail of tests</h2>
+
+<a name="afb-client-demo..command-line.WebSockets."></a>
+<h3>afb-client-demo (command-line WebSockets)</h3>
+
+<p>This clients interactively calls plugins APIs from the command line, using the binder
+<a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> facility.</p>
+
+<p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
+
+<pre><code>$ afb-daemon --port=1234 --token=123456 [...]
+</code></pre>
+
+<p>Then run the client with :</p>
+
+<pre><code>afb-client-demo ws://localhost:1234/api?token=123456 [&lt;api&gt; &lt;verb&gt; [&lt;json-data&gt;]]
+</code></pre>
+
+<p>For instance, to initialize the Audio plugin from the command line :</p>
+
+<pre><code>afb-client-demo ws://localhost:1234/api?token=123456
+</code></pre>
+
+<p>The command doesn&rsquo;t return. You should type requests of type <api> <verb> [&lt;json-data>].
+So, try:</p>
+
+<pre><code>auth connect
+audio init
+</code></pre>
+
+<p><br /></p>
+
+<a name="token-websock.qml..Qt.QML.WebSockets."></a>
+<h3>token-websock.qml (Qt/QML WebSockets)</h3>
+
+<p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
+
+<pre><code>$ afb-daemon --port=1234 --token=123456 [...]
+</code></pre>
+
+<p>and Qt5 is installed.</p>
+
+<p>For installing Qt5 on <strong>Ubuntu 16.04</strong>:</p>
+
+<pre><code>$ apt-get install qmlscene qml-module-qtwebsockets qml-module-qtquick-controls
+</code></pre>
+
+<p>For installing Qt5 on <strong>Fedora 23</strong> :</p>
+
+<pre><code>$ dnf install qt5-qtdeclarative-devel qt5-qtwebsockets-devel qt5-qtquickcontrols
+</code></pre>
+
+<p>Then run the client with :</p>
+
+<pre><code>qmlscene test/token-websock.qml
+</code></pre>
+
+<p>and interactively press the buttons, &ldquo;Connect&rdquo;, &ldquo;Refresh&rdquo;, &ldquo;Logout&rdquo;.</p>
+
+<p><br /></p>
+
+<a name="L..html..HTML5.JS.HTTP-REST..amp..WebSockets."></a>
+<h3>*.html (HTML5/JS HTTP-REST &amp; WebSockets)</h3>
+
+<p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
+
+<pre><code>$ afb-daemon --port=1234 --rootdir=$PWD/test [...]
+</code></pre>
+
+<p><em>(&ldquo;$PWD/test</em>&rdquo; being the &ldquo;test&rdquo; subdirectory of the source tree)_</p>
+
+<p>Then open your preferred Web browser, connect to the following URL:</p>
+
+<pre><code>http://localhost:1234
+</code></pre>
+
+<p>and interactively run the various tests.</p>
+</body>
+</html>

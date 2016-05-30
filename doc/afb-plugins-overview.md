@@ -1,6 +1,6 @@
 # Overview of plugins shipped with AFB-Daemon
     Version: 1
-    Date:    30 May 2016
+    Date:    30 mai 2016
     Author:  Manuel Bachmann
 
 

@@ -198,6 +198,10 @@ API of its plugins.</p>
 . . . . . . . . . . . . . . . . . . . . . .     . . . . . . . . . . . . . . . . . . . . . .
 </code></pre>
 
+<p>For this case, the binder afb-daemon takes care to attribute one single session
+context to each client instance. It allows plugins to store and retrieve data
+associated to each of its client.</p>
+
 <a name="The.plugins.of.the.binder.afb-daemon"></a>
 <h2>The plugins of the binder afb-daemon</h2>
 
@@ -214,7 +218,8 @@ written with any language through web technologies ala JSON RPC.</p>
 </ol>
 
 
-<p>A specific document shows</p>
+<p>A specific document explains how to write an afb-daemon binder plugin:
+<a href="afb-plugin-writing.html">HOWTO WRITE a PLUGIN for AFB-DAEMON</a></p>
 
 <a name="Launching.the.binder.afb-daemon"></a>
 <h2>Launching the binder afb-daemon</h2>

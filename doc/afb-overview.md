@@ -166,6 +166,10 @@ In that case, the figure showing the whole aspects is
 	. . . . . . . . . . . . . . . . . . . . . .     . . . . . . . . . . . . . . . . . . . . . .
 
 
+For this case, the binder afb-daemon takes care to attribute one single session
+context to each client instance. It allows plugins to store and retrieve data
+associated to each of its client.
+
 The plugins of the binder afb-daemon
 ------------------------------------
 
@@ -181,7 +185,8 @@ This simple idea is declined to serves multiple purposes:
 
 3. provide customers services
 
-A specific document shows 
+A specific document explains how to write an afb-daemon binder plugin:
+[HOWTO WRITE a PLUGIN for AFB-DAEMON](afb-plugin-writing.html)
 
 
 Launching the binder afb-daemon
