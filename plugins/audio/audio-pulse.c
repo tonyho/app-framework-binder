@@ -61,13 +61,12 @@ unsigned char _pulse_init (const char *name, audioCtxHandleT *ctx) {
     while (tv_now.tv_sec - tv_start.tv_sec <= 2) {
         pa_mainloop_iterate (pa_loop, 0, &ret);
 
-        if (ret == -1) {
-			fprintf (stderr, "Stopping PulseAudio backend...\n");
+        if (ret == -1) { /* generic error */
+            fprintf (stderr, "Stopping PulseAudio backend...\n");
             return 0;
         }
 
-	/* 0 and >100 are returned by PulseAudio itself */
-        if ((ret > 0)&&(ret < 100)) {
+        if ((ret > 0)&&(ret < 100)) { /* 0 and >100 are PulseAudio codes */
             /* found a matching sink from callback */
             fprintf (stderr, "Success : using sink n.%d\n", ret-1);
             ctx->audio_dev = (void*)dev_ctx_p[ret-1];
@@ -168,7 +167,7 @@ unsigned int _pulse_get_volume (audioCtxHandleT *ctx, unsigned int channel) {
 
     _pulse_refresh_sink (dev_ctx_p_c);
 
-    return dev_ctx_p_c->volume.values[channel];
+    return (dev_ctx_p_c->volume.values[channel]*100)/PA_VOLUME_NORM;
 }
 
 void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsigned int vol) {
@@ -180,7 +179,7 @@ void _pulse_set_volume (audioCtxHandleT *ctx, unsigned int channel, unsigned int
         return;
 
     volume = dev_ctx_p_c->volume;
-    volume.values[channel] = vol;
+    volume.values[channel] = (vol*PA_VOLUME_NORM)/100;
 
     pa_context_set_sink_volume_by_name (dev_ctx_p_c->pa_context, dev_ctx_p_c->sink_name,
                                         &volume, NULL, NULL);
@@ -231,10 +230,23 @@ void _pulse_set_mute (audioCtxHandleT *ctx, unsigned char mute) {
 
 void _pulse_refresh_sink (dev_ctx_pulse_T* dev_ctx_p_c) {
 
+    pa_mainloop_api *pa_api;
+
+    dev_ctx_p_c->pa_loop = pa_mainloop_new ();
+    pa_api = pa_mainloop_get_api (dev_ctx_p_c->pa_loop);
+    dev_ctx_p_c->pa_context = pa_context_new (pa_api, "afb-audio-plugin");
+
     dev_ctx_p_c->refresh = 1;
 
-    pa_context_get_sink_info_by_name (dev_ctx_p_c->pa_context, dev_ctx_p_c->sink_name,
-                                      _pulse_sink_info_cb, (void*)dev_ctx_p_c);
+    switch (pa_context_get_state (dev_ctx_p_c->pa_context)) {
+      case PA_CONTEXT_READY:
+        pa_context_get_sink_info_by_name (dev_ctx_p_c->pa_context,
+                                          dev_ctx_p_c->sink_name,
+                                          _pulse_sink_info_cb, (void*)dev_ctx_p_c);
+        break;
+      default:
+        return;
+    }
 
     while (dev_ctx_p_c->refresh)
         pa_mainloop_iterate (dev_ctx_p_c->pa_loop, 0, NULL);
@@ -348,6 +360,9 @@ void _pulse_context_cb (pa_context *context, void *data) {
     if (state == PA_CONTEXT_FAILED) {
         fprintf (stderr, "Could not connect to PulseAudio !\n");
         pa_mainloop_quit (dev_ctx_p_t->pa_loop, -1);
+        pa_context_disconnect (dev_ctx_p_t->pa_context);
+        pa_context_unref (dev_ctx_p_t->pa_context);
+        pa_mainloop_free (dev_ctx_p_t->pa_loop);
     }
 
     if (state == PA_CONTEXT_READY)
@@ -384,6 +399,9 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
                     fprintf (stderr, "Found matching sink : %s\n", info->name);
                     /* we return num+1 because '0' is already used */
                     pa_mainloop_quit (dev_ctx_p_t->pa_loop, num+1);
+                    pa_context_disconnect (dev_ctx_p_t->pa_context);
+                    pa_context_unref (dev_ctx_p_t->pa_context);
+                    pa_mainloop_free (dev_ctx_p_t->pa_loop);
                 }
             }
             /* it did not, ignore and return */
@@ -419,6 +437,9 @@ void _pulse_sink_list_cb (pa_context *context, const pa_sink_info *info,
              fprintf (stderr, "Found matching sink : %s\n", info->name);
              /* we return num+1 because '0' is already used */
              pa_mainloop_quit (dev_ctx_p_t->pa_loop, num+1);
+             pa_context_disconnect (dev_ctx_p_t->pa_context);
+             pa_context_unref (dev_ctx_p_t->pa_context);
+             pa_mainloop_free (dev_ctx_p_t->pa_loop);
         }
     }
 }
