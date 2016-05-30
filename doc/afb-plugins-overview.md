@@ -5,13 +5,15 @@
 
 
 ## List of plugins
-  Here are the plugins shipped in the source tree:
- * Hello World
- * Authentication
- * Tic Tac Toe
- * Audio _(2 backends: ALSA/PulseAudio)_
- * Radio _(1 backend: RTLSDR RTL2832U)_
- * Media _(1 backend: Rygel UPnP)_
+
+Here are the plugins shipped in the source tree:
+
+* Hello World
+* Authentication
+* Tic Tac Toe
+* Audio _(2 backends: ALSA/PulseAudio)_
+* Radio _(1 backend: RTLSDR RTL2832U)_
+* Media _(1 backend: Rygel UPnP)_
 
 All plugins may not be built, depending on the development libraries present on the system at build time.
 
@@ -25,6 +27,7 @@ A sample Hello World plugin for demonstration and learning purposes.
 This plugin provides a few unauthenticated requests, all beginning with "ping", to demonstrate basic binder capabilities.
 
 **Verbs**:
+
 * _ping:_ returns a success response
 * _pingfail:_ returns a failure response
 * _pingnull:_ returns a success response, with an empty JSON response field
@@ -44,6 +47,7 @@ This plugin provides a few requests to demonstrate the binder's token-based secu
 Calling "_connect_" with a security token will initiate a session, calling "_refresh_" will issue a new token and invalidate the previous one, calling "_logout_" will invalidate all tokens and close the session.
 
 **Verbs**:
+
 * _ping:_ returns a success response
 * _connect:_ creates a session and returns a new token
 * _refresh:_ returns a new token
@@ -60,6 +64,7 @@ A sample Tic Tac Toe game plugin.
 This plugin provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response. 
 
 **Verbs**:
+
 * _new:_ starts a new game
 * _play:_ asks the server to play
 * _move:_ gives a client move
@@ -75,12 +80,14 @@ This plugin provides an interactive Tic Tac Toe game where the binder returns th
 ### Audio
 
 A sample Audio plugin with 2 backends:
- * ALSA (mandatory)
- * PulseAudio (optional)
+
+* ALSA (mandatory)
+* PulseAudio (optional)
 
 This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo...), mute sound, and play a 22,050 Hz PCM stream.
 
 **Verbs**:
+
 * _ping:_ returns a success response
 * _init:_ initializes backend, on the "default" sound card
 * _volume:_ gets or sets volume, in % (0-100)
@@ -100,11 +107,13 @@ _(a specifc backend can be forced by using this syntax before running afb-daemon
 ### Radio
 
 A sample AM/FM Radio plugin with 1 backend:
- * RTLSDR - Realtek RTL2832U dongles (mandatory)
+
+* RTLSDR - Realtek RTL2832U dongles (mandatory)
 
 This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the **audio** plugin).
 
 **Verbs**:
+
 * _ping:_ returns a success response
 * _init:_ initializes backend, looking for plugged-in devices
 * _power:_ sets device power status (on-off)
@@ -121,11 +130,13 @@ _(if rtlsdr development libraries are not found at build time, this plugin will 
 ### Media
 
 A sample Media Server plugin with 1 backend:
+
  * Rygel
 
 This plugin is able to detect a local Rygel UPnP media server, list audio files, select an audio file for playback, play/pause/seek in this file, upload an audio file to the server.
 
 **Verbs**:
+
 * _ping:_ returns a success response
 * _init:_ initializes backend, looking for an active local UPnP server
 * _list:_ returns list of audio files, as a JSON structure

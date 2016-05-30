@@ -15,13 +15,17 @@ Author:  Manuel Bachmann
 <a name="List.of.plugins"></a>
 <h2>List of plugins</h2>
 
-<p>  Here are the plugins shipped in the source tree:
- * Hello World
- * Authentication
- * Tic Tac Toe
- * Audio <em>(2 backends: ALSA/PulseAudio)</em>
- * Radio <em>(1 backend: RTLSDR RTL2832U)</em>
- * Media <em>(1 backend: Rygel UPnP)</em></p>
+<p>Here are the plugins shipped in the source tree:</p>
+
+<ul>
+<li>Hello World</li>
+<li>Authentication</li>
+<li>Tic Tac Toe</li>
+<li>Audio <em>(2 backends: ALSA/PulseAudio)</em></li>
+<li>Radio <em>(1 backend: RTLSDR RTL2832U)</em></li>
+<li>Media <em>(1 backend: Rygel UPnP)</em></li>
+</ul>
+
 
 <p>All plugins may not be built, depending on the development libraries present on the system at build time.</p>
 
@@ -35,13 +39,17 @@ Author:  Manuel Bachmann
 
 <p>This plugin provides a few unauthenticated requests, all beginning with &ldquo;ping&rdquo;, to demonstrate basic binder capabilities.</p>
 
-<p><strong>Verbs</strong>:
-* <em>ping:</em> returns a success response
-* <em>pingfail:</em> returns a failure response
-* <em>pingnull:</em> returns a success response, with an empty JSON response field
-* <em>pingbug:</em> does a memory violation (intercepted by the binder)
-* <em>pingJson:</em> returns a success response, with a complex JSON response field
-* <em>pingevent:</em> broadcasts a global event</p>
+<p><strong>Verbs</strong>:</p>
+
+<ul>
+<li><em>ping:</em> returns a success response</li>
+<li><em>pingfail:</em> returns a failure response</li>
+<li><em>pingnull:</em> returns a success response, with an empty JSON response field</li>
+<li><em>pingbug:</em> does a memory violation (intercepted by the binder)</li>
+<li><em>pingJson:</em> returns a success response, with a complex JSON response field</li>
+<li><em>pingevent:</em> broadcasts a global event</li>
+</ul>
+
 
 <p><br /></p>
 
@@ -54,12 +62,16 @@ Author:  Manuel Bachmann
 
 <p>Calling &ldquo;<em>connect</em>&rdquo; with a security token will initiate a session, calling &ldquo;<em>refresh</em>&rdquo; will issue a new token and invalidate the previous one, calling &ldquo;<em>logout</em>&rdquo; will invalidate all tokens and close the session.</p>
 
-<p><strong>Verbs</strong>:
-* <em>ping:</em> returns a success response
-* <em>connect:</em> creates a session and returns a new token
-* <em>refresh:</em> returns a new token
-* <em>check:</em> verifies the passed token is valid
-* <em>logout:</em> closes the session</p>
+<p><strong>Verbs</strong>:</p>
+
+<ul>
+<li><em>ping:</em> returns a success response</li>
+<li><em>connect:</em> creates a session and returns a new token</li>
+<li><em>refresh:</em> returns a new token</li>
+<li><em>check:</em> verifies the passed token is valid</li>
+<li><em>logout:</em> closes the session</li>
+</ul>
+
 
 <p><br /></p>
 
@@ -70,34 +82,46 @@ Author:  Manuel Bachmann
 
 <p>This plugin provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response.</p>
 
-<p><strong>Verbs</strong>:
-* <em>new:</em> starts a new game
-* <em>play:</em> asks the server to play
-* <em>move:</em> gives a client move
-* <em>board:</em> gets the current board state, as a JSON structure
-* <em>level</em>: sets the server level
-* <em>join</em>: joins an existing board
-* <em>undo</em>: undo the last move
-* <em>wait</em>: wait for a move</p>
+<p><strong>Verbs</strong>:</p>
+
+<ul>
+<li><em>new:</em> starts a new game</li>
+<li><em>play:</em> asks the server to play</li>
+<li><em>move:</em> gives a client move</li>
+<li><em>board:</em> gets the current board state, as a JSON structure</li>
+<li><em>level</em>: sets the server level</li>
+<li><em>join</em>: joins an existing board</li>
+<li><em>undo</em>: undo the last move</li>
+<li><em>wait</em>: wait for a move</li>
+</ul>
+
 
 <p><br /></p>
 
 <a name="Audio"></a>
 <h3>Audio</h3>
 
-<p>A sample Audio plugin with 2 backends:
- * ALSA (mandatory)
- * PulseAudio (optional)</p>
+<p>A sample Audio plugin with 2 backends:</p>
+
+<ul>
+<li>ALSA (mandatory)</li>
+<li>PulseAudio (optional)</li>
+</ul>
+
 
 <p>This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo&hellip;), mute sound, and play a 22,050 Hz PCM stream.</p>
 
-<p><strong>Verbs</strong>:
-* <em>ping:</em> returns a success response
-* <em>init:</em> initializes backend, on the &ldquo;default&rdquo; sound card
-* <em>volume:</em> gets or sets volume, in % (0-100)
-* <em>channels:</em> gets or sets channels count (1-8)
-* <em>mute:</em> gets or sets the mute status (on-off)
-* <em>play</em>: gets or sets the playing status (on-off)</p>
+<p><strong>Verbs</strong>:</p>
+
+<ul>
+<li><em>ping:</em> returns a success response</li>
+<li><em>init:</em> initializes backend, on the &ldquo;default&rdquo; sound card</li>
+<li><em>volume:</em> gets or sets volume, in % (0-100)</li>
+<li><em>channels:</em> gets or sets channels count (1-8)</li>
+<li><em>mute:</em> gets or sets the mute status (on-off)</li>
+<li><em>play</em>: gets or sets the playing status (on-off)</li>
+</ul>
+
 
 <p><em>(if PulseAudio development libraries are not found at build time, only ALSA will be available)</em></p>
 
@@ -110,19 +134,27 @@ Author:  Manuel Bachmann
 <a name="Radio"></a>
 <h3>Radio</h3>
 
-<p>A sample AM/FM Radio plugin with 1 backend:
- * RTLSDR - Realtek RTL2832U dongles (mandatory)</p>
+<p>A sample AM/FM Radio plugin with 1 backend:</p>
+
+<ul>
+<li>RTLSDR - Realtek RTL2832U dongles (mandatory)</li>
+</ul>
+
 
 <p>This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the <strong>audio</strong> plugin).</p>
 
-<p><strong>Verbs</strong>:
-* <em>ping:</em> returns a success response
-* <em>init:</em> initializes backend, looking for plugged-in devices
-* <em>power:</em> sets device power status (on-off)
-* <em>mode:</em> sets device reception mode (AM-FM)
-* <em>freq:</em> sets device frequency (in Hz)
-* <em>mute</em>: sets device mute status (on-off)
-* <em>play</em>: sets device playing status (on-off)</p>
+<p><strong>Verbs</strong>:</p>
+
+<ul>
+<li><em>ping:</em> returns a success response</li>
+<li><em>init:</em> initializes backend, looking for plugged-in devices</li>
+<li><em>power:</em> sets device power status (on-off)</li>
+<li><em>mode:</em> sets device reception mode (AM-FM)</li>
+<li><em>freq:</em> sets device frequency (in Hz)</li>
+<li><em>mute</em>: sets device mute status (on-off)</li>
+<li><em>play</em>: sets device playing status (on-off)</li>
+</ul>
+
 
 <p><em>(if rtlsdr development libraries are not found at build time, this plugin will not be built)</em></p>
 
@@ -131,21 +163,29 @@ Author:  Manuel Bachmann
 <a name="Media"></a>
 <h3>Media</h3>
 
-<p>A sample Media Server plugin with 1 backend:
- * Rygel</p>
+<p>A sample Media Server plugin with 1 backend:</p>
+
+<ul>
+<li>Rygel</li>
+</ul>
+
 
 <p>This plugin is able to detect a local Rygel UPnP media server, list audio files, select an audio file for playback, play/pause/seek in this file, upload an audio file to the server.</p>
 
-<p><strong>Verbs</strong>:
-* <em>ping:</em> returns a success response
-* <em>init:</em> initializes backend, looking for an active local UPnP server
-* <em>list:</em> returns list of audio files, as a JSON structure
-* <em>select:</em> select an audio files, by index number (001-&hellip;)
-* <em>play:</em> plays the currently selected audio file
-* <em>stop:</em> stops the currently selected audio file
-* <em>pause:</em> pauses the currently selected audio file
-* <em>seek:</em> seeks in the currently selected audio file, in seconds
-* <em>upload:</em> uploads an audio file, with a POST request</p>
+<p><strong>Verbs</strong>:</p>
+
+<ul>
+<li><em>ping:</em> returns a success response</li>
+<li><em>init:</em> initializes backend, looking for an active local UPnP server</li>
+<li><em>list:</em> returns list of audio files, as a JSON structure</li>
+<li><em>select:</em> select an audio files, by index number (001-&hellip;)</li>
+<li><em>play:</em> plays the currently selected audio file</li>
+<li><em>stop:</em> stops the currently selected audio file</li>
+<li><em>pause:</em> pauses the currently selected audio file</li>
+<li><em>seek:</em> seeks in the currently selected audio file, in seconds</li>
+<li><em>upload:</em> uploads an audio file, with a POST request</li>
+</ul>
+
 
 <p><em>(if GUPnP/GSSDP development libraries are not fund at build time, this plugin will not be built)</em></p>
 

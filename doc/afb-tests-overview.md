@@ -9,7 +9,9 @@
 Here are the tests shipped in the source tree:
 
 * **afb-client-demo** (command-line WebSockets)
+
 * **token-websock.qml** (Qt/QML WebSockets)
+
 * ***.html** (HTML5/JS HTTP-REST & WebSockets)
 
 
@@ -38,7 +40,7 @@ The command doesn't return. You should type requests of type <api> <verb> [<json
 So, try:
 
     auth connect
-    audio init
+    hello pingjson true
 
 <br />
 

@@ -26,6 +26,29 @@ Author:  José Bollo
   <ul>
    <li><a href="#Handling.sessions">Handling sessions</a></li>
    <li><a href="#Exchanging.tokens">Exchanging tokens</a></li>
+   <li><a href="#Example.of.session.management">Example of session management</a>
+   <ul>
+    <li><a href="#Using.curl">Using curl</a></li>
+    <li><a href="#Using.afb-client-demo">Using afb-client-demo</a>
+</li>
+   </ul>
+   </li>
+  </ul>
+  </li>
+  <li><a href="#Format.of.replies">Format of replies</a>
+  <ul>
+   <li><a href="#Field.jtype">Field jtype</a></li>
+   <li><a href="#Field.request">Field request</a>
+   <ul>
+    <li><a href="#Subfield.request.status">Subfield request.status</a></li>
+    <li><a href="#Subfield.request.info">Subfield request.info</a></li>
+    <li><a href="#Subfield.request.token">Subfield request.token</a></li>
+    <li><a href="#Subfield.request.uuid">Subfield request.uuid</a></li>
+    <li><a href="#Subfield.request.reqid">Subfield request.reqid</a></li>
+   </ul>
+   </li>
+   <li><a href="#Field.response">Field response</a></li>
+   <li><a href="#Template">Template</a></li>
   </ul>
   </li>
  </ul>
@@ -105,6 +128,9 @@ the socket connection can not be used to authenticate a client.</p>
 by using a commonly shared secret named token and the identification
 of the client named session.</p>
 
+<p>The examples <strong>token-websock.qml</strong> and <strong>afb-client</strong> are demonstrating
+how authentication and sessions are managed.</p>
+
 <a name="Handling.sessions"></a>
 <h3>Handling sessions</h3>
 
@@ -112,7 +138,12 @@ of the client named session.</p>
 instances. This of importance for plugins running as service
 because they may have to separate the data of each client.</p>
 
-<p>For common HTML5 browser running an HTML5 application.</p>
+<p>For HTML5 applications, the web runtime handles the cookie of session
+that the binder afb-daemon automatically sets.</p>
+
+<p>In any case, the session identifier can be set using the parameters
+<strong>uuid</strong> or <strong>x-afb-uuid</strong> in the request uri. That is understood
+by HTTP requests and by the negociation of websockets.</p>
 
 <a name="Exchanging.tokens"></a>
 <h3>Exchanging tokens</h3>
@@ -122,7 +153,193 @@ and its client: the application. This initial secret is the
 initial token.</p>
 
 <p>For each of its client application, the binder manages a current active
-token. The initial token is the default active token. It is the expected
-token for new clients.</p>
+token for the session. This authentication token can be a requirement for
+accessing some methods.</p>
+
+<p>The token must be passed in the request uri on HTTP or at connecting
+websockets using the parameter <strong>token</strong> or <strong>x-afb-token</strong>.</p>
+
+<p>To ensure security, tokens must be refreshed periodically.</p>
+
+<a name="Example.of.session.management"></a>
+<h3>Example of session management</h3>
+
+<p>For the following exmples, we suppose that you launched <strong>afb-daemon</strong> like that or similar:</p>
+
+<pre><code>$ afb-daemon --port=1234 --token=123456 [...]
+</code></pre>
+
+<p>with the expectation that the plugin <strong>AuthLogin</strong> is loaded.</p>
+
+<a name="Using.curl"></a>
+<h4>Using curl</h4>
+
+<p>First, connects with the initial token, 123456:</p>
+
+<pre><code>$ curl http://localhost:1234/api/auth/connect?token=123456
+{
+  "jtype": "afb-reply",
+  "request": {
+ "status": "success",
+ "token": "0aef6841-2ddd-436d-b961-ae78da3b5c5f",
+ "uuid": "850c4594-1be1-4e9b-9fcc-38cc3e6ff015"
+  },
+  "response": {"token": "A New Token and Session Context Was Created"}
+}
+</code></pre>
+
+<p>It returns an answer containing the uuid of the session, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015,
+and the refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
+
+<p>Let check that it is available:</p>
+
+<pre><code>$ curl http://localhost:1234/api/auth/check?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+{
+  "jtype": "afb-reply",
+  "request": {"status":"success"},
+  "response": {"isvalid":true}
+}
+</code></pre>
+
+<p>It works! So try now to refresh the token:</p>
+
+<pre><code>$ curl http://localhost:1234/api/auth/refresh?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+{
+  "jtype": "afb-reply",
+  "request": {
+ "status":"success",
+ "token":"b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9"
+  },
+  "response": {"token":"Token was refreshed"}
+}
+</code></pre>
+
+<p>Let now close the session:</p>
+
+<pre><code>curl http://localhost:1234/api/auth/logout?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+{
+  "jtype": "afb-reply",
+  "request": {"status": "success"},
+  "response": {"info":"Token and all resources are released"}
+}
+</code></pre>
+
+<p>So now, checking for the uuid will be refused:</p>
+
+<pre><code>curl http://localhost:1234/api/auth/check?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+{
+  "jtype": "afb-reply",
+  "request": {
+ "status": "failed",
+ "info": "invalid token's identity"
+  }
+}
+</code></pre>
+
+<a name="Using.afb-client-demo"></a>
+<h4>Using afb-client-demo</h4>
+
+<p>Here is an example of exchange using <strong>afb-client-demo</strong>:</p>
+
+<pre><code>$ afb-client-demo ws://localhost:1234/api?token=123456
+auth connect
+ON-REPLY 1:auth/connect: {"jtype":"afb-reply","request":{"status":"success",
+   "token":"63f71a29-8b52-4f9b-829f-b3028ba46b68","uuid":"5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1"},
+   "response":{"token":"A New Token and Session Context Was Created"}}
+auth check
+ON-REPLY 2:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
+auth refresh
+ON-REPLY 4:auth/refresh: {"jtype":"afb-reply","request":{"status":"success",
+   "token":"8b8ba8f4-1b0c-48fa-962d-4a00a8c9157e"},"response":{"token":"Token was refreshed"}}
+auth check
+ON-REPLY 5:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
+auth refresh
+ON-REPLY 6:auth/refresh: {"jtype":"afb-reply","request":{"status":"success",
+   "token":"e83b36f8-d945-463d-b983-5d8ed73ba529"},"response":{"token":"Token was refreshed"}}
+</code></pre>
+
+<p>Then you leave. And can reconnect as below:</p>
+
+<pre><code>$ afb-client-demo ws://localhost:1234/api?token=e83b36f8-d945-463d-b983-5d8ed73ba529&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1 auth check
+ON-REPLY 1:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
+</code></pre>
+
+<p>The same can be continued using <strong>curl</strong>:</p>
+
+<pre><code>$ curl http://localhost:1234/api/auth/check?token=e83b36f8-d945-463d-b983-5d8ed73ba529&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1
+{"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
+</code></pre>
+
+<a name="Format.of.replies"></a>
+<h2>Format of replies</h2>
+
+<p>The replies are made of one javascript object returned using JSON serialization.</p>
+
+<p>This object containts at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong>
+and an optionnal field of name <strong>response</strong>.</p>
+
+<a name="Field.jtype"></a>
+<h3>Field jtype</h3>
+
+<p>The field <strong>jtype</strong> must have a value of type string equel to <strong>&ldquo;afb-reply&rdquo;</strong>.</p>
+
+<a name="Field.request"></a>
+<h3>Field request</h3>
+
+<p>The field <strong>request</strong> must have a value of type object. This request object
+has at least one field named <strong>status</strong> and four optionnal fields of name
+<strong>info</strong>, <strong>token</strong>, <strong>uuid</strong>, <strong>reqid</strong>.</p>
+
+<a name="Subfield.request.status"></a>
+<h4>Subfield request.status</h4>
+
+<p><strong>status</strong> must have a value of type string. This string is equal to <strong>&ldquo;success&rdquo;</strong>
+only in case of success.</p>
+
+<a name="Subfield.request.info"></a>
+<h4>Subfield request.info</h4>
+
+<p><strong>info</strong> is of type string and represent optionnal the information added to the reply.</p>
+
+<a name="Subfield.request.token"></a>
+<h4>Subfield request.token</h4>
+
+<p><strong>token</strong> is of type string. It is sent either on the creation of the
+session or when the token is refreshed.</p>
+
+<a name="Subfield.request.uuid"></a>
+<h4>Subfield request.uuid</h4>
+
+<p><strong>uuid</strong> is of type string. It is sent on the creation of the session.</p>
+
+<a name="Subfield.request.reqid"></a>
+<h4>Subfield request.reqid</h4>
+
+<p><strong>reqid</strong> is of type string. It is sent in response of HTTP requests
+that added a parameter of name <strong>reqid</strong> or <strong>x-afb-reqid</strong>. The value
+sent in the reply is the exact value received on the request.</p>
+
+<a name="Field.response"></a>
+<h3>Field response</h3>
+
+<p>This field response optionnaly containts the object returned with successful replies.</p>
+
+<a name="Template"></a>
+<h3>Template</h3>
+
+<p>This is a template of replies:</p>
+
+<pre><code>{
+  "jtype": "afb-reply",
+  "request": {
+   "status": "success",
+   "info": "informationnal text",
+   "token": "e83b36f8-d945-463d-b983-5d8ed73ba52",
+   "uuid": "5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1",
+   "reqid": "application-generated-id-23456"
+ },
+  "response": ....any response object....
+}
+</code></pre>
 </body>
 </html>
