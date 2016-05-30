@@ -54,6 +54,7 @@ struct afb_config
   int  cacheTimeout;
   int  apiTimeout;
   int  cntxTimeout;        // Client Session Context timeout
+  int  nbSessionMax;	// max count of sessions
   int mode;           // mode of listening
   int aliascount;
   struct afb_config_item *items;

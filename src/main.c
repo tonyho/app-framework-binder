@@ -79,6 +79,8 @@
 #define DBUS_SERVICE       21
 #define SO_PLUGIN          22
 
+#define SET_SESSIONMAX     23
+
 // Command line structure hold cli --command + help text
 typedef struct {
   int  val;        // command number within application
@@ -103,7 +105,7 @@ static  AFB_options cliOptions [] = {
   
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
   {SET_CNTXTIMEOUT  ,1,"cntxtimeout"     , "Client Session Context Timeout [default 900]"},
-  {SET_CACHE_TIMEOUT,1,"cache-eol"       , "Client cache end of live [default 3600s]"},
+  {SET_CACHE_TIMEOUT,1,"cache-eol"       , "Client cache end of live [default 3600]"},
   
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
 
@@ -119,6 +121,8 @@ static  AFB_options cliOptions [] = {
   {DBUS_CLIENT      ,1,"dbus-client"     , "bind to an afb service through dbus"},
   {DBUS_SERVICE     ,1,"dbus-server"     , "provides an afb service through dbus"},
   {SO_PLUGIN        ,1,"plugin"          , "load the plugin of path"},
+
+  {SET_SESSIONMAX   ,1,"session-max"     , "max count of session simultaneously [default 10]"},
 
   {0, 0, NULL, NULL}
  };
@@ -185,6 +189,10 @@ static void config_set_default (struct afb_config * config)
    // cache timeout default one hour
    if (config->cntxTimeout == 0)
 		config->cntxTimeout = DEFLT_CNTX_TIMEOUT;
+
+   // max count of sessions
+   if (config->nbSessionMax == 0)
+       config->nbSessionMax = CTX_NBCLIENTS;
 
    if (config->rootdir == NULL) {
        config->rootdir = getenv("AFBDIR");
@@ -344,6 +352,11 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
     case  SET_CACHE_TIMEOUT:
        if (optarg == 0) goto needValueForOption;
        if (!sscanf (optarg, "%d", &config->cacheTimeout)) goto notAnInteger;
+       break;
+
+    case  SET_SESSIONMAX:
+       if (optarg == 0) goto needValueForOption;
+       if (!sscanf (optarg, "%d", &config->nbSessionMax)) goto notAnInteger;
        break;
 
     case SET_FORGROUND:
@@ -596,7 +609,7 @@ int main(int argc, char *argv[])  {
   start_items(config->items);
   config->items = NULL;
 
-  ctxStoreInit(CTX_NBCLIENTS, config->cntxTimeout, config->token, afb_apis_count());
+  ctxStoreInit(config->nbSessionMax, config->cntxTimeout, config->token, afb_apis_count());
   if (!afb_hreq_init_cookie(config->httpdPort, config->rootapi, DEFLT_CNTX_TIMEOUT)) {
      ERROR("initialisation of cookies failed");
      exit (1);
