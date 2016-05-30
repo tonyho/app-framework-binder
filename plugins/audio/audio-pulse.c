@@ -303,6 +303,7 @@ void _pulse_enumerate_cards () {
         /* it was not ; create it */
         if (new_info) {
             alsa_info = (alsa_info_T**) realloc (alsa_info, (num+1)*sizeof(alsa_info_T*));
+            alsa_info[num] = (alsa_info_T*) malloc (sizeof(alsa_info_T));
             alsa_info[num]->device = strdup (card_name);
             asprintf (&alsa_info[num]->synonyms, ":%s", alsa_name);
             num++;
