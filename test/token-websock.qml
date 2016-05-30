@@ -30,15 +30,17 @@ Window {
 				return
 			}
 			 /* token creation or refresh happened, store it and enable buttons */
-			if ((verb_str == "create") || (verb_str == "refresh")) {
+			if ((verb_str == "connect") || (verb_str == "refresh")) {
 				token_str = message_json[3]
+				connect_button.enabled = false
 				refresh_button.enabled = true
-				reset_button.enabled = true
+				logout_button.enabled = true
 			 /* token reset happened, remove it and disable buttons */
-			} else if (verb_str == "reset") {
+			} else if (verb_str == "logout") {
 				token_str = ""
+				connect_button.enabled = true
 				refresh_button.enabled = false
-				reset_button.enabled = false
+				logout_button.enabled = false
 				websocket.active = false	// close the socket
 			}
 		}
@@ -47,7 +49,7 @@ Window {
 				status_str = "Error: " + websocket.errorString
 			} else if (websocket.status == WebSocket.Open) {
 		              	status_str = "Socket opened; sending message..."
-				if (verb_str == "create")
+				if (verb_str == "connect")
 					websocket.sendTextMessage (request_str)
 				} else if (websocket.status == WebSocket.Closed) {
 					status_str = "Socket closed"
@@ -88,11 +90,11 @@ Window {
 		}
 
 		Button {
-			id: create_button
-			text: "Create token"
+			id: connect_button
+			text: "Connect"
 			onClicked: {
 				verb_str = "connect"
-				request_str = '[' + msgid_enu.call + ',"99999","' + api_str+'/'+verb_str + '", ]';
+				request_str = '[' + msgid_enu.call + ',"99999","' + api_str+'/'+verb_str + '", null ]';
 				if (!websocket.active)
 					websocket.active = true
 				else
@@ -102,7 +104,7 @@ Window {
 		}
 		Button {
 			id: refresh_button
-			text: "Refresh token"
+			text: "Refresh"
 			onClicked: {
 				verb_str = "refresh"
 				request_str = '[' + msgid_enu.call + ',"99999","' + api_str+'/'+verb_str + '",,"' + token_str +'" ]';
@@ -112,8 +114,8 @@ Window {
 			enabled: false
 		}
 		Button {
-			id: reset_button
-			text: "Reset token"
+			id: logout_button
+			text: "Logout"
 			onClicked: {
 				verb_str = "logout"
 				request_str = '[' + msgid_enu.call + ',"99999","' + api_str+'/'+verb_str + '", ]';
