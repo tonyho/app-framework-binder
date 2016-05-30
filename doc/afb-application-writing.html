@@ -15,21 +15,28 @@ Author:  José Bollo
 <p><ul>
  <li><a href="#HOWTO.WRITE.an.APPLICATION.above.AGL.FRAMEWORK">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</a>
  <ul>
-  <li><a href="#Writing.an.HTML5.application">Writing an HTML5 application</a></li>
-  <li><a href="#Writing.a.Qt.application">Writing a Qt application</a></li>
-  <li><a href="#Writing.a.C.application">Writing a C application</a></li>
+  <li><a href="#Languages.for.writing.Applications">Languages for writing Applications</a>
+  <ul>
+   <li><a href="#Writing.an.HTML5.application">Writing an HTML5 application</a></li>
+   <li><a href="#Writing.a.Qt.application">Writing a Qt application</a></li>
+   <li><a href="#Writing.a.C.application">Writing a C application</a></li>
+  </ul>
+  </li>
   <li><a href="#Handling.sessions.within.applications">Handling sessions within applications</a>
   <ul>
-   <li><a href="#Exchanging.tokens">Exchanging tokens</a></li>
    <li><a href="#Handling.sessions">Handling sessions</a></li>
+   <li><a href="#Exchanging.tokens">Exchanging tokens</a></li>
   </ul>
   </li>
  </ul>
  </li>
 </ul></p>
 
+<a name="Languages.for.writing.Applications"></a>
+<h2>Languages for writing Applications</h2>
+
 <a name="Writing.an.HTML5.application"></a>
-<h2>Writing an HTML5 application</h2>
+<h3>Writing an HTML5 application</h3>
 
 <p>Developpers of HTML5 applications (client side) can easyly create
 applications for AGL framework using their prefered
@@ -51,7 +58,7 @@ with the current x-afb-json1 protocol.</p>
 
 
 <a name="Writing.a.Qt.application"></a>
-<h2>Writing a Qt application</h2>
+<h3>Writing a Qt application</h3>
 
 <p>Writing Qt applications is also possible because Qt offers APIs to
 make HTTP queries and to connect using WebSockets.</p>
@@ -66,7 +73,7 @@ a simple &ldquo;hello world&rdquo; application in QML</li>
 
 
 <a name="Writing.a.C.application"></a>
-<h2>Writing a C application</h2>
+<h3>Writing a C application</h3>
 
 <p>C applications can use the binder afb-daemon through a websocket connection.</p>
 
@@ -85,8 +92,8 @@ and being less dependant of libsystemd.</p>
 <a name="Handling.sessions.within.applications"></a>
 <h2>Handling sessions within applications</h2>
 
-<a name="Exchanging.tokens"></a>
-<h3>Exchanging tokens</h3>
+<p>Applications must be aware of the the features session and token
+when they interact with the binder afb-daemon.</p>
 
 <p>Applications are communicating with their binder afb-daemon using
 a network connection or a kind of network connection (unix domain
@@ -95,12 +102,25 @@ Also, HTTP protocol is not a connected protocol. It means that
 the socket connection can not be used to authenticate a client.</p>
 
 <p>For this reason, the binder should authenticate the application
-by using a commonly shared secret named token.</p>
-
-<p>At start, the framework communicate a common secret to both the binder
-and its client: the application. When the application</p>
+by using a commonly shared secret named token and the identification
+of the client named session.</p>
 
 <a name="Handling.sessions"></a>
 <h3>Handling sessions</h3>
+
+<p>Plugins and features of the binder need to keep track of the client
+instances. In principle, a binder afb-daemon is launched by application
+instance. But for services, a binder</p>
+
+<a name="Exchanging.tokens"></a>
+<h3>Exchanging tokens</h3>
+
+<p>At start, the framework communicate a common secret to both the binder
+and its client: the application. This initial secret is the
+initial token.</p>
+
+<p>For each of its client application, the binder manages a current active
+token. The initial token is the default active token. It is the expected
+token for new clients.</p>
 </body>
 </html>

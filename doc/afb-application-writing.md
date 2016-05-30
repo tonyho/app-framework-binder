@@ -6,8 +6,10 @@ HOWTO WRITE an APPLICATION above AGL FRAMEWORK
 
 TABLE-OF-CONTENT-HERE
 
-Writing an HTML5 application
-----------------------------
+Languages for writing Applications
+----------------------------------
+
+### Writing an HTML5 application
 
 Developpers of HTML5 applications (client side) can easyly create
 applications for AGL framework using their prefered
@@ -26,8 +28,7 @@ Two examples of HTML5 applications are given:
 
 - [afm-client](https://github.com/iotbzh/afm-client) a simple "Home screen" application
 
-Writing a Qt application
-------------------------
+### Writing a Qt application
 
 Writing Qt applications is also possible because Qt offers APIs to
 make HTTP queries and to connect using WebSockets.
@@ -38,8 +39,7 @@ It is demontrated by the sample application token-websock:
 - [token-websock](https://github.com/iotbzh/afb-daemon/blob/master/test/token-websock.qml) 
 a simple "hello world" application in QML
 
-Writing a C application
------------------------
+### Writing a C application
 
 C applications can use the binder afb-daemon through a websocket connection.
 
@@ -58,7 +58,8 @@ and being less dependant of libsystemd.
 Handling sessions within applications
 -------------------------------------
 
-### Exchanging tokens
+Applications must be aware of the the features session and token
+when they interact with the binder afb-daemon.
 
 Applications are communicating with their binder afb-daemon using
 a network connection or a kind of network connection (unix domain
@@ -67,11 +68,24 @@ Also, HTTP protocol is not a connected protocol. It means that
 the socket connection can not be used to authenticate a client.
 
 For this reason, the binder should authenticate the application
-by using a commonly shared secret named token.
-
-At start, the framework communicate a common secret to both the binder
-and its client: the application. When the application 
+by using a commonly shared secret named token and the identification
+of the client named session.
 
 ### Handling sessions
+
+Plugins and features of the binder need to keep track of the client
+instances. In principle, a binder afb-daemon is launched by application
+instance. But for services, a binder 
+
+### Exchanging tokens
+
+At start, the framework communicate a common secret to both the binder
+and its client: the application. This initial secret is the
+initial token.
+
+For each of its client application, the binder manages a current active
+token. The initial token is the default active token. It is the expected
+token for new clients.
+
 
 
