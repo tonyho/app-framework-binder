@@ -24,7 +24,7 @@
 #define MAX_ALIAS 10           // max number of aliases
 
 #define DEFLT_CNTX_TIMEOUT  3600   // default Client Connection Timeout
-#define DEFLT_API_TIMEOUT   0      // default Plugin API Timeout [0=NoLimit for Debug Only]
+#define DEFLT_API_TIMEOUT   20     // default Plugin API Timeout [0=NoLimit for Debug Only]
 #define DEFLT_CACHE_TIMEOUT 100000 // default Static File Chache [Client Side Cache 100000~=1day]
 #define DEFLT_AUTH_TOKEN    NULL   // expect for debug should == NULL
 #define DEFLT_HTTP_TIMEOUT  15     // Max MibMicroHttp timeout

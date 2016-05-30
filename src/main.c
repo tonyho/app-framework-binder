@@ -585,6 +585,7 @@ int main(int argc, char *argv[])  {
      exit (1);
   }
 
+  afb_api_so_set_timeout(config->apiTimeout);
   if (config->ldpaths) {
     if (afb_api_so_add_pathset(config->ldpaths) < 0) {
       ERROR("initialisation of plugins within %s failed", config->ldpaths);

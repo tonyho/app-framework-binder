@@ -53,6 +53,11 @@ static int api_timeout = 15;
 
 static const char plugin_register_function_v1[] = "pluginAfbV1Register";
 
+void afb_api_so_set_timeout(int to)
+{
+	api_timeout = to;
+}
+
 static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object)
 {
 	size_t length;
