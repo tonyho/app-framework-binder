@@ -8,7 +8,7 @@
 <h1>Overview of AFB-DAEMON</h1>
 
 <pre><code>version: 1
-Date:    29 mai 2016
+Date:    30 mai 2016
 Author:  José Bollo
 </code></pre>
 
@@ -16,6 +16,14 @@ Author:  José Bollo
  <li><a href="#Overview.of.AFB-DAEMON">Overview of AFB-DAEMON</a>
  <ul>
   <li><a href="#Roles.of.afb-daemon">Roles of afb-daemon</a></li>
+  <li><a href="#Use.cases.of.the.binder.afb-daemon">Use cases of the binder afb-daemon</a>
+  <ul>
+   <li><a href="#Remotely.running.application">Remotely running application</a></li>
+   <li><a href="#Adding.native.features.to.HTML5.QML.applications">Adding native features to HTML5/QML applications</a></li>
+   <li><a href="#Offering.services.to.the.system">Offering services to the system</a></li>
+  </ul>
+  </li>
+  <li><a href="#The.plugins.of.the.binder.afb-daemon">The plugins of the binder afb-daemon</a></li>
  </ul>
  </li>
 </ul></p>
@@ -33,6 +41,8 @@ an application to the AGL framework and AGL system.</p>
 <p>On the following figure, you can use a typical use
 of afb-daemon:</p>
 
+<p><a id="binder-fig-basis"><h4>Figure: binder afb-daemon, basis</h4></a></p>
+
 <pre><code>. . . . . . . . . . . . . . . . . . . . . . . . . .
 .        Isolated security context                .
 .                                                 .
@@ -45,6 +55,7 @@ of afb-daemon:</p>
 .                       |                         .
 .   +-------------------+----------------------+  .
 .   |                            :             |  .
+.   |        b i n d e r         :             |  .
 .   |    A F B - D A E M O N     :   PLUGINS   |  .
 .   |                            :             |  .
 .   +-------------------+----------------------+  .
@@ -68,5 +79,139 @@ system through the binder.</p>
 to security enforcement for accessing hardware ressources or
 for speeding parts of algorithm.</p></li>
 </ol>
+
+
+<a name="Use.cases.of.the.binder.afb-daemon"></a>
+<h2>Use cases of the binder afb-daemon</h2>
+
+<p>This section tries to give a better understanding of the binder
+usage through several use cases.</p>
+
+<a name="Remotely.running.application"></a>
+<h3>Remotely running application</h3>
+
+<p>One of the most interresting aspect of using the binder afb-daemon
+is the ability to run applications remotely. This feature is
+possible because the binder afb-daemon implements native web
+protocols.</p>
+
+<p>So the <a href="#binder-fig-1">figure binder, basis</a> would become
+when the application is run remotely:</p>
+
+<p><a id="binder-fig-remote"><h4>Figure: binder afb-daemon and remotely running application</h4></a></p>
+
+<pre><code>             +------------------------------+
+             |                              |
+             |    A P P L I C A T I O N     |
+             |                              |
+             +--------------+---------------+
+                            |
+                       ~ ~ ~ ~ ~ ~
+                      :  NETWORK  :
+                       ~ ~ ~ ~ ~ ~
+                            |
+. . . . . . . . . . . . . . | . . . . . . . . . . . . . .
+. Isolated security         |                           .
+.   context                 |                           .
+.                           |                           .
+.     . . . . . . . . . . . . . . . . . . . . . . . .   .
+.     .                                             .   .
+.     .               F I R E W A L L               .   .
+.     .                                             .   .
+.     . . . . . . . . . . . . . . . . . . . . . . . .   .
+.                           |                           .
+.       +-------------------+----------------------+    .
+.       |                            :             |    .
+.       |    A F B - D A E M O N     :   PLUGINS   |    .
+.       |                            :             |    .
+.       +-------------------+----------------------+    .
+.                           |                           .
+. . . . . . . . . . . . . . | . . . . . . . . . . . . . .
+                            |
+                            v
+                       AGL SYSTEM
+</code></pre>
+
+<a name="Adding.native.features.to.HTML5.QML.applications"></a>
+<h3>Adding native features to HTML5/QML applications</h3>
+
+<p>Applications can provide with their packaged delivery a plugin.
+That plugin will be instanciated for each application instance.
+The methods of the plugin will be accessible by applications and
+will be excuted within the security context.</p>
+
+<a name="Offering.services.to.the.system"></a>
+<h3>Offering services to the system</h3>
+
+<p>It is possible to run the binder afb-daemon as a daemon that provides the
+API of its plugins.</p>
+
+<p>This will be used for:</p>
+
+<ol>
+<li><p>offering common APIs</p></li>
+<li><p>provide application&rsquo;s services (services provided as application)</p></li>
+</ol>
+
+
+<p>In that case, the figure showing the whole aspects is</p>
+
+<p><a id="binder-fig-remote"><h4>Figure: binder afb-daemon for services</h4></a></p>
+
+<pre><code>. . . . . . . . . . . . . . . . . . . . . . 
+.  Isolated security context application  . 
+.                                         . 
+.    +------------------------------+     . 
+.    |                              |     . 
+.    |    A P P L I C A T I O N     |     . 
+.    |                              |     . 
+.    +--------------+---------------+     .     . . . . . . . . . . . . . . . . . . . . . .
+.                   |                     .     .        Isolated security context A      .
+.                   |                     .     .                                         .
+. +-----------------+------------------+  .     . +------------------------------------+  .
+. |                        :           |  .     . |                        :           |  .
+. |      b i n d e r       :           |  .     . |      b i n d e r       :  service  |  .
+. |  A F B - D A E M O N   :  PLUGINS  |  .     . |  A F B - D A E M O N   :  PLUGINS  |  .
+. |                        :           |  .     . |                        :     A     |  .
+. +-----------------+------------------+  .     . +-----------------+------------------+  .
+.                   |                     .     .                   |                     .
+. . . . . . . . . . | . . . . . . . . . . .     . . . . . . . . . . | . . . . . . . . . . .
+                    |                                               |
+                    v                                               v
+         ================================================================================
+                                     D - B U S   &amp;   C Y N A R A
+         ================================================================================
+                    ^                                               ^
+                    |                                               |
+. . . . . . . . . . | . . . . . . . . . . .     . . . . . . . . . . | . . . . . . . . . . .
+.                   |                     .     .                   |                     .
+. +-----------------+------------------+  .     . +-----------------+------------------+  .
+. |                        :           |  .     . |                        :           |  .
+. |      b i n d e r       :  service  |  .     . |      b i n d e r       :  service  |  .
+. |  A F B - D A E M O N   :  PLUGINS  |  .     . |  A F B - D A E M O N   :  PLUGINS  |  .
+. |                        :     B     |  .     . |                        :     C     |  .
+. +------------------------------------+  .     . +------------------------------------+  .
+.                                         .     .                                         .
+.        Isolated security context B      .     .        Isolated security context C      .
+. . . . . . . . . . . . . . . . . . . . . .     . . . . . . . . . . . . . . . . . . . . . .
+</code></pre>
+
+<a name="The.plugins.of.the.binder.afb-daemon"></a>
+<h2>The plugins of the binder afb-daemon</h2>
+
+<p>The binder can instanciate plugins. The primary use of plugins
+is to add native methods that can be accessed by applications
+written with any language through web technologies ala JSON RPC.</p>
+
+<p>This simple idea is declined to serves multiple purposes:</p>
+
+<ol>
+<li><p>add native feature to applications</p></li>
+<li><p>add common API available by any applications</p></li>
+<li><p>provide customers services</p></li>
+</ol>
+
+
+<p>A specific document shows</p>
 </body>
 </html>

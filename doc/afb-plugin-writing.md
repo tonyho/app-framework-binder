@@ -1,7 +1,7 @@
 HOWTO WRITE a PLUGIN for AFB-DAEMON
 ===================================
     version: 1
-    Date:    29 mai 2016
+    Date:    30 mai 2016
     Author:  José Bollo
 
 TABLE-OF-CONTENT-HERE
@@ -826,13 +826,13 @@ The special value **AFB_SESSION_NONE** is zero and can be used to bypass token c
 Sending messages to the log system
 ----------------------------------
 
-Afb-daemon provides 4 levels of methodosity and 5 methods for logging messages.
+Afb-daemon provides 4 levels of verbosity and 5 methods for logging messages.
 
-The methodosity is managed. Options allow the change the methodosity of afb-daemon
-and the methodosity of the plugins can be set plugin by plugin.
+The verbosity is managed. Options allow the change the verbosity of afb-daemon
+and the verbosity of the plugins can be set plugin by plugin.
 
 The methods for logging messages are defined as macros that test the
-methodosity level and that call the real logging function only if the
+verbosity level and that call the real logging function only if the
 message must be output. This avoid evaluation of arguments of the
 formatting messages if the message must not be output.
 
@@ -849,7 +849,7 @@ INFO    |     2     | Informational                     |     6
 DEBUG   |     3     | Debug-level messages              |     7
 
 You can note that the 2 methods **WARNING** and **INFO** have the same level
-of methodosity. But they don't have the same *syslog level*. It means that
+of verbosity. But they don't have the same *syslog level*. It means that
 they are output with a different level on the logging system.
 
 All of these methods have the same signature:
@@ -863,13 +863,13 @@ The second argument **message** is a formatting string compatible with printf/sp
 
 The remaining arguments are arguments of the formating message like with printf.
 
-### Managing methodosity
+### Managing verbosity
 
-Depending on the level of methodosity, the messages are output or not.
+Depending on the level of verbosity, the messages are output or not.
 The following table explains what messages will be output depending
-ont the methodosity level.
+ont the verbosity level.
 
-Level of methodosity | Outputed macro
+Level of verbosity | Outputed macro
 :-----------------:|--------------------------
         0          | ERROR
         1          | ERROR + WARNING + NOTICE

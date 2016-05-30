@@ -1,6 +1,6 @@
 # Overview of plugins shipped with AFB-Daemon
     Version: 1
-    Date:    30 May 2016
+    Date:    30 mai 2016
     Author:  Manuel Bachmann
 
 
@@ -18,7 +18,7 @@ All plugins may not be built, depending on the development libraries present on 
 
 ## Detail of plugins
 
- ### Hello World
+### Hello World
 
 A sample Hello World plugin for demonstration and learning purposes.
 
@@ -35,7 +35,7 @@ This plugin provides a few unauthenticated requests, all beginning with "ping", 
 <br />
 
 
- ### Authentication
+### Authentication
 
 An sample Authentication plugin for demonstration purposes.
 
@@ -53,7 +53,7 @@ Calling "_connect_" with a security token will initiate a session, calling "_ref
 <br />
 
 
- ### Tic Tac Toe
+### Tic Tac Toe
 
 A sample Tic Tac Toe game plugin.
 
@@ -72,7 +72,7 @@ This plugin provides an interactive Tic Tac Toe game where the binder returns th
 <br />
 
 
- ### Audio
+### Audio
 
 A sample Audio plugin with 2 backends:
  * ALSA (mandatory)
@@ -97,7 +97,7 @@ _(a specifc backend can be forced by using this syntax before running afb-daemon
 <br />
 
 
- ### Radio
+### Radio
 
 A sample AM/FM Radio plugin with 1 backend:
  * RTLSDR - Realtek RTL2832U dongles (mandatory)
@@ -118,7 +118,7 @@ _(if rtlsdr development libraries are not found at build time, this plugin will 
 <br />
 
 
- ### Media
+### Media
 
 A sample Media Server plugin with 1 backend:
  * Rygel

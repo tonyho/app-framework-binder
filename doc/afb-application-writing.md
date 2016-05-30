@@ -1,11 +1,42 @@
 HOWTO WRITE an APPLICATION above AGL FRAMEWORK
 ==============================================
     version: 1
-    Date:    29 mai 2016
+    Date:    30 mai 2016
     Author:  José Bollo
 
 TABLE-OF-CONTENT-HERE
 
+Writing an HTML5 application
+----------------------------
+
+Developpers of HTML5 applications (client side) can easyly create
+applications for AGL framework using their prefered
+HTML framework.
+
+Developpers can also create powerful server side plugins to improve
+their application. This server side plugin should return the mime-type
+application/json and can be accessed either by HTTP or by Websockets.
+
+In a near future, the JSON-RPC protocol will be available together
+with the current x-afb-json1 protocol.
+
+Two examples of HTML5 applications are given:
+
+- [afb-client](https://github.com/iotbzh/afb-client) a simple "hello world" application
+
+- [afm-client](https://github.com/iotbzh/afm-client) a simple "Home screen" application
+
+Writing a Qt application
+------------------------
+
+Writing Qt applications is also possible because Qt offers APIs to
+make HTTP queries and to connect using WebSockets.
+
+It is even possible to write a QML application.
+It is demontrated by the sample application token-websock:
+
+- [token-websock](https://github.com/iotbzh/afb-daemon/blob/master/test/token-websock.qml) 
+a simple "hello world" application in QML
 
 Writing a C application
 -----------------------
@@ -23,5 +54,24 @@ Its source code is here
 The current implementation use libsystemd and file descriptors.
 This may be changed in the future to also support secure sockets
 and being less dependant of libsystemd.
+
+Handling sessions within applications
+-------------------------------------
+
+### Exchanging tokens
+
+Applications are communicating with their binder afb-daemon using
+a network connection or a kind of network connection (unix domain
+socket isn't currently implemented but could be used in near future).
+Also, HTTP protocol is not a connected protocol. It means that
+the socket connection can not be used to authenticate a client.
+
+For this reason, the binder should authenticate the application
+by using a commonly shared secret named token.
+
+At start, the framework communicate a common secret to both the binder
+and its client: the application. When the application 
+
+### Handling sessions
 
 
