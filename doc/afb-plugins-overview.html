@@ -14,6 +14,9 @@ Author:  Manuel Bachmann
 <h2>List of plugins</h2>
 
 <p>Here are the plugins shipped in the source tree:
+ * Hello World
+ * Authentication
+ * Tic Tac Toe
  * Audio <em>(2 backends: ALSA/PulseAudio)</em>
  * Radio <em>(1 backend: RTLSDR RTL2832U)</em>
  * Media <em>(1 backend: Rygel UPnP)</em></p>
@@ -22,11 +25,33 @@ Author:  Manuel Bachmann
 
 <h2>Detail of plugins</h2>
 
+<p>### Hello World</p>
+
+<p>A sample Hello World plugin for demonstration and learning purposes.</p>
+
+<p>This plugin provides a few unauthenticated requests, all beginning with "ping" ("<em>pingSample</em>", "<em>pingJson</em>", "<em>pingFail</em>"...) to demonstrate basic binder capabilities.</p>
+
+<p>### Authentication</p>
+
+<p>An sample Authentication plugin for demonstration purposes.</p>
+
+<p>This plugin provides a few requests to demonstrate the binder's token-based security mechanism.</p>
+
+<p>Calling "<em>connect</em>" with a security token will initiate a session, calling "<em>refresh</em>" will issue a new token and invalidate the previous one, calling "<em>logout</em>" will invalidate all tokens and close the session.</p>
+
+<p>### Tic Tac Toe</p>
+
+<p>A sample Tic Tac Toe game plugin.</p>
+
+<p>This plugin provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response. </p>
+
 <p>### Audio</p>
 
 <p>A sample Audio plugin with 2 backends:
  * ALSA (mandatory)
  * PulseAudio (optional)</p>
+
+<p>This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo...), mute sound, and play a 22,050 Hz PCM stream.</p>
 
 <p><em>(if PulseAudio development libraries are not found at build time, only ALSA will be available)</em></p>
 
@@ -34,30 +59,32 @@ Author:  Manuel Bachmann
 
 <p><em>(a specifc backend can be forced by using this syntax before running afb-daemon : <strong>$ export AFB</em>AUDIO<em>OUTPUT=Alsa</strong>)</em></p>
 
-<p>This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo...), mute sound, and play a 22,050 Hz PCM stream.</p>
-
-<p>Sample applications: <strong><a href="https://github.com/iotbzh/afb-radio">afb-radio</a></strong></p>
-
 <p>### Radio</p>
 
 <p>A sample AM/FM Radio plugin with 1 backend:
  * RTLSDR - Realtek RTL2832U dongles (mandatory)</p>
 
+<p>This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the <strong>audio</strong> plugin).</p>
+
 <p><em>(if rtlsdr development libraries are not found at build time, this plugin will not be built)</em></p>
-
-<p>This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (by using the <strong>audio</strong> plugin).</p>
-
-<p>Sample applications: <strong><a href="https://github.com/iotbzh/afb-radio">afb-radio</a></strong></p>
 
 <p>### Media</p>
 
 <p>A sample Media Server plugin with 1 backend:
  * Rygel</p>
 
-<p><em>(if GUPnP/GSSDP development libraries are not fund at build time, this plugin will not be built)</em></p>
+<p><em>(if GUPnP/GSSDP development libraries are not found at build time, this plugin will not be built)</em></p>
 
 <p>This plugin is able to detect a local Rygel UPnP media server, list audio files, select an audio file for playback, play/pause/seek in this file, upload an audio file to the server.</p>
 
-<p>Sample applications: <strong><a href="https://github.com/iotbzh/afb-radio">afb-radio</a></strong></p>
+<hr />
+
+<p><br /></p>
+
+<p>Sample command-line applications: <em>afb-client-demo</em> (built by default)</p>
+
+<p>Sample HTML5 applications: <strong>test/*.html</strong>, <strong><a href="https://github.com/iotbzh/afb-client">afb-client</a></strong>, <strong><a href="https://github.com/iotbzh/afb-radio">afb-radio</a></strong></p>
+
+<p>Sample Qt/QML applications: <em>test/token-websock.qml</em></p>
 </body>
 </html>
