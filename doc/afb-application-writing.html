@@ -15,11 +15,11 @@ Author:  José Bollo
 <p><ul>
  <li><a href="#HOWTO.WRITE.an.APPLICATION.above.AGL.FRAMEWORK">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</a>
  <ul>
-  <li><a href="#Languages.for.writing.Applications">Languages for writing Applications</a>
+  <li><a href="#Programmation.Languages.for.Applications">Programmation Languages for Applications</a>
   <ul>
    <li><a href="#Writing.an.HTML5.application">Writing an HTML5 application</a></li>
    <li><a href="#Writing.a.Qt.application">Writing a Qt application</a></li>
-   <li><a href="#Writing.a.C.application">Writing a C application</a></li>
+   <li><a href="#Writing..C..application">Writing "C" application</a></li>
   </ul>
   </li>
   <li><a href="#Handling.sessions.within.applications">Handling sessions within applications</a>
@@ -55,39 +55,36 @@ Author:  José Bollo
  </li>
 </ul></p>
 
-<a name="Languages.for.writing.Applications"></a>
-<h2>Languages for writing Applications</h2>
+<a name="Programmation.Languages.for.Applications"></a>
+<h2>Programmation Languages for Applications</h2>
 
 <a name="Writing.an.HTML5.application"></a>
 <h3>Writing an HTML5 application</h3>
 
-<p>Developpers of HTML5 applications (client side) can easyly create
-applications for AGL framework using their prefered
-HTML framework.</p>
+<p>Developers of HTML5 applications (client side) can easily create
+applications for AGL framework using their preferred
+HTML5 framework.</p>
 
-<p>Developpers can also create powerful server side plugins to improve
-their application. This server side plugin should return the mime-type
-application/json and can be accessed either by HTTP or by Websockets.</p>
+<p>Developers may also take advantage of powerful server side plugins to improve
+application behavior. Server side plugins return an application/json mine-type
+and can be accessed though either HTTP or Websockets.</p>
 
-<p>In a near future, the JSON-RPC protocol will be available together
-with the current x-afb-json1 protocol.</p>
+<p>In a near future, JSON-RPC protocol should be added to complete current x-afb-json1 protocol.</p>
 
 <p>Two examples of HTML5 applications are given:</p>
 
 <ul>
-<li><p><a href="https://github.com/iotbzh/afb-client">afb-client</a> a simple &ldquo;hello world&rdquo; application</p></li>
-<li><p><a href="https://github.com/iotbzh/afm-client">afm-client</a> a simple &ldquo;Home screen&rdquo; application</p></li>
+<li><p><a href="https://github.com/iotbzh/afb-client">afb-client</a> a simple &ldquo;hello world&rdquo; application template</p></li>
+<li><p><a href="https://github.com/iotbzh/afm-client">afm-client</a> a simple &ldquo;Home screen&rdquo; application template</p></li>
 </ul>
 
 
 <a name="Writing.a.Qt.application"></a>
 <h3>Writing a Qt application</h3>
 
-<p>Writing Qt applications is also possible because Qt offers APIs to
-make HTTP queries and to connect using WebSockets.</p>
+<p>Writing Qt applications is also supported. Qt offers standard API to send request through HTTP or WebSockets.</p>
 
-<p>It is even possible to write a QML application.
-It is demontrated by the sample application token-websock:</p>
+<p>It is also possible to write QML applications. A sample QML application [token-websock] is avaliable..</p>
 
 <ul>
 <li><a href="https://github.com/iotbzh/afb-daemon/blob/master/test/token-websock.qml">token-websock</a>
@@ -95,38 +92,37 @@ a simple &ldquo;hello world&rdquo; application in QML</li>
 </ul>
 
 
-<a name="Writing.a.C.application"></a>
-<h3>Writing a C application</h3>
+<a name="Writing..C..application"></a>
+<h3>Writing &ldquo;C&rdquo; application</h3>
 
-<p>C applications can use the binder afb-daemon through a websocket connection.</p>
+<p>C applications can use afb-daemon binder through a websocket connection.</p>
 
-<p>The library <strong>libafbwsc</strong> is made for C clients that want
-to connect to the afb-daemon binder.</p>
+<p>The library <strong>libafbwsc</strong> is provided for C clients that need
+to connect with an afb-daemon binder.</p>
 
-<p>The program <strong>afb-client-demo</strong> is the C program that use
-the provided library <strong>libafbwsc</strong>.
-Its source code is here
+<p>The program <strong>afb-client-demo</strong> is the C example that use
+<strong>libafbwsc</strong> library.
+Source code is available here
 <a href="https://github.com/iotbzh/afb-daemon/blob/master/src/afb-client-demo.c">src/afb-client-demo.c</a>.</p>
 
-<p>The current implementation use libsystemd and file descriptors.
-This may be changed in the future to also support secure sockets
-and being less dependant of libsystemd.</p>
+<p>Current implementation relies on libsystemd and file descriptors.
+This model might be review in the future to support secure sockets
+and free the dependency with libsystemd.</p>
 
 <a name="Handling.sessions.within.applications"></a>
 <h2>Handling sessions within applications</h2>
 
-<p>Applications must be aware of the the features session and token
-when they interact with the binder afb-daemon.</p>
+<p>Applications should understand sessions and tokens management when interacting with afb-daemon binder.</p>
 
-<p>Applications are communicating with their binder afb-daemon using
-a network connection or a kind of network connection (unix domain
-socket isn&rsquo;t currently implemented but could be used in near future).
-Also, HTTP protocol is not a connected protocol. It means that
-the socket connection can not be used to authenticate a client.</p>
+<p>Applications are communicating with their private binder(afb-daemon) using
+a network connection or potentially any other connection channel. While current version
+does not yet implement unix domain this feature might be added in a near future.
+Developers need to be warn that HTTP protocol is a none connected protocol. This prevents
+from using HTTP socket connection to authenticate clients.</p>
 
 <p>For this reason, the binder should authenticate the application
-by using a commonly shared secret named token and the identification
-of the client named session.</p>
+by using a shared secret. The secret is named &ldquo;token&rdquo; and the identification
+of client is named &ldquo;session&rdquo;.</p>
 
 <p>The examples <strong>token-websock.qml</strong> and <strong>afb-client</strong> are demonstrating
 how authentication and sessions are managed.</p>
@@ -134,42 +130,41 @@ how authentication and sessions are managed.</p>
 <a name="Handling.sessions"></a>
 <h3>Handling sessions</h3>
 
-<p>Plugins and features of the binder need to keep track of the client
-instances. This of importance for plugins running as service
-because they may have to separate the data of each client.</p>
+<p>Plugins and other binder feature need to keep track of client
+instances. This is especially important for plugins running as services
+as they may typically have to keep each client&rsquo;s data separated.</p>
 
 <p>For HTML5 applications, the web runtime handles the cookie of session
 that the binder afb-daemon automatically sets.</p>
 
-<p>In any case, the session identifier can be set using the parameters
-<strong>uuid</strong> or <strong>x-afb-uuid</strong> in the request uri. That is understood
-by HTTP requests and by the negociation of websockets.</p>
+<p>Session identifier can be set using the parameter
+<strong>uuid</strong> or <strong>x-afb-uuid</strong> in URI requests. Within current version of the
+framework session UUID is supported by both HTTP requests and websocket negotiation.</p>
 
 <a name="Exchanging.tokens"></a>
 <h3>Exchanging tokens</h3>
 
-<p>At start, the framework communicates a common secret to both the binder
-and its client: the application. This initial secret is the
-initial token.</p>
+<p>At application start, AGL framework communicates a shared secret to both binder
+and client application. This initial secret is called the &ldquo;initial token&rdquo;.</p>
 
 <p>For each of its client application, the binder manages a current active
-token for the session. This authentication token can be a requirement for
-accessing some methods.</p>
+token for session management. This authentication token can be use to restrict
+access to some plugin&rsquo;s methods.</p>
 
-<p>The token must be passed in the request uri on HTTP or at connecting
-websockets using the parameter <strong>token</strong> or <strong>x-afb-token</strong>.</p>
+<p>The token must be included in URI request on HTTP or during websockets
+connection using parameter <strong>token</strong> or <strong>x-afb-token</strong>.</p>
 
 <p>To ensure security, tokens must be refreshed periodically.</p>
 
 <a name="Example.of.session.management"></a>
 <h3>Example of session management</h3>
 
-<p>For the following exmples, we suppose that you launched <strong>afb-daemon</strong> like that or similar:</p>
+<p>In following examples, we suppose that <strong>afb-daemon</strong> is launched with something equivalent to:</p>
 
 <pre><code>$ afb-daemon --port=1234 --token=123456 [...]
 </code></pre>
 
-<p>with the expectation that the plugin <strong>AuthLogin</strong> is loaded.</p>
+<p>making the expectation that <strong>AuthLogin</strong> plugin is requested as default.</p>
 
 <a name="Using.curl"></a>
 <h4>Using curl</h4>
@@ -188,10 +183,10 @@ websockets using the parameter <strong>token</strong> or <strong>x-afb-token</st
 }
 </code></pre>
 
-<p>It returns an answer containing the uuid of the session, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015,
-and the refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
+<p>It returns an answer containing session UUID, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015,
+and a refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
 
-<p>Let check that it is available:</p>
+<p>Check if session and token is valid:</p>
 
 <pre><code>$ curl http://localhost:1234/api/auth/check?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
@@ -201,7 +196,7 @@ and the refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
 }
 </code></pre>
 
-<p>It works! So try now to refresh the token:</p>
+<p>Refresh the token:</p>
 
 <pre><code>$ curl http://localhost:1234/api/auth/refresh?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
@@ -214,7 +209,7 @@ and the refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
 }
 </code></pre>
 
-<p>Let now close the session:</p>
+<p>Close the session:</p>
 
 <pre><code>curl http://localhost:1234/api/auth/logout?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
@@ -224,7 +219,7 @@ and the refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
 }
 </code></pre>
 
-<p>So now, checking for the uuid will be refused:</p>
+<p>Checking on closed session for uuid should be refused:</p>
 
 <pre><code>curl http://localhost:1234/api/auth/check?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
@@ -258,13 +253,13 @@ ON-REPLY 6:auth/refresh: {"jtype":"afb-reply","request":{"status":"success",
    "token":"e83b36f8-d945-463d-b983-5d8ed73ba529"},"response":{"token":"Token was refreshed"}}
 </code></pre>
 
-<p>Then you leave. And can reconnect as below:</p>
+<p>After closing connection, reconnect as here after:</p>
 
 <pre><code>$ afb-client-demo ws://localhost:1234/api?token=e83b36f8-d945-463d-b983-5d8ed73ba529&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1 auth check
 ON-REPLY 1:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
 </code></pre>
 
-<p>The same can be continued using <strong>curl</strong>:</p>
+<p>Same connection check using <strong>curl</strong>:</p>
 
 <pre><code>$ curl http://localhost:1234/api/auth/check?token=e83b36f8-d945-463d-b983-5d8ed73ba529&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1
 {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
@@ -273,21 +268,21 @@ ON-REPLY 1:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"resp
 <a name="Format.of.replies"></a>
 <h2>Format of replies</h2>
 
-<p>The replies are made of one javascript object returned using JSON serialization.</p>
+<p>Replies use javascript object returned as serialized JSON.</p>
 
-<p>This object containts at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong>
-and an optionnal field of name <strong>response</strong>.</p>
+<p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong>
+and one optional field of name <strong>response</strong>.</p>
 
 <a name="Field.jtype"></a>
 <h3>Field jtype</h3>
 
-<p>The field <strong>jtype</strong> must have a value of type string equel to <strong>&ldquo;afb-reply&rdquo;</strong>.</p>
+<p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&ldquo;afb-reply&rdquo;</strong>.</p>
 
 <a name="Field.request"></a>
 <h3>Field request</h3>
 
 <p>The field <strong>request</strong> must have a value of type object. This request object
-has at least one field named <strong>status</strong> and four optionnal fields of name
+has at least one field named <strong>status</strong> and four optional fields named
 <strong>info</strong>, <strong>token</strong>, <strong>uuid</strong>, <strong>reqid</strong>.</p>
 
 <a name="Subfield.request.status"></a>
@@ -299,30 +294,30 @@ only in case of success.</p>
 <a name="Subfield.request.info"></a>
 <h4>Subfield request.info</h4>
 
-<p><strong>info</strong> is of type string and represent optionnal the information added to the reply.</p>
+<p><strong>info</strong> is of type string and represent optional information added to the reply.</p>
 
 <a name="Subfield.request.token"></a>
 <h4>Subfield request.token</h4>
 
-<p><strong>token</strong> is of type string. It is sent either on the creation of the
-session or when the token is refreshed.</p>
+<p><strong>token</strong> is of type string. It is sent either at session creation
+or when the token is refreshed.</p>
 
 <a name="Subfield.request.uuid"></a>
 <h4>Subfield request.uuid</h4>
 
-<p><strong>uuid</strong> is of type string. It is sent on the creation of the session.</p>
+<p><strong>uuid</strong> is of type string. It is sent at session creation.</p>
 
 <a name="Subfield.request.reqid"></a>
 <h4>Subfield request.reqid</h4>
 
-<p><strong>reqid</strong> is of type string. It is sent in response of HTTP requests
-that added a parameter of name <strong>reqid</strong> or <strong>x-afb-reqid</strong>. The value
-sent in the reply is the exact value received on the request.</p>
+<p><strong>reqid</strong> is of type string. It is sent in response to HTTP requests
+that added a parameter of name <strong>reqid</strong> or <strong>x-afb-reqid</strong> at request time.
+Value returns in the reply has the exact same value as the one received in the request.</p>
 
 <a name="Field.response"></a>
 <h3>Field response</h3>
 
-<p>This field response optionnaly containts the object returned with successful replies.</p>
+<p>This field response optionally contains an object returned when request succeeded.</p>
 
 <a name="Template"></a>
 <h3>Template</h3>
