@@ -359,7 +359,7 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 	int fd;
 	unsigned int status;
 	struct stat st;
-	char etag[1 + 2 * sizeof(int)];
+	char etag[1 + 2 * 8];
 	const char *inm;
 	struct MHD_Response *response;
 	const char *mimetype;
