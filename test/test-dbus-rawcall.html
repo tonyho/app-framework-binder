@@ -1,0 +1,57 @@
+<html>
+<head>
+    <title>Test of DBUS binding</title>
+    <script type="text/javascript" src="AFB.js"></script>
+    <script type="text/javascript">
+	var afb = new AFB("api", "hello");
+	var ws;
+	var names = [ "bus", "destination", "path", "interface", "member", "arguments", "signature" ];
+
+	function onopen() {
+		document.getElementById("main").style.visibility = "visible";
+		document.getElementById("connected").innerHTML = "Connected to WebSocket server";
+		ws.onevent("*", gotevent);
+	}
+	function onabort() {
+		document.getElementById("main").style.visibility = "hidden";
+		document.getElementById("connected").innerHTML = "Connection Closed";
+	}
+	function init() {
+		ws = new afb.ws(onopen, onabort);
+	}
+	function replyok(obj) {
+		document.getElementById("output").innerHTML = "OK: "+JSON.stringify(obj);
+	}
+	function replyerr(obj) {
+		document.getElementById("output").innerHTML = "ERROR: "+JSON.stringify(obj);
+	}
+	function gotevent(obj) {
+		document.getElementById("outevt").innerHTML = JSON.stringify(obj);
+	}
+	function send() {
+		var req = { };
+		names.forEach(function(n){
+			var v = document.getElementById(n).value;
+			if(v) req[n] = n == "arguments" ? JSON.parse(v) : v;
+		});
+		ws.call("dbus/rawcall", req).then(replyok, replyerr);
+	}
+    </script>
+
+<body onload="init();">
+    <h1>WebSocket Echo</h1>
+    <div id="connected">Not Connected</div>
+    <div id="main" style="visibility:hidden">
+    bus: <input id="bus" type="text" size="80"/><br/>
+    destination: <input id="destination" type="text" size="80"/><br/>
+    path: <input id="path" type="text" size="80"/><br/>
+    interface: <input id="interface" type="text" size="80"/><br/>
+    member: <input id="member" type="text" size="80"/><br/>
+    signature: <input id="signature" type="text" size="80"/><br/>
+    arguments: <input id="arguments" type="text" size="80"/><br/>
+    <input type="button" onclick="send()" value="SEND..."/><br/>
+    Server says... <div id="output"></div>
+    Events: <div id="outevt"></div>
+    </div>
+
+
