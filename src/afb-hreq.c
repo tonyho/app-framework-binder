@@ -774,20 +774,15 @@ static ssize_t send_json_cb(json_object *obj, uint64_t pos, char *buf, size_t ma
 
 static void req_reply(struct afb_hreq *hreq, unsigned retcode, const char *status, const char *info, json_object *resp)
 {
-	struct json_object *reply, *request;
-	const char *token, *uuid, *reqid;
+	struct json_object *reply;
+	const char *reqid;
 	struct MHD_Response *response;
-
-	token = afb_context_sent_token(&hreq->context);
-	uuid = afb_context_sent_uuid(&hreq->context);
-
-	reply = afb_msg_json_reply(status, info, resp, token, uuid);
 
 	reqid = afb_hreq_get_argument(hreq, long_key_for_reqid);
 	if (reqid == NULL)
 		reqid = afb_hreq_get_argument(hreq, short_key_for_reqid);
-	if (reqid != NULL && json_object_object_get_ex(reply, "request", &request))
-		json_object_object_add (request, short_key_for_reqid, json_object_new_string(reqid));
+
+	reply = afb_msg_json_reply(status, info, resp, &hreq->context, reqid);
 
 	response = MHD_create_response_from_callback((uint64_t)strlen(json_object_to_json_string_ext(reply, JSON_C_TO_STRING_PLAIN)), SIZE_RESPONSE_BUFFER, (void*)send_json_cb, reply, (void*)json_object_put);
 	afb_hreq_reply(hreq, retcode, response, NULL);

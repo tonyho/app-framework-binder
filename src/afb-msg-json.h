@@ -18,8 +18,11 @@
 #pragma once
 
 struct json_object;
+struct afb_context;
 
-extern struct json_object *afb_msg_json_reply(const char *status, const char *info, struct json_object *resp, const char *token, const char *uuid);
+extern struct json_object *afb_msg_json_reply(const char *status, const char *info, struct json_object *resp, struct afb_context *context, const char *reqid);
+extern struct json_object *afb_msg_json_reply_ok(const char *info, struct json_object *resp, struct afb_context *context, const char *reqid);
+extern struct json_object *afb_msg_json_reply_error(const char *status, const char *info, struct afb_context *context, const char *reqid);
 
 extern struct json_object *afb_msg_json_event(const char *event, struct json_object *object);
 

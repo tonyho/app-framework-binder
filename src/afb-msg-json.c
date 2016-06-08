@@ -20,39 +20,69 @@
 #include <json-c/json.h>
 
 #include "afb-msg-json.h"
+#include "afb-context.h"
 
 
-struct json_object *afb_msg_json_reply(const char *status, const char *info, struct json_object *resp, const char *token, const char *uuid)
+struct json_object *afb_msg_json_reply(const char *status, const char *info, struct json_object *resp, struct afb_context *context, const char *reqid)
 {
 	json_object *msg, *request;
-
-	request = json_object_new_object();
-	json_object_object_add(request, "status", json_object_new_string(status));
-	if (info != NULL)
-		json_object_object_add(request, "info", json_object_new_string(info));
-	if (token != NULL)
-		json_object_object_add(request, "token", json_object_new_string(token));
-	if (uuid != NULL)
-		json_object_object_add(request, "uuid", json_object_new_string(uuid));
+	const char *token, *uuid;
+	static json_object *type_reply = NULL;
 
 	msg = json_object_new_object();
-	json_object_object_add(msg, "jtype", json_object_new_string("afb-reply"));
-	json_object_object_add(msg, "request", request);
 	if (resp != NULL)
 		json_object_object_add(msg, "response", resp);
 
+	if (type_reply == NULL)
+		type_reply = json_object_new_string("afb-reply");
+	json_object_object_add(msg, "jtype", json_object_get(type_reply));
+
+	request = json_object_new_object();
+	json_object_object_add(msg, "request", request);
+	json_object_object_add(request, "status", json_object_new_string(status));
+
+	if (info != NULL)
+		json_object_object_add(request, "info", json_object_new_string(info));
+
+	if (reqid != NULL)
+		json_object_object_add(request, "reqid", json_object_new_string(reqid));
+
+	token = afb_context_sent_token(context);
+	if (token != NULL)
+		json_object_object_add(request, "token", json_object_new_string(token));
+
+	uuid = afb_context_sent_uuid(context);
+	if (uuid != NULL)
+		json_object_object_add(request, "uuid", json_object_new_string(uuid));
+
 	return msg;
+}
+
+struct json_object *afb_msg_json_reply_ok(const char *info, struct json_object *resp, struct afb_context *context, const char *reqid)
+{
+	return afb_msg_json_reply("success", info, resp, context, reqid);
+}
+
+struct json_object *afb_msg_json_reply_error(const char *status, const char *info, struct afb_context *context, const char *reqid)
+{
+	return afb_msg_json_reply(status, info, NULL, context, reqid);
 }
 
 struct json_object *afb_msg_json_event(const char *event, struct json_object *object)
 {
 	json_object *msg;
+	static json_object *type_event = NULL;
 
 	msg = json_object_new_object();
-	json_object_object_add(msg, "jtype", json_object_new_string("afb-event"));
+
 	json_object_object_add(msg, "event", json_object_new_string(event));
+
 	if (object != NULL)
 		json_object_object_add(msg, "data", object);
+
+	if (type_event == NULL)
+		type_event = json_object_new_string("afb-event");
+	json_object_object_add(msg, "jtype", json_object_get(type_event));
 
 	return msg;
 }

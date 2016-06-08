@@ -423,10 +423,8 @@ static void aws_emit(struct afb_ws_json1 *aws, int code, const char *id, size_t 
 
 static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status, const char *info, json_object *resp)
 {
-	const char *uuid = afb_context_sent_uuid(&wsreq->context);
-	const char *token = afb_context_sent_token(&wsreq->context);
-	struct json_object *reply = afb_msg_json_reply(status, info, resp, token, uuid);
-	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, reply, token);
+	struct json_object *reply = afb_msg_json_reply(status, info, resp, &wsreq->context, NULL);
+	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, reply, afb_context_sent_token(&wsreq->context));
 }
 
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
