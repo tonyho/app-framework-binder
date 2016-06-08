@@ -35,16 +35,24 @@
     this.ws = null;
   }
 
+  // prototype of functions linked to AfbContext object
   AfbContext.prototype = {
+    // call using websockets
     call: function(method, query) { return getws(this).call(method, query); },
+
+    // call using get
     get: function(method, query) { return $http.get(this.uhttp+method, mixtu(this, query)); },
-    post: function(method, query) { return $http.post(this.uhttp+method, mixtu(this, query)); },
+
+    // call using post
+    post: function(method, query) { return $http.post(this.uhttp+method, mixtu(this, query)); }
   };
 
+  // get the current websocket
   function getws(ctxt) {
     return ctxt.ws || (ctxt.ws = new AfbWebSocket(ctxt));
   }
 
+  // inserts the current token in the answer
   function mixtu(ctxt, query) {
     return ("token" in query) ? query : angular.extend({token:ctxt.token},query);
   }
@@ -131,6 +139,7 @@
 
 
 
+/*
 
 
 
@@ -172,6 +181,8 @@
 
 	function call(method, request) {
 	}
+
+*/
 
 /*
   // Factory is a singleton and share its context within all instances.
