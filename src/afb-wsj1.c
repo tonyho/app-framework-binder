@@ -424,6 +424,11 @@ struct afb_wsj1 *afb_wsj1_msg_wsj1(struct afb_wsj1_msg *msg)
 	return msg->wsj1;
 }
 
+int afb_wsj1_close(struct afb_wsj1 *wsj1, uint16_t code, const char *text)
+{
+	return afb_ws_close(wsj1->ws, code, text);
+}
+
 static int wsj1_send_isot(struct afb_wsj1 *wsj1, int i1, const char *s1, const char *o1, const char *t1)
 {
 	char code[2] = { (char)('0' + i1), 0 };
@@ -438,7 +443,10 @@ static int wsj1_send_issot(struct afb_wsj1 *wsj1, int i1, const char *s1, const 
 
 int afb_wsj1_send_event_j(struct afb_wsj1 *wsj1, const char *event, struct json_object *object)
 {
-	return afb_wsj1_send_event_s(wsj1, event, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN));
+	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	int rc = afb_wsj1_send_event_s(wsj1, event, objstr);
+	json_object_put(object);
+	return rc;
 }
 
 int afb_wsj1_send_event_s(struct afb_wsj1 *wsj1, const char *event, const char *object)
@@ -448,7 +456,10 @@ int afb_wsj1_send_event_s(struct afb_wsj1 *wsj1, const char *event, const char *
 
 int afb_wsj1_call_j(struct afb_wsj1 *wsj1, const char *api, const char *verb, struct json_object *object, void (*on_reply)(void *closure, struct afb_wsj1_msg *msg), void *closure)
 {
-	return afb_wsj1_call_s(wsj1, api, verb, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN), on_reply, closure);
+	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	int rc = afb_wsj1_call_s(wsj1, api, verb, objstr, on_reply, closure);
+	json_object_put(object);
+	return rc;
 }
 
 int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *verb, const char *object, void (*on_reply)(void *closure, struct afb_wsj1_msg *msg), void *closure)
@@ -480,7 +491,9 @@ int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *verb, co
 int afb_wsj1_reply_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token, int iserror)
 {
 	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
-	return afb_wsj1_reply_s(msg, objstr, token, iserror);
+	int rc = afb_wsj1_reply_s(msg, objstr, token, iserror);
+	json_object_put(object);
+	return rc;
 }
 
 int afb_wsj1_reply_s(struct afb_wsj1_msg *msg, const char *object, const char *token, int iserror)

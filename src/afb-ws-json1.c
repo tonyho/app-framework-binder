@@ -25,32 +25,32 @@
 
 #include <json-c/json.h>
 
-#include "afb-ws.h"
+#include "afb-wsj1.h"
 #include "afb-ws-json1.h"
 #include "afb-msg-json.h"
 #include "session.h"
 #include <afb/afb-req-itf.h>
 #include "afb-apis.h"
 #include "afb-context.h"
+#include "verbose.h"
 
-static void aws_on_hangup(struct afb_ws_json1 *ws);
-static void aws_on_text(struct afb_ws_json1 *ws, char *text, size_t size);
+static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1);
+static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg);
 
-static struct afb_ws_itf aws_itf = {
+static struct afb_wsj1_itf wsj1_itf = {
 	.on_hangup = (void*)aws_on_hangup,
-	.on_text = (void*)aws_on_text
+	.on_call = (void*)aws_on_call
 };
 
 struct afb_wsreq;
 
 struct afb_ws_json1
 {
+	int refcount;
 	void (*cleanup)(void*);
 	void *cleanup_closure;
-	struct afb_wsreq *requests;
 	struct AFB_clientCtx *session;
-	struct json_tokener *tokener;
-	struct afb_ws *ws;
+	struct afb_wsj1 *wsj1;
 	int new_session;
 };
 
@@ -77,31 +77,25 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 	if (result == NULL)
 		goto error;
 
+	result->refcount = 1;
 	result->cleanup = cleanup;
 	result->cleanup_closure = cleanup_closure;
-	result->requests = NULL;
 	result->session = ctxClientAddRef(context->session);
 	result->new_session = context->created != 0;
 	if (result->session == NULL)
 		goto error2;
 
-	result->tokener = json_tokener_new();
-	if (result->tokener == NULL)
+	result->wsj1 = afb_wsj1_create(fd, &wsj1_itf, result);
+	if (result->wsj1 == NULL)
 		goto error3;
 
-	result->ws = afb_ws_create(fd, &aws_itf, result);
-	if (result->ws == NULL)
-		goto error4;
-
 	if (0 > ctxClientEventListenerAdd(result->session, listener_for(result)))
-		goto error5;
+		goto error4;
 
 	return result;
 
-error5:
-	afb_ws_destroy(result->ws);
 error4:
-	json_tokener_free(result->tokener);
+	afb_wsj1_unref(result->wsj1);
 error3:
 	ctxClientUnref(result->session);
 error2:
@@ -111,21 +105,28 @@ error:
 	return NULL;
 }
 
-static void aws_on_hangup(struct afb_ws_json1 *ws)
+static struct afb_ws_json1 *aws_addref(struct afb_ws_json1 *ws)
 {
-	ctxClientEventListenerRemove(ws->session, listener_for(ws));
-	afb_ws_destroy(ws->ws);
-	json_tokener_free(ws->tokener);
-	if (ws->cleanup != NULL)
-		ws->cleanup(ws->cleanup_closure);
-	ctxClientUnref(ws->session);
-	free(ws);
+	ws->refcount++;
+	return ws;
 }
 
-#define CALL 2
-#define RETOK 3
-#define RETERR 4
-#define EVENT 5
+static void aws_unref(struct afb_ws_json1 *ws)
+{
+	if (--ws->refcount == 0) {
+		ctxClientEventListenerRemove(ws->session, listener_for(ws));
+		afb_wsj1_unref(ws->wsj1);
+		if (ws->cleanup != NULL)
+			ws->cleanup(ws->cleanup_closure);
+		ctxClientUnref(ws->session);
+		free(ws);
+	}
+}
+
+static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1)
+{
+	aws_unref(ws);
+}
 
 struct afb_wsreq
 {
@@ -137,20 +138,7 @@ struct afb_wsreq
 	int refcount;
 	struct afb_ws_json1 *aws;
 	struct afb_wsreq *next;
-	char *text;
-	size_t size;
-	int code;
-	char *id;
-	size_t idlen;
-	char *api;
-	size_t apilen;
-	char *verb;
-	size_t verblen;
-	char *obj;
-	size_t objlen;
-	char *tok;
-	size_t toklen;
-	struct json_object *root;
+	struct afb_wsj1_msg *msgj1;
 };
 
 static void wsreq_addref(struct afb_wsreq *wsreq);
@@ -178,173 +166,40 @@ static const struct afb_req_itf wsreq_itf = {
 	.session_set_LOA = (void*)afb_context_change_loa
 };
 
-static int aws_wsreq_parse(struct afb_wsreq *r, char *text, size_t size)
-{
-	char *pos, *end, c;
-	int aux;
-
-	/* scan */
-	pos = text;
-	end = text + size;
-
-	/* scans: [ */
-	while(pos < end && *pos == ' ') pos++;
-	if (pos == end) goto bad_header;
-	if (*pos++ != '[') goto bad_header;
-
-	/* scans code: 2|3|4 */
-	while(pos < end && *pos == ' ') pos++;
-	if (pos == end) goto bad_header;
-	switch (*pos++) {
-	case '2': r->code = CALL; break;
-	case '3': r->code = RETOK; break;
-	case '4': r->code = RETERR; break;
-	default: goto bad_header;
-	}
-
-	/* scans: , */
-	while(pos < end && *pos == ' ') pos++;
-	if (pos == end) goto bad_header;
-	if (*pos++ != ',') goto bad_header;
-
-	/* scans id: "id" */
-	while(pos < end && *pos == ' ') pos++;
-	if (pos == end) goto bad_header;
-	if (*pos++ != '"') goto bad_header;
-	r->id = pos;
-	while(pos < end && *pos != '"') pos++;
-	if (pos == end) goto bad_header;
-	r->idlen = (size_t)(pos++ - r->id);
-
-	/* scans: , */
-	while(pos < end && *pos == ' ') pos++;
-	if (pos == end) goto bad_header;
-	if (*pos++ != ',') goto bad_header;
-
-	/* scans the method if needed */
-	if (r->code == CALL) {
-		/* scans: " */
-		while(pos < end && *pos == ' ') pos++;
-		if (pos == end) goto bad_header;
-		if (*pos++ != '"') goto bad_header;
-
-		/* scans: api/ */
-		r->api = pos;
-		while(pos < end && *pos != '"' && *pos != '/') pos++;
-		if (pos == end) goto bad_header;
-		if (*pos != '/') goto bad_header;
-		r->apilen = (size_t)(pos++ - r->api);
-		if (r->apilen && r->api[r->apilen - 1] == '\\')
-			r->apilen--;
-
-		/* scans: verb" */
-		r->verb = pos;
-		while(pos < end && *pos != '"') pos++;
-		if (pos == end) goto bad_header;
-		r->verblen = (size_t)(pos++ - r->verb);
-
-		/* scans: , */
-		while(pos < end && *pos == ' ') pos++;
-		if (pos == end) goto bad_header;
-		if (*pos++ != ',') goto bad_header;
-	}
-
-	/* scan obj */
-	while(pos < end && *pos == ' ') pos++;
-	if (pos == end) goto bad_header;
-	aux = 0;
-	r->obj = pos;
-	while (pos < end && (aux != 0 || (*pos != ',' && *pos != ']'))) {
-		if (pos == end) goto bad_header;
-		switch(*pos) {
-		case '{': case '[': aux++; break;
-		case '}': case ']': if (!aux--) goto bad_header; break;
-		case '"':
-			do {
-				pos += 1 + (*pos == '\\');
-			} while(pos < end && *pos != '"');
-		default:
-			break;
-		}
-		pos++;
-	}
-	if (pos > end) goto bad_header;
-	if (pos == end && aux != 0) goto bad_header;
-	c = *pos;
-	r->objlen = (size_t)(pos++ - r->obj);
-	while (r->objlen && r->obj[r->objlen - 1] == ' ')
-		r->objlen--;
-
-	/* scan the token (if any) */
-	if (c == ',') {
-		/* scans token: "token" */
-		while(pos < end && *pos == ' ') pos++;
-		if (pos == end) goto bad_header;
-		if (*pos++ != '"') goto bad_header;
-		r->tok = pos;
-		while(pos < end && *pos != '"') pos++;
-		if (pos == end) goto bad_header;
-		r->toklen = (size_t)(pos++ - r->tok);
-		while(pos < end && *pos == ' ') pos++;
-		if (pos == end) goto bad_header;
-		c = *pos++;
-	}
-
-	/* scan: ] */
-	if (c != ']') goto bad_header;
-	while(pos < end && *pos == ' ') pos++;
-	if (pos != end) goto bad_header;
-
-	/* done */
-	r->text = text;
-	r->size = size;
-	return 1;
-
-bad_header:
-	return 0;
-}
-
-static void aws_on_text(struct afb_ws_json1 *ws, char *text, size_t size)
+static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg)
 {
 	struct afb_req r;
 	struct afb_wsreq *wsreq;
 
+	DEBUG("received websocket request for %s/%s: %s", api, verb, afb_wsj1_msg_object_s(msg));
+
 	/* allocate */
 	wsreq = calloc(1, sizeof *wsreq);
-	if (wsreq == NULL)
-		goto alloc_error;
+	if (wsreq == NULL) {
+		afb_wsj1_close(ws->wsj1, 1008, NULL);
+		return;
+	}
 
-	/* init */
-	if (!aws_wsreq_parse(wsreq, text, size))
-		goto bad_header;
-
-	/* fill and record the request */
-	if (wsreq->tok != NULL)
-		wsreq->tok[wsreq->toklen] = 0;
-	afb_context_init(&wsreq->context, ws->session, wsreq->tok);
+	/* init the context */
+	afb_context_init(&wsreq->context, ws->session, afb_wsj1_msg_token(msg));
 	if (!wsreq->context.invalidated)
 		wsreq->context.validated = 1;
 	if (ws->new_session != 0) {
 		wsreq->context.created = 1;
 		ws->new_session = 0;
 	}
-	wsreq->refcount = 1;
-	wsreq->aws = ws;
-	wsreq->next = ws->requests;
-	ws->requests = wsreq;
 
+	/* fill and record the request */
+	afb_wsj1_msg_addref(msg);
+	wsreq->msgj1 = msg;
+	wsreq->refcount = 1;
+	wsreq->aws = aws_addref(ws);
+
+	/* emits the call */
 	r.closure = wsreq;
 	r.itf = &wsreq_itf;
-	afb_apis_call(r, &wsreq->context, wsreq->api, wsreq->apilen, wsreq->verb, wsreq->verblen);
+	afb_apis_call_(r, &wsreq->context, api, verb);
 	wsreq_unref(wsreq);
-	return;
-
-bad_header:
-	free(wsreq);
-alloc_error:
-	free(text);
-	afb_ws_close(ws->ws, 1008, NULL);
-	return;
 }
 
 static void wsreq_addref(struct afb_wsreq *wsreq)
@@ -355,34 +210,16 @@ static void wsreq_addref(struct afb_wsreq *wsreq)
 static void wsreq_unref(struct afb_wsreq *wsreq)
 {
 	if (--wsreq->refcount == 0) {
-		struct afb_wsreq **prv = &wsreq->aws->requests;
-		while(*prv != NULL) {
-			if (*prv == wsreq) {
-				*prv = wsreq->next;
-				break;
-			}
-			prv = &(*prv)->next;
-		}
 		afb_context_disconnect(&wsreq->context);
-		json_object_put(wsreq->root);
-		free(wsreq->text);
+		afb_wsj1_msg_unref(wsreq->msgj1);
+		aws_unref(wsreq->aws);
 		free(wsreq);
 	}
 }
 
 static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
 {
-	struct json_object *root = wsreq->root;
-	if (root == NULL) {
-		json_tokener_reset(wsreq->aws->tokener);
-		root = json_tokener_parse_ex(wsreq->aws->tokener, wsreq->obj, (int)wsreq->objlen);
-		if (root == NULL) {
-			/* lazy error detection of json request. Is it to improve? */
-			root = json_object_new_string_len(wsreq->obj, (int)wsreq->objlen);
-		}
-		wsreq->root = root;
-	}
-	return root;
+	return afb_wsj1_msg_object_j(wsreq->msgj1);
 }
 
 static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
@@ -402,54 +239,40 @@ static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 	return arg;
 }
 
-static void aws_emit(struct afb_ws_json1 *aws, int code, const char *id, size_t idlen, struct json_object *data, const char *token)
-{
-	json_object *msg;
-	const char *txt;
-
-	/* pack the message */
-	msg = json_object_new_array();
-	json_object_array_add(msg, json_object_new_int(code));
-	json_object_array_add(msg, json_object_new_string_len(id, (int)idlen));
-	json_object_array_add(msg, data);
-	if (token)
-		json_object_array_add(msg, json_object_new_string(token));
-
-	/* emits the reply */
-	txt = json_object_to_json_string_ext(msg, JSON_C_TO_STRING_PLAIN);
-	afb_ws_text(aws->ws, txt, strlen(txt));
-	json_object_put(msg);
-}
-
-static void wsreq_reply(struct afb_wsreq *wsreq, int retcode, const char *status, const char *info, json_object *resp)
-{
-	struct json_object *reply = afb_msg_json_reply(status, info, resp, &wsreq->context, NULL);
-	aws_emit(wsreq->aws, retcode, wsreq->id, wsreq->idlen, reply, afb_context_sent_token(&wsreq->context));
-}
-
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
 {
-	wsreq_reply(wsreq, RETERR, status, info, NULL);
+	int rc;
+	rc = afb_wsj1_reply_error_j(wsreq->msgj1, afb_msg_json_reply_error(status, info, &wsreq->context, NULL), afb_context_sent_token(&wsreq->context));
+	if (rc)
+		ERROR("Can't send fail reply: %m");
 }
 
 static void wsreq_success(struct afb_wsreq *wsreq, json_object *obj, const char *info)
 {
-	wsreq_reply(wsreq, RETOK, "success", info, obj);
+	int rc;
+	rc = afb_wsj1_reply_ok_j(wsreq->msgj1, afb_msg_json_reply_ok(info, obj, &wsreq->context, NULL), afb_context_sent_token(&wsreq->context));
+	if (rc)
+		ERROR("Can't send success reply: %m");
 }
 
 static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size)
 {
-	*size = wsreq->objlen;
-	return wsreq->obj;
+	const char *result = afb_wsj1_msg_object_s(wsreq->msgj1);
+	if (size != NULL)
+		*size = strlen(result);
+	return result;
 }
 
 static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size)
 {
-	afb_ws_text(wsreq->aws->ws, buffer, size);
+	int rc;
+	rc = afb_wsj1_reply_ok_s(wsreq->msgj1, buffer, afb_context_sent_token(&wsreq->context));
+	if (rc)
+		ERROR("Can't send raw reply: %m");
 }
 
 static void aws_send_event(struct afb_ws_json1 *aws, const char *event, struct json_object *object)
 {
-	aws_emit(aws, EVENT, event, strlen(event), afb_msg_json_event(event, object), NULL);
+	afb_wsj1_send_event_j(aws->wsj1, event, afb_msg_json_event(event, object));
 }
 

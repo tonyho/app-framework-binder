@@ -66,6 +66,14 @@ extern void afb_wsj1_addref(struct afb_wsj1 *wsj1);
 extern void afb_wsj1_unref(struct afb_wsj1 *wsj1);
 
 /*
+ * Sends a close message to the websocket of 'wsj1'.
+ * The close message is sent with the 'code' and 'text'.
+ * 'text' can be NULL.
+ * Return 0 in case of success. Otherwise, returns -1 and set errno.
+ */
+extern int afb_wsj1_close(struct afb_wsj1 *wsj1, uint16_t code, const char *text);
+
+/*
  * Sends on 'wsj1' the event of name 'event' with the
  * data 'object'. If not NULL, 'object' should be a valid
  * JSON string.
@@ -76,6 +84,7 @@ extern int afb_wsj1_send_event_s(struct afb_wsj1 *wsj1, const char *event, const
 /*
  * Sends on 'wsj1' the event of name 'event' with the
  * data 'object'. 'object' can be NULL.
+ * 'object' is dereferenced using 'json_object_put'. Use 'json_object_get' to keep it.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
 extern int afb_wsj1_send_event_j(struct afb_wsj1 *wsj1, const char *event, struct json_object *object);
@@ -92,6 +101,7 @@ extern int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *v
 /*
  * Sends on 'wsj1' a call to the method of 'api'/'verb' with arguments
  * given by 'object'. 'object' can be NULL.
+ * 'object' is dereferenced using 'json_object_put'. Use 'json_object_get' to keep it.
  * On receiving the reply, the function 'on_reply' is called with 'closure'
  * as its first argument and the message of the reply.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
@@ -110,12 +120,10 @@ extern int afb_wsj1_reply_s(struct afb_wsj1_msg *msg, const char *object, const 
  * Sends for message 'msg' the reply with the 'object' and, if not NULL, the token.
  * When 'iserror' is zero a OK reply is send, otherwise an ERROR reply is sent.
  * 'object' can be NULL.
+ * 'object' is dereferenced using 'json_object_put'. Use 'json_object_get' to keep it.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
 extern int afb_wsj1_reply_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token, int iserror);
-
-
-
 
 /*
  * Sends for message 'msg' the OK reply with the 'object' and, if not NULL, the token.
@@ -130,6 +138,7 @@ static inline int afb_wsj1_reply_ok_s(struct afb_wsj1_msg *msg, const char *obje
 /*
  * Sends for message 'msg' the OK reply with the 'object' and, if not NULL, the token.
  * 'object' can be NULL.
+ * 'object' is dereferenced using 'json_object_put'. Use 'json_object_get' to keep it.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
 static inline int afb_wsj1_reply_ok_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
@@ -150,6 +159,7 @@ static inline int afb_wsj1_reply_error_s(struct afb_wsj1_msg *msg, const char *o
 /*
  * Sends for message 'msg' the ERROR reply with the 'object' and, if not NULL, the token.
  * 'object' can be NULL.
+ * 'object' is dereferenced using 'json_object_put'. Use 'json_object_get' to keep it.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
 static inline int afb_wsj1_reply_error_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
