@@ -477,24 +477,14 @@ int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *verb, co
 	return rc;
 }
 
-
-int afb_wsj1_reply_ok_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
+int afb_wsj1_reply_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token, int iserror)
 {
-	return afb_wsj1_reply_ok_s(msg, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN), token);
+	const char *objstr = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
+	return afb_wsj1_reply_s(msg, objstr, token, iserror);
 }
 
-int afb_wsj1_reply_ok_s(struct afb_wsj1_msg *msg, const char *object, const char *token)
+int afb_wsj1_reply_s(struct afb_wsj1_msg *msg, const char *object, const char *token, int iserror)
 {
-	return wsj1_send_isot(msg->wsj1, RETOK, msg->id, object, token);
-}
-
-int afb_wsj1_reply_error_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
-{
-	return afb_wsj1_reply_error_s(msg, json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN), token);
-}
-
-int afb_wsj1_reply_error_s(struct afb_wsj1_msg *msg, const char *object, const char *token)
-{
-	return wsj1_send_isot(msg->wsj1, RETERR, msg->id, object, token);
+	return wsj1_send_isot(msg->wsj1, iserror ? RETERR : RETOK, msg->id, object, token);
 }
 

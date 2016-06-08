@@ -99,32 +99,63 @@ extern int afb_wsj1_call_s(struct afb_wsj1 *wsj1, const char *api, const char *v
 extern int afb_wsj1_call_j(struct afb_wsj1 *wsj1, const char *api, const char *verb, struct json_object *object, void (*on_reply)(void *closure, struct afb_wsj1_msg *msg), void *closure);
 
 /*
+ * Sends for message 'msg' the reply with the 'object' and, if not NULL, the token.
+ * When 'iserror' is zero a OK reply is send, otherwise an ERROR reply is sent.
+ * If not NULL, 'object' should be a valid JSON string.
+ * Return 0 in case of success. Otherwise, returns -1 and set errno.
+ */
+extern int afb_wsj1_reply_s(struct afb_wsj1_msg *msg, const char *object, const char *token, int iserror);
+
+/*
+ * Sends for message 'msg' the reply with the 'object' and, if not NULL, the token.
+ * When 'iserror' is zero a OK reply is send, otherwise an ERROR reply is sent.
+ * 'object' can be NULL.
+ * Return 0 in case of success. Otherwise, returns -1 and set errno.
+ */
+extern int afb_wsj1_reply_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token, int iserror);
+
+
+
+
+/*
  * Sends for message 'msg' the OK reply with the 'object' and, if not NULL, the token.
  * If not NULL, 'object' should be a valid JSON string.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
-extern int afb_wsj1_reply_ok_s(struct afb_wsj1_msg *msg, const char *object, const char *token);
+static inline int afb_wsj1_reply_ok_s(struct afb_wsj1_msg *msg, const char *object, const char *token)
+{
+	return afb_wsj1_reply_s(msg, object, token, 0);
+}
 
 /*
  * Sends for message 'msg' the OK reply with the 'object' and, if not NULL, the token.
  * 'object' can be NULL.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
-extern int afb_wsj1_reply_ok_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token);
+static inline int afb_wsj1_reply_ok_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
+{
+	return afb_wsj1_reply_j(msg, object, token, 0);
+}
 
 /*
  * Sends for message 'msg' the ERROR reply with the 'object' and, if not NULL, the token.
  * If not NULL, 'object' should be a valid JSON string.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
-extern int afb_wsj1_reply_error_s(struct afb_wsj1_msg *msg, const char *object, const char *token);
+static inline int afb_wsj1_reply_error_s(struct afb_wsj1_msg *msg, const char *object, const char *token)
+{
+	return afb_wsj1_reply_s(msg, object, token, 1);
+}
 
 /*
  * Sends for message 'msg' the ERROR reply with the 'object' and, if not NULL, the token.
  * 'object' can be NULL.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.
  */
-extern int afb_wsj1_reply_error_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token);
+static inline int afb_wsj1_reply_error_j(struct afb_wsj1_msg *msg, struct json_object *object, const char *token)
+{
+	return afb_wsj1_reply_j(msg, object, token, 1);
+}
 
 /*
  * Increases by one the count of reference to 'msg'.
