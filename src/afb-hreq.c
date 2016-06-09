@@ -74,8 +74,9 @@ static void req_fail(struct afb_hreq *hreq, const char *status, const char *info
 static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info);
 static const char *req_raw(struct afb_hreq *hreq, size_t *size);
 static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size);
+static int req_subscribe_unsubscribe_error(struct afb_hreq *hreq, struct afb_event event);
 
-static const struct afb_req_itf afb_hreq_itf = {
+const struct afb_req_itf afb_hreq_req_itf = {
 	.json = (void*)req_json,
 	.get = (void*)req_get,
 	.success = (void*)req_success,
@@ -87,7 +88,9 @@ static const struct afb_req_itf afb_hreq_itf = {
 	.addref = (void*)afb_hreq_addref,
 	.unref = (void*)afb_hreq_unref,
 	.session_close = (void*)afb_context_close,
-	.session_set_LOA = (void*)afb_context_change_loa
+	.session_set_LOA = (void*)afb_context_change_loa,
+	.subscribe = (void*)req_subscribe_unsubscribe_error,
+	.unsubscribe = (void*)req_subscribe_unsubscribe_error
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
@@ -697,7 +700,7 @@ int afb_hreq_post_add_file(struct afb_hreq *hreq, const char *key, const char *f
 
 struct afb_req afb_hreq_to_req(struct afb_hreq *hreq)
 {
-	return (struct afb_req){ .itf = &afb_hreq_itf, .closure = hreq };
+	return (struct afb_req){ .itf = &afb_hreq_req_itf, .closure = hreq };
 }
 
 static struct afb_arg req_get(struct afb_hreq *hreq, const char *name)
@@ -796,6 +799,12 @@ static void req_fail(struct afb_hreq *hreq, const char *status, const char *info
 static void req_success(struct afb_hreq *hreq, json_object *obj, const char *info)
 {
 	req_reply(hreq, MHD_HTTP_OK, "success", info, obj);
+}
+
+static int req_subscribe_unsubscribe_error(struct afb_hreq *hreq, struct afb_event event)
+{
+	errno = EINVAL;
+	return -1;
 }
 
 int afb_hreq_init_context(struct afb_hreq *hreq)

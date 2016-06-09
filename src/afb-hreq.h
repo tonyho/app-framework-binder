@@ -21,6 +21,9 @@ struct AFB_clientCtx;
 struct json_object;
 struct hreq_data;
 struct afb_hsrv;
+struct afb_req_itf;
+
+extern const struct afb_req_itf afb_hreq_req_itf;
 
 struct afb_hreq {
 	/*

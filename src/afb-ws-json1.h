@@ -19,6 +19,9 @@
 
 struct afb_ws_json1;
 struct afb_context;
+struct afb_req_itf;
+
+extern const struct afb_req_itf afb_ws_json1_req_itf;
 
 extern struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, void (*cleanup)(void*), void *closure);
 

@@ -30,6 +30,7 @@
 
 #include <afb/afb-plugin.h>
 #include <afb/afb-req-itf.h>
+#include <afb/afb-event-itf.h>
 
 #include "session.h"
 #include "afb-common.h"
@@ -37,6 +38,7 @@
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-sig-handler.h"
+#include "afb-evt.h"
 #include "verbose.h"
 
 /*
@@ -58,18 +60,37 @@ void afb_api_so_set_timeout(int to)
 	api_timeout = to;
 }
 
-static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object)
+static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const char *name)
 {
 	size_t length;
 	char *event;
 
+	/* makes the event name */
 	assert(desc->plugin != NULL);
 	length = strlen(name);
 	event = alloca(length + 2 + desc->apilength);
 	memcpy(event, desc->plugin->v1.prefix, desc->apilength);
 	event[desc->apilength] = '/';
 	memcpy(event + desc->apilength + 1, name, length + 1);
-	return ctxClientEventSend(NULL, event, object);
+
+	/* crate the event */
+	return afb_evt_create_event(event);
+}
+
+static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object)
+{
+	size_t length;
+	char *event;
+
+	/* makes the event name */
+	assert(desc->plugin != NULL);
+	length = strlen(name);
+	event = alloca(length + 2 + desc->apilength);
+	memcpy(event, desc->plugin->v1.prefix, desc->apilength);
+	event[desc->apilength] = '/';
+	memcpy(event + desc->apilength + 1, name, length + 1);
+
+	return afb_evt_broadcast(event, object);
 }
 
 static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char *file, int line, const char *fmt, va_list args)
@@ -89,7 +110,8 @@ static const struct afb_daemon_itf daemon_itf = {
 	.get_event_loop = (void*)afb_common_get_event_loop,
 	.get_user_bus = (void*)afb_common_get_user_bus,
 	.get_system_bus = (void*)afb_common_get_system_bus,
-	.vverbose = (void*)afb_api_so_vverbose
+	.vverbose = (void*)afb_api_so_vverbose,
+	.event_make = (void*)afb_api_so_event_make
 };
 
 struct monitoring {

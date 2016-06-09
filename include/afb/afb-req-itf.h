@@ -25,6 +25,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <afb/afb-event-itf.h>
+
 /* avoid inclusion of <json-c/json.h> */
 struct json_object;
 
@@ -65,6 +67,9 @@ struct afb_req_itf {
 
 	void (*session_close)(void *closure);
 	int (*session_set_LOA)(void *closure, unsigned level);
+
+	int (*subscribe)(void *closure, struct afb_event event);
+	int (*unsubscribe)(void *closure, struct afb_event event);
 };
 
 /*
@@ -314,6 +319,29 @@ static inline struct afb_req afb_req_unstore(struct afb_req *req)
 	free(req);
 	return result;
 }
+
+/*
+ * Establishes for the client link identified by 'req' a subscription
+ * to the 'event'.
+ * Returns 0 in case of successful subscription or -1 in case of error.
+ */
+static inline int afb_req_subscribe(struct afb_req req, struct afb_event event)
+{
+	return req.itf->subscribe(req.closure, event);
+}
+
+/*
+ * Revokes the subscription established to the 'event' for the client
+ * link identified by 'req'.
+ * Returns 0 in case of successful subscription or -1 in case of error.
+ */
+static inline int afb_req_unsubscribe(struct afb_req req, struct afb_event event)
+{
+	return req.itf->unsubscribe(req.closure, event);
+}
+
+
+
 
 /* internal use */
 static inline const char *afb_req_raw(struct afb_req req, size_t *size)

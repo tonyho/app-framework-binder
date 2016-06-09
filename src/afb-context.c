@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2015, 2016 "IoT.bzh"
  * Author "Fulup Ar Foll"
+ * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

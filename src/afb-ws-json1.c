@@ -32,6 +32,7 @@
 #include <afb/afb-req-itf.h>
 #include "afb-apis.h"
 #include "afb-context.h"
+#include "afb-evt.h"
 #include "verbose.h"
 
 static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1);
@@ -50,21 +51,12 @@ struct afb_ws_json1
 	void (*cleanup)(void*);
 	void *cleanup_closure;
 	struct AFB_clientCtx *session;
+	struct afb_evt_listener *listener;
 	struct afb_wsj1 *wsj1;
 	int new_session;
 };
 
 static void aws_send_event(struct afb_ws_json1 *ws, const char *event, struct json_object *object);
-
-static const struct afb_event_listener_itf event_listener_itf = {
-	.send = (void*)aws_send_event,
-	.expects = NULL
-};
-
-static inline struct afb_event_listener listener_for(struct afb_ws_json1 *aws)
-{
-	return (struct afb_event_listener){ .itf = &event_listener_itf, .closure = aws };
-}
 
 struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, void (*cleanup)(void*), void *cleanup_closure)
 {
@@ -89,7 +81,8 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 	if (result->wsj1 == NULL)
 		goto error3;
 
-	if (0 > ctxClientEventListenerAdd(result->session, listener_for(result)))
+	result->listener = afb_evt_listener_create((void*)aws_send_event, result);
+	if (result->listener == NULL)
 		goto error4;
 
 	return result;
@@ -114,7 +107,7 @@ static struct afb_ws_json1 *aws_addref(struct afb_ws_json1 *ws)
 static void aws_unref(struct afb_ws_json1 *ws)
 {
 	if (--ws->refcount == 0) {
-		ctxClientEventListenerRemove(ws->session, listener_for(ws));
+		afb_evt_listener_unref(ws->listener);
 		afb_wsj1_unref(ws->wsj1);
 		if (ws->cleanup != NULL)
 			ws->cleanup(ws->cleanup_closure);
@@ -149,9 +142,10 @@ static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *
 static void wsreq_success(struct afb_wsreq *wsreq, struct json_object *obj, const char *info);
 static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size);
 static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size);
+static int wsreq_subscribe(struct afb_wsreq *wsreq, struct afb_event event);
+static int wsreq_unsubscribe(struct afb_wsreq *wsreq, struct afb_event event);
 
-
-static const struct afb_req_itf wsreq_itf = {
+const struct afb_req_itf afb_ws_json1_req_itf = {
 	.json = (void*)wsreq_json,
 	.get = (void*)wsreq_get,
 	.success = (void*)wsreq_success,
@@ -163,7 +157,9 @@ static const struct afb_req_itf wsreq_itf = {
 	.addref = (void*)wsreq_addref,
 	.unref = (void*)wsreq_unref,
 	.session_close = (void*)afb_context_close,
-	.session_set_LOA = (void*)afb_context_change_loa
+	.session_set_LOA = (void*)afb_context_change_loa,
+	.subscribe = (void*)wsreq_subscribe,
+	.unsubscribe = (void*)wsreq_unsubscribe
 };
 
 static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg)
@@ -197,7 +193,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 
 	/* emits the call */
 	r.closure = wsreq;
-	r.itf = &wsreq_itf;
+	r.itf = &afb_ws_json1_req_itf;
 	afb_apis_call_(r, &wsreq->context, api, verb);
 	wsreq_unref(wsreq);
 }
@@ -274,5 +270,15 @@ static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size)
 static void aws_send_event(struct afb_ws_json1 *aws, const char *event, struct json_object *object)
 {
 	afb_wsj1_send_event_j(aws->wsj1, event, afb_msg_json_event(event, object));
+}
+
+static int wsreq_subscribe(struct afb_wsreq *wsreq, struct afb_event event)
+{
+	return afb_evt_add_watch(wsreq->aws->listener, event);
+}
+
+static int wsreq_unsubscribe(struct afb_wsreq *wsreq, struct afb_event event)
+{
+	return afb_evt_remove_watch(wsreq->aws->listener, event);
 }
 

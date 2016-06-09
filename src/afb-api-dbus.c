@@ -35,6 +35,7 @@
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-context.h"
+#include "afb-evt.h"
 #include "verbose.h"
 
 static const char DEFAULT_PATH_PREFIX[] = "/org/agl/afb/api/";
@@ -52,6 +53,7 @@ struct api_dbus
 	char *path;		/* path of the object for the API */
 	char *name;		/* name/interface of the object */
 	char *api;		/* api name of the interface */
+	struct afb_evt_listener *listener;
 };
 
 #define RETOK   1
@@ -302,7 +304,7 @@ static int api_dbus_client_on_event(sd_bus_message *m, void *userdata, sd_bus_er
 		ERROR("unreadable event");
 	else {
 		object = json_tokener_parse(data);
-		ctxClientEventSend(NULL, event, object);
+		afb_evt_broadcast(event, object);
 		json_object_put(object);
 	}
 	return 1;
@@ -444,7 +446,7 @@ static void dbus_req_send(struct dbus_req *dreq, const char *buffer, size_t size
 	dbus_req_reply(dreq, RETRAW, buffer, "");
 }
 
-struct afb_req_itf dbus_req_itf = {
+const struct afb_req_itf afb_api_dbus_req_itf = {
 	.json = (void*)dbus_req_json,
 	.get = (void*)dbus_req_get,
 	.success = (void*)dbus_req_success,
@@ -504,7 +506,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	dreq->message = sd_bus_message_ref(message);
 	dreq->json = NULL;
 	dreq->refcount = 1;
-	areq.itf = &dbus_req_itf;
+	areq.itf = &afb_api_dbus_req_itf;
 	areq.closure = dreq;
 	afb_apis_call_(areq, &dreq->context, api->api, method);
 	dbus_req_unref(dreq);
@@ -521,19 +523,6 @@ static void afb_api_dbus_server_send_event(struct api_dbus *api, const char *eve
 		ERROR("error while emiting event %s", event);
 	json_object_put(object);
 }
-
-static int afb_api_dbus_server_expects_event(struct api_dbus *api, const char *event)
-{
-	size_t len = strlen(api->api);
-	if (strncasecmp(event, api->api, len) != 0)
-		return 0;
-	return event[len] == '.';
-}
-
-static struct afb_event_listener_itf evitf = {
-	.send = (void*)afb_api_dbus_server_send_event,
-	.expects = (void*)afb_api_dbus_server_expects_event
-};
 
 /* create the service */
 int afb_api_dbus_add_server(const char *path)
@@ -563,7 +552,7 @@ int afb_api_dbus_add_server(const char *path)
 	}
 	INFO("afb service over dbus installed, name %s, path %s", api->name, api->path);
 
-	ctxClientEventListenerAdd(NULL, (struct afb_event_listener){ .itf = &evitf, .closure = api });
+	api->listener = afb_evt_listener_create((void*)afb_api_dbus_server_send_event, api);
 
 	return 0;
 error3:

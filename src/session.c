@@ -38,13 +38,6 @@ struct client_value
 	void (*free_value)(void*);
 };
 
-struct afb_event_listener_list
-{
-	struct afb_event_listener_list *next;
-	struct afb_event_listener listener;
-	int refcount;
-};
-
 struct AFB_clientCtx
 {
 	unsigned refcount;
@@ -54,7 +47,6 @@ struct AFB_clientCtx
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
 	struct client_value *values;
-	struct afb_event_listener_list *listeners;
 };
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
@@ -66,7 +58,6 @@ static struct {
   int timeout;
   int apicount;
   char initok[37];
-  struct afb_event_listener_list *listeners;
 } sessions;
 
 /* generate a uuid */
@@ -289,8 +280,6 @@ void ctxClientClose (struct AFB_clientCtx *clientCtx)
 	if (clientCtx->uuid[0] != 0) {
 		clientCtx->uuid[0] = 0;
 	        ctxUuidFreeCB (clientCtx);
-		while(clientCtx->listeners != NULL)
-			ctxClientEventListenerRemove(clientCtx, clientCtx->listeners->listener);
        		if (clientCtx->refcount == 0) {
 			ctxStoreDel (clientCtx);
 			free(clientCtx);
@@ -324,103 +313,6 @@ void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 
 	// keep track of time for session timeout and further clean up
 	clientCtx->expiration = NOW + sessions.timeout;
-}
-
-static int add_listener(struct afb_event_listener_list **head, struct afb_event_listener listener)
-{
-	struct afb_event_listener_list *iter, **prv;
-
-	prv = head;
-	for (;;) {
-		iter = *prv;
-		if (iter == NULL) {
-			iter = calloc(1, sizeof *iter);
-			if (iter == NULL) {
-				errno = ENOMEM;
-				return -1;
-			}
-			iter->listener = listener;
-			iter->refcount = 1;
-			*prv = iter;
-			return 0;
-		}
-		if (iter->listener.itf == listener.itf && iter->listener.closure == listener.closure) {
-			iter->refcount++;
-			return 0;
-		}
-		prv = &iter->next;
-	}
-}
-
-int ctxClientEventListenerAdd(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
-{
-	return add_listener(clientCtx != NULL ? &clientCtx->listeners : &sessions.listeners, listener);
-}
-
-static void remove_listener(struct afb_event_listener_list **head, struct afb_event_listener listener)
-{
-	struct afb_event_listener_list *iter, **prv;
-
-	prv = head;
-	for (;;) {
-		iter = *prv;
-		if (iter == NULL)
-			return;
-		if (iter->listener.itf == listener.itf && iter->listener.closure == listener.closure) {
-			if (!--iter->refcount) {
-				*prv = iter->next;
-				free(iter);
-			}
-			return;
-		}
-		prv = &iter->next;
-	}
-}
-
-void ctxClientEventListenerRemove(struct AFB_clientCtx *clientCtx, struct afb_event_listener listener)
-{
-	remove_listener(clientCtx != NULL ? &clientCtx->listeners : &sessions.listeners, listener);
-}
-
-static int send(struct afb_event_listener_list *head, const char *event, struct json_object *object)
-{
-	struct afb_event_listener_list *iter;
-	int result;
-
-	result = 0;
-	iter = head;
-	while (iter != NULL) {
-		if (iter->listener.itf->expects == NULL || iter->listener.itf->expects(iter->listener.closure, event)) {
-			iter->listener.itf->send(iter->listener.closure, event, json_object_get(object));
-			result++;
-		}
-		iter = iter->next;
-	}
-
-	return result;
-}
-
-int ctxClientEventSend(struct AFB_clientCtx *clientCtx, const char *event, struct json_object *object)
-{
-	long idx;
-	time_t now;
-	int result;
-
-	now = NOW;
-	if (clientCtx != NULL) {
-		result = ctxIsActive(clientCtx, now) ? send(clientCtx->listeners, event, object) : 0;
-	} else {
-		result = send(sessions.listeners, event, object);
-		for (idx=0; idx < sessions.max; idx++) {
-			clientCtx = ctxClientAddRef(sessions.store[idx]);
-			if (clientCtx != NULL && ctxIsActive(clientCtx, now)) {
-				clientCtx = ctxClientAddRef(clientCtx);
-				result += send(clientCtx->listeners, event, object);
-			}
-			ctxClientUnref(clientCtx);
-		}
-	}
-	return result;
 }
 
 const char *ctxClientGetUuid (struct AFB_clientCtx *clientCtx)

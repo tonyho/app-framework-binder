@@ -38,6 +38,7 @@
  * Some function of the library are exported to afb-daemon.
  */
 
+#include <afb/afb-event-itf.h>
 #include <afb/afb-req-itf.h>
 
 /*
@@ -140,11 +141,12 @@ struct sd_bus;
  * Definition of the facilities provided by the daemon.
  */
 struct afb_daemon_itf {
-       void (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
+       int (*event_broadcast)(void *closure, const char *name, struct json_object *object); /* broadcasts evant 'name' with 'object' */
        struct sd_event *(*get_event_loop)(void *closure);      /* gets the common systemd's event loop */
        struct sd_bus *(*get_user_bus)(void *closure);          /* gets the common systemd's user d-bus */
        struct sd_bus *(*get_system_bus)(void *closure);        /* gets the common systemd's system d-bus */
        void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
+       struct afb_event (*event_make)(void *closure, const char *name); /* creates an event of 'name' */
 };
 
 /*
@@ -206,10 +208,21 @@ static inline struct sd_bus *afb_daemon_get_system_bus(struct afb_daemon daemon)
  * For conveniency, the function calls 'json_object_put' for 'object'.
  * Thus, in the case where 'object' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
+ *
+ * Returns the count of clients that received the event.
  */
-static inline void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
+static inline int afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object)
 {
 	return daemon.itf->event_broadcast(daemon.closure, name, object);
+}
+
+/*
+ * Creates an event of 'name' and returns it.
+ * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ */
+static inline struct afb_event afb_daemon_make_event(struct afb_daemon daemon, const char *name)
+{
+	return daemon.itf->event_make(daemon.closure, name);
 }
 
 /*
