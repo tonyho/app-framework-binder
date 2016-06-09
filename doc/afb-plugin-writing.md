@@ -189,11 +189,13 @@ Header files to include
 
 Plugin *tictactoe* has following includes:
 
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	#include <string.h>
-	#include <json-c/json.h>
-	#include <afb/afb-plugin.h>
+```C
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+#include <json-c/json.h>
+#include <afb/afb-plugin.h>
+```
 
 Header *afb/afb-plugin.h* is the only hard dependency, it includes all features
 that a plugin MUST HAVE. Outside of includes used to support application logic,
@@ -280,24 +282,26 @@ Writing a synchronous method implementation
 The method **tictactoe/board** is a synchronous implementation.
 Here is its listing:
 
-	/*
-	 * get the board
-	 */
-	static void board(struct afb_req req)
-	{
-		struct board *board;
-		struct json_object *description;
+```C
+/*
+ * get the board
+ */
+static void board(struct afb_req req)
+{
+	struct board *board;
+	struct json_object *description;
 
-		/* retrieves the context for the session */
-		board = board_of_req(req);
-		INFO(afbitf, "method 'board' called for boardid %d", board->id);
+	/* retrieves the context for the session */
+	board = board_of_req(req);
+	INFO(afbitf, "method 'board' called for boardid %d", board->id);
 
-		/* describe the board */
-		description = describe(board);
+	/* describe the board */
+	description = describe(board);
 
-		/* send the board's description */
-		afb_req_success(req, description, NULL);
-	}
+	/* send the board's description */
+	afb_req_success(req, description, NULL);
+}
+```
 
 This example shows many aspects of a synchronous
 method implementation. Let summarise it:
@@ -324,13 +328,15 @@ For any implementation, the request is received by a structure of type
 
 The definition of **struct afb_req** is:
 
-	/*
-	 * Describes the request by plugins from afb-daemon
-	 */
-	struct afb_req {
-		const struct afb_req_itf *itf;	/* the interfacing functions */
-		void *closure;			/* the closure for functions */
-	};
+```C
+/*
+ * Describes the request by plugins from afb-daemon
+ */
+struct afb_req {
+	const struct afb_req_itf *itf;	/* the interfacing functions */
+	void *closure;			/* the closure for functions */
+};
+```
 
 It contains two pointers: first one *itf*, points to functions used
 to handle internal request. Second one *closure* point onto function closure. 
@@ -380,13 +386,15 @@ These functions are:
 The plugin *tictactoe* use a convenient function to retrieve
 its context: the board. This function is *board_of_req*:
 
-	/*
-	 * retrieves the board of the request
-	 */
-	static inline struct board *board_of_req(struct afb_req req)
-	{
-		return afb_req_context(req, (void*)get_new_board, (void*)release_board);
-	}
+```C
+/*
+ * retrieves the board of the request
+ */
+static inline struct board *board_of_req(struct afb_req req)
+{
+	return afb_req_context(req, (void*)get_new_board, (void*)release_board);
+}
+```
 
 The function **afb_req_context** ensures an existing context
 for the session of the request.
@@ -395,22 +403,24 @@ Note function type casts to avoid compilation warnings.
 
 Here is the definition of the function **afb_req_context**
 
-	/*
-	 * Gets the pointer stored by the plugin for the session of 'req'.
-	 * If the stored pointer is NULL, indicating that no pointer was
-	 * already stored, afb_req_context creates a new context by calling
-	 * the function 'create_context' and stores it with the freeing function
-	 * 'free_context'.
-	 */
-	static inline void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free_context)(void*))
-	{
-		void *result = afb_req_context_get(req);
-		if (result == NULL) {
-			result = create_context();
-			afb_req_context_set(req, result, free_context);
-		}
-		return result;
+```C
+/*
+ * Gets the pointer stored by the plugin for the session of 'req'.
+ * If the stored pointer is NULL, indicating that no pointer was
+ * already stored, afb_req_context creates a new context by calling
+ * the function 'create_context' and stores it with the freeing function
+ * 'free_context'.
+ */
+static inline void *afb_req_context(struct afb_req req, void *(*create_context)(), void (*free_context)(void*))
+{
+	void *result = afb_req_context_get(req);
+	if (result == NULL) {
+		result = create_context();
+		afb_req_context_set(req, result, free_context);
 	}
+	return result;
+}
+```
 
 The second argument if the function that creates the context.
 For plugin *tic-tac-toe* (function **get_new_board**).
@@ -424,29 +434,31 @@ When usage count falls to zero, data board are freed.
 
 Definition of other functions dealing with contexts:
 
-	/*
-	 * Gets the pointer stored by the plugin for the session of 'req'.
-	 * When the plugin has not yet recorded a pointer, NULL is returned.
-	 */
-	void *afb_req_context_get(struct afb_req req);
+```C
+/*
+ * Gets the pointer stored by the plugin for the session of 'req'.
+ * When the plugin has not yet recorded a pointer, NULL is returned.
+ */
+void *afb_req_context_get(struct afb_req req);
 
-	/*
-	 * Stores for the plugin the pointer 'context' to the session of 'req'.
-	 * The function 'free_context' will be called when the session is closed
-	 * or if plugin stores an other pointer.
-	 */
-	void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*));
+/*
+ * Stores for the plugin the pointer 'context' to the session of 'req'.
+ * The function 'free_context' will be called when the session is closed
+ * or if plugin stores an other pointer.
+ */
+void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*));
 
-	/*
-	 * Frees the pointer stored by the plugin for the session of 'req'
-	 * and sets it to NULL.
-	 *
-	 * Shortcut for: afb_req_context_set(req, NULL, NULL)
-	 */
-	static inline void afb_req_context_clear(struct afb_req req)
-	{
-		afb_req_context_set(req, NULL, NULL);
-	}
+/*
+ * Frees the pointer stored by the plugin for the session of 'req'
+ * and sets it to NULL.
+ *
+ * Shortcut for: afb_req_context_set(req, NULL, NULL)
+ */
+static inline void afb_req_context_clear(struct afb_req req)
+{
+	afb_req_context_set(req, NULL, NULL);
+}
+```
 
 ### Sending reply to a request
 
@@ -456,54 +468,58 @@ Two kinds of replies: successful or failure.
 
 It exists two functions for "success" replies: **afb_req_success** and **afb_req_success_f**.
 
-	/*
-	 * Sends a reply of kind success to the request 'req'.
-	 * The status of the reply is automatically set to "success".
-	 * Its send the object 'obj' (can be NULL) with an
-	 * informationnal comment 'info (can also be NULL).
-	 *
-	 * For conveniency, the function calls 'json_object_put' for 'obj'.
-	 * Thus, in the case where 'obj' should remain available after
-	 * the function returns, the function 'json_object_get' shall be used.
-	 */
-	void afb_req_success(struct afb_req req, struct json_object *obj, const char *info);
+```C
+/*
+ * Sends a reply of kind success to the request 'req'.
+ * The status of the reply is automatically set to "success".
+ * Its send the object 'obj' (can be NULL) with an
+ * informationnal comment 'info (can also be NULL).
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_req_success(struct afb_req req, struct json_object *obj, const char *info);
 
-	/*
-	 * Same as 'afb_req_success' but the 'info' is a formatting
-	 * string followed by arguments.
-	 *
-	 * For conveniency, the function calls 'json_object_put' for 'obj'.
-	 * Thus, in the case where 'obj' should remain available after
-	 * the function returns, the function 'json_object_get' shall be used.
-	 */
-	void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...);
+/*
+ * Same as 'afb_req_success' but the 'info' is a formatting
+ * string followed by arguments.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_req_success_f(struct afb_req req, struct json_object *obj, const char *info, ...);
+```
 
 It exists two functions for "failure" replies: **afb_req_fail** and **afb_req_fail_f**.
 
-	/*
-	 * Sends a reply of kind failure to the request 'req'.
-	 * The status of the reply is set to 'status' and an
-	 * informational comment 'info' (can also be NULL) can be added.
-	 *
-	 * Note that calling afb_req_fail("success", info) is equivalent
-	 * to call afb_req_success(NULL, info). Thus even if possible it
-	 * is strongly recommended to NEVER use "success" for status.
-	 *
-	 * For conveniency, the function calls 'json_object_put' for 'obj'.
-	 * Thus, in the case where 'obj' should remain available after
-	 * the function returns, the function 'json_object_get' shall be used.
-	 */
-	void afb_req_fail(struct afb_req req, const char *status, const char *info);
+```C
+/*
+ * Sends a reply of kind failure to the request 'req'.
+ * The status of the reply is set to 'status' and an
+ * informational comment 'info' (can also be NULL) can be added.
+ *
+ * Note that calling afb_req_fail("success", info) is equivalent
+ * to call afb_req_success(NULL, info). Thus even if possible it
+ * is strongly recommended to NEVER use "success" for status.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_req_fail(struct afb_req req, const char *status, const char *info);
 
-	/*
-	 * Same as 'afb_req_fail' but the 'info' is a formatting
-	 * string followed by arguments.
-	 *
-	 * For conveniency, the function calls 'json_object_put' for 'obj'.
-	 * Thus, in the case where 'obj' should remain available after
-	 * the function returns, the function 'json_object_get' shall be used.
-	 */
-	void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
+/*
+ * Same as 'afb_req_fail' but the 'info' is a formatting
+ * string followed by arguments.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * Thus, in the case where 'obj' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
+```
 
 > For conveniency, these functions automatically call **json_object_put** to release **obj**.
 > Because **obj** usage count is null after being passed to a reply function, it SHOULD not be used anymore.
@@ -522,23 +538,25 @@ or WebSockets.
 For example, the method **join** of plugin **tic-tac-toe**
 expects one argument: the *boardid* to join. Here is an extract:
 
-	/*
-	 * Join a board
-	 */
-	static void join(struct afb_req req)
-	{
-		struct board *board, *new_board;
-		const char *id;
+```C
+/*
+ * Join a board
+ */
+static void join(struct afb_req req)
+{
+	struct board *board, *new_board;
+	const char *id;
 
-		/* retrieves the context for the session */
-		board = board_of_req(req);
-		INFO(afbitf, "method 'join' called for boardid %d", board->id);
+	/* retrieves the context for the session */
+	board = board_of_req(req);
+	INFO(afbitf, "method 'join' called for boardid %d", board->id);
 
-		/* retrieves the argument */
-		id = afb_req_value(req, "boardid");
-		if (id == NULL)
-			goto bad_request;
-		...
+	/* retrieves the argument */
+	id = afb_req_value(req, "boardid");
+	if (id == NULL)
+		goto bad_request;
+	...
+```
 
 The function **afb_req_value** searches in the request *req*
 for argument name passed in the second argument. When argument name
@@ -551,34 +569,38 @@ is not passed, **afb_req_value** returns NULL.
 
 The function **afb_req_value** is defined here after:
 
-	/*
-	 * Gets from the request 'req' the string value of the argument of 'name'.
-	 * Returns NULL if when there is no argument of 'name'.
-	 * Returns the value of the argument of 'name' otherwise.
-	 *
-	 * Shortcut for: afb_req_get(req, name).value
-	 */
-	static inline const char *afb_req_value(struct afb_req req, const char *name)
-	{
-		return afb_req_get(req, name).value;
-	}
+```C
+/*
+ * Gets from the request 'req' the string value of the argument of 'name'.
+ * Returns NULL if when there is no argument of 'name'.
+ * Returns the value of the argument of 'name' otherwise.
+ *
+ * Shortcut for: afb_req_get(req, name).value
+ */
+static inline const char *afb_req_value(struct afb_req req, const char *name)
+{
+	return afb_req_get(req, name).value;
+}
+```
 
 It is defined as a shortcut to call the function **afb_req_get**.
 That function is defined here after:
 
-	/*
-	 * Gets from the request 'req' the argument of 'name'.
-	 * Returns a PLAIN structure of type 'struct afb_arg'.
-	 * When the argument of 'name' is not found, all fields of result are set to NULL.
-	 * When the argument of 'name' is found, the fields are filled,
-	 * in particular, the field 'result.name' is set to 'name'.
-	 *
-	 * There is a special name value: the empty string.
-	 * The argument of name "" is defined only if the request was made using
-	 * an HTTP POST of Content-Type "application/json". In that case, the
-	 * argument of name "" receives the value of the body of the HTTP request.
-	 */
-	struct afb_arg afb_req_get(struct afb_req req, const char *name);
+```C
+/*
+ * Gets from the request 'req' the argument of 'name'.
+ * Returns a PLAIN structure of type 'struct afb_arg'.
+ * When the argument of 'name' is not found, all fields of result are set to NULL.
+ * When the argument of 'name' is found, the fields are filled,
+ * in particular, the field 'result.name' is set to 'name'.
+ *
+ * There is a special name value: the empty string.
+ * The argument of name "" is defined only if the request was made using
+ * an HTTP POST of Content-Type "application/json". In that case, the
+ * argument of name "" receives the value of the body of the HTTP request.
+ */
+struct afb_arg afb_req_get(struct afb_req req, const char *name);
+```
 
 That function takes 2 parameters: the request and the name
 of the argument to retrieve. It returns a PLAIN structure of
@@ -592,32 +614,36 @@ of the post and is supposed to be a JSON string.
 
 The definition of **struct afb_arg** is:
 
-	/*
-	 * Describes an argument (or parameter) of a request
-	 */
-	struct afb_arg {
-		const char *name;	/* name of the argument or NULL if invalid */
-		const char *value;	/* string representation of the value of the argument */
-					/* original filename of the argument if path != NULL */
-		const char *path;	/* if not NULL, path of the received file for the argument */
-					/* when the request is finalized this file is removed */
-	};
+```C
+/*
+ * Describes an argument (or parameter) of a request
+ */
+struct afb_arg {
+	const char *name;	/* name of the argument or NULL if invalid */
+	const char *value;	/* string representation of the value of the argument */
+				/* original filename of the argument if path != NULL */
+	const char *path;	/* if not NULL, path of the received file for the argument */
+				/* when the request is finalized this file is removed */
+};
+```
 
 The structure returns the data arguments that are known for the
 request. This data include a field named **path**. This **path**
 can be accessed using the function **afb_req_path** defined here after:
 
-	/*
-	 * Gets from the request 'req' the path for file attached to the argument of 'name'.
-	 * Returns NULL if when there is no argument of 'name' or when there is no file.
-	 * Returns the path of the argument of 'name' otherwise.
-	 *
-	 * Shortcut for: afb_req_get(req, name).path
-	 */
-	static inline const char *afb_req_path(struct afb_req req, const char *name)
-	{
-		return afb_req_get(req, name).path;
-	}
+```C
+/*
+ * Gets from the request 'req' the path for file attached to the argument of 'name'.
+ * Returns NULL if when there is no argument of 'name' or when there is no file.
+ * Returns the path of the argument of 'name' otherwise.
+ *
+ * Shortcut for: afb_req_get(req, name).path
+ */
+static inline const char *afb_req_path(struct afb_req req, const char *name)
+{
+	return afb_req_get(req, name).path;
+}
+```
 
 The path is only defined for HTTP/POST requests that send file.
 
@@ -631,13 +657,15 @@ will send an HTTP/POST request to the method
 **post/upload-image** with 2 arguments named *file* and
 *hidden*.
 
-	<h2>Sample Post File</h2>
-	<form enctype="multipart/form-data">
-	    <input type="file" name="file" />
-	    <input type="hidden" name="hidden" value="bollobollo" />
-	    <br>
-	    <button formmethod="POST" formaction="api/post/upload-image">Post File</button>
-	</form>
+```html
+<h2>Sample Post File</h2>
+<form enctype="multipart/form-data">
+    <input type="file" name="file" />
+    <input type="hidden" name="hidden" value="bollobollo" />
+    <br>
+    <button formmethod="POST" formaction="api/post/upload-image">Post File</button>
+</form>
+```
 
 Argument named **file** should have both its value and path defined.
 
@@ -658,11 +686,13 @@ path is destroyed.
 Plugins may also request every arguments of a given call as one single object.
 This feature is provided by the function **afb_req_json** defined here after:
 
-	/*
-	 * Gets from the request 'req' the json object hashing the arguments.
-	 * The returned object must not be released using 'json_object_put'.
-	 */
-	struct json_object *afb_req_json(struct afb_req req);
+```C
+/*
+ * Gets from the request 'req' the json object hashing the arguments.
+ * The returned object must not be released using 'json_object_put'.
+ */
+struct json_object *afb_req_json(struct afb_req req);
+```
 
 It returns a json object. This object depends on how the request was built:
 
@@ -707,14 +737,16 @@ afb-daemon initialisation is finished.
 
 Here after the code used for **pluginAfbV1Register** from plugin *tic-tac-toe*:
 
-	/*
-	 * activation function for registering the plugin called by afb-daemon
-	 */
-	const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
-	{
-	   afbitf = itf;         // records the interface for accessing afb-daemon
-	   return &plugin_description;  // returns the description of the plugin
-	}
+```C
+/*
+ * activation function for registering the plugin called by afb-daemon
+ */
+const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
+{
+   afbitf = itf;         // records the interface for accessing afb-daemon
+   return &plugin_description;  // returns the description of the plugin
+}
+```
 
 It is a very minimal initialisation function because *tic-tac-toe* plugin doesn't
 have any application related initialisation step. It merely record daemon's interface
@@ -724,42 +756,46 @@ The variable **afbitf** is a plugin global variable. It keeps the
 interface to afb-daemon that should be used for logging and pushing events.
 Here is its declaration:
 
-	/*
-	 * the interface to afb-daemon
-	 */
-	const struct AFB_interface *afbitf;
+```C
+/*
+ * the interface to afb-daemon
+ */
+const struct AFB_interface *afbitf;
+```
 
 The description of the plugin is defined here after.
 
-	/*
-	 * array of the methods exported to afb-daemon
-	 */
-	static const struct AFB_method_desc_v1 plugin_methods[] = {
-	   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
-	   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
-	   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
-	   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
-	   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
-	   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
-	   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
-	   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
-	   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
-	   { .name= NULL } /* marker for end of the array */
-	};
+```C
+/*
+ * array of the methods exported to afb-daemon
+ */
+static const struct AFB_method_desc_v1 plugin_methods[] = {
+   /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
+   { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
+   { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
+   { .name= "move",  .session= AFB_SESSION_NONE, .callback= move,  .info= "Tells the client move" },
+   { .name= "board", .session= AFB_SESSION_NONE, .callback= board, .info= "Get the current board" },
+   { .name= "level", .session= AFB_SESSION_NONE, .callback= level, .info= "Set the server level" },
+   { .name= "join",  .session= AFB_SESSION_CHECK,.callback= join,  .info= "Join a board" },
+   { .name= "undo",  .session= AFB_SESSION_NONE, .callback= undo,  .info= "Undo the last move" },
+   { .name= "wait",  .session= AFB_SESSION_NONE, .callback= wait,  .info= "Wait for a change" },
+   { .name= NULL } /* marker for end of the array */
+};
 
-	/*
-	 * description of the plugin for afb-daemon
-	 */
-	static const struct AFB_plugin plugin_description =
-	{
-	   /* description conforms to VERSION 1 */
-	   .type= AFB_PLUGIN_VERSION_1,
-	   .v1= {				/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
-	      .prefix= "tictactoe",		/* the API name (or plugin name or prefix) */
-	      .info= "Sample tac-tac-toe game",	/* short description of of the plugin */
-	      .methods = plugin_methods		/* the array describing the methods of the API */
-	   }
-	};
+/*
+ * description of the plugin for afb-daemon
+ */
+static const struct AFB_plugin plugin_description =
+{
+   /* description conforms to VERSION 1 */
+   .type= AFB_PLUGIN_VERSION_1,
+   .v1= {				/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
+      .prefix= "tictactoe",		/* the API name (or plugin name or prefix) */
+      .info= "Sample tac-tac-toe game",	/* short description of of the plugin */
+      .methods = plugin_methods		/* the array describing the methods of the API */
+   }
+};
+```
 
 The structure **plugin_description** describes the plugin.
 It declares the type and version of the plugin, its name, a short description
@@ -779,17 +815,19 @@ In version one of afb-damon plugin, a method description contains 4 fields:
 
 The structure describing methods is defined as follows:
 
-	/*
-	 * Description of one method of the API provided by the plugin
-	 * This enumeration is valid for plugins of type 1
-	 */
-	struct AFB_method_desc_v1
-	{
-	       const char *name;                       /* name of the method */
-	       enum AFB_session_v1 session;            /* authorisation and session requirements of the method */
-	       void (*callback)(struct afb_req req);   /* callback function implementing the method */
-	       const char *info;                       /* textual description of the method */
-	};
+```C
+/*
+ * Description of one method of the API provided by the plugin
+ * This enumeration is valid for plugins of type 1
+ */
+struct AFB_method_desc_v1
+{
+       const char *name;                       /* name of the method */
+       enum AFB_session_v1 session;            /* authorisation and session requirements of the method */
+       void (*callback)(struct afb_req req);   /* callback function implementing the method */
+       const char *info;                       /* textual description of the method */
+};
+```
 
 For technical reasons, the enumeration **enum AFB_session_v1** is not exactly an
 enumeration but the wrapper of constant definitions that can be mixed using bitwise or
@@ -854,7 +892,9 @@ they are output with a different level on the logging system.
 
 All of these methods have the same signature:
 
-	void ERROR(const struct AFB_interface *afbitf, const char *message, ...);
+```C
+void ERROR(const struct AFB_interface *afbitf, const char *message, ...);
+```
 
 The first argument **afbitf** is the interface to afb daemon that the
 plugin received at initialisation time when **pluginAfbV1Register** is called.
@@ -871,10 +911,10 @@ ont the verbosity level.
 
 Level of verbosity | Outputed macro
 :-----------------:|--------------------------
-        0          | ERROR
-        1          | ERROR + WARNING + NOTICE
-        2          | ERROR + WARNING + NOTICE + INFO
-        3          | ERROR + WARNING + NOTICE + INFO + DEBUG
+0                  | ERROR
+1                  | ERROR + WARNING + NOTICE
+2                  | ERROR + WARNING + NOTICE + INFO
+3                  | ERROR + WARNING + NOTICE + INFO + DEBUG
 
 ### Output format and destination
 
@@ -883,14 +923,14 @@ The prefixes are:
 
 syslog level | prefix
 :-----------:|---------------
-      0      | <0> EMERGENCY
-      1      | <1> ALERT
-      2      | <2> CRITICAL
-      3      | <3> ERROR
-      4      | <4> WARNING
-      5      | <5> NOTICE
-      6      | <6> INFO
-      7      | <7> DEBUG
+0            | <0> EMERGENCY
+1            | <1> ALERT
+2            | <2> CRITICAL
+3            | <3> ERROR
+4            | <4> WARNING
+5            | <5> NOTICE
+6            | <6> INFO
+7            | <7> DEBUG
 
 
 The message is pushed to standard error.
@@ -908,21 +948,23 @@ coming version.
 The plugin *tic-tac-toe* broadcasts events when the board changes.
 This is done in the function **changed**:
 
-	/*
-	 * signals a change of the board
-	 */
-	static void changed(struct board *board, const char *reason)
-	{
-		...
-		struct json_object *description;
+```C
+/*
+ * signals a change of the board
+ */
+static void changed(struct board *board, const char *reason)
+{
+	...
+	struct json_object *description;
 
-		/* get the description */
-		description = describe(board);
+	/* get the description */
+	description = describe(board);
 
-		...
+	...
 
-		afb_daemon_broadcast_event(afbitf->daemon, reason, description);
-	}
+	afb_daemon_broadcast_event(afbitf->daemon, reason, description);
+}
+```
 
 The description of the changed board is pushed via the daemon interface.
 
@@ -933,16 +975,18 @@ object that is transmitted with the event.
 
 Function **afb_daemon_broadcast_event** is defined here after:
 
-	/*
-	 * Broadcasts widely the event of 'name' with the data 'object'.
-	 * 'object' can be NULL.
-	 * 'daemon' MUST be the daemon given in interface when activating the plugin.
-	 *
-	 * For conveniency, the function calls 'json_object_put' for 'object'.
-	 * Thus, in the case where 'object' should remain available after
-	 * the function returns, the function 'json_object_get' shall be used.
-	 */
-	void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
+```C
+/*
+ * Broadcasts widely the event of 'name' with the data 'object'.
+ * 'object' can be NULL.
+ * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ *
+ * For conveniency, the function calls 'json_object_put' for 'object'.
+ * Thus, in the case where 'object' should remain available after
+ * the function returns, the function 'json_object_get' shall be used.
+ */
+void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, struct json_object *object);
+```
 
 > Be aware, as with reply functions **object** is automatically released using
 > **json_object_put** when using this function. Call **json_object_get** before
@@ -996,22 +1040,24 @@ Common case of an asynchronous implementation.
 
 Here is the listing of the function **wait**:
 
-	static void wait(struct afb_req req)
-	{
-		struct board *board;
-		struct waiter *waiter;
+```C
+static void wait(struct afb_req req)
+{
+	struct board *board;
+	struct waiter *waiter;
 
-		/* retrieves the context for the session */
-		board = board_of_req(req);
-		INFO(afbitf, "method 'wait' called for boardid %d", board->id);
+	/* retrieves the context for the session */
+	board = board_of_req(req);
+	INFO(afbitf, "method 'wait' called for boardid %d", board->id);
 
-		/* creates the waiter and enqueues it */
-		waiter = calloc(1, sizeof *waiter);
-		waiter->req = req;
-		waiter->next = board->waiters;
-		afb_req_addref(req);
-		board->waiters = waiter;
-	}
+	/* creates the waiter and enqueues it */
+	waiter = calloc(1, sizeof *waiter);
+	waiter->req = req;
+	waiter->next = board->waiters;
+	afb_req_addref(req);
+	board->waiters = waiter;
+}
+```
 
 After retrieving the board, the function adds a new waiter to
 waiters list and returns without setting a reply.
@@ -1027,29 +1073,31 @@ with reason of change in parameter.
 
 Here is the full listing of the function **changed**:
 
-	/*
-	 * signals a change of the board
-	 */
-	static void changed(struct board *board, const char *reason)
-	{
-		struct waiter *waiter, *next;
-		struct json_object *description;
+```C
+/*
+ * signals a change of the board
+ */
+static void changed(struct board *board, const char *reason)
+{
+	struct waiter *waiter, *next;
+	struct json_object *description;
 
-		/* get the description */
-		description = describe(board);
+	/* get the description */
+	description = describe(board);
 
-		waiter = board->waiters;
-		board->waiters = NULL;
-		while (waiter != NULL) {
-			next = waiter->next;
-			afb_req_success(waiter->req, json_object_get(description), reason);
-			afb_req_unref(waiter->req);
-			free(waiter);
-			waiter = next;
-		}
-
-		afb_event_sender_push(afb_daemon_get_event_sender(afbitf->daemon), reason, description);
+	waiter = board->waiters;
+	board->waiters = NULL;
+	while (waiter != NULL) {
+		next = waiter->next;
+		afb_req_success(waiter->req, json_object_get(description), reason);
+		afb_req_unref(waiter->req);
+		free(waiter);
+		waiter = next;
 	}
+
+	afb_event_sender_push(afb_daemon_get_event_sender(afbitf->daemon), reason, description);
+}
+```
 
 The list of waiters is walked and a reply is sent to each waiter.
 After sending the reply, the reference count of the request
@@ -1068,32 +1116,38 @@ queried by providing **afb-daemon** in command line arguments.
 This configuration file provides data that should be used
 for plugins compilation. Examples:
 
-	$ pkg-config --cflags afb-daemon
-	$ pkg-config --libs afb-daemon
+```bash
+$ pkg-config --cflags afb-daemon
+$ pkg-config --libs afb-daemon
+```
 
 ### Example for cmake meta build system
 
 This example is the extract for building the plugin *afm-main* using *CMAKE*.
 
-	pkg_check_modules(afb afb-daemon)
-	if(afb_FOUND)
-		message(STATUS "Creation afm-main-plugin for AFB-DAEMON")
-		add_library(afm-main-plugin MODULE afm-main-plugin.c)
-		target_compile_options(afm-main-plugin PRIVATE ${afb_CFLAGS})
-		target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
-		target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
-		set_target_properties(afm-main-plugin PROPERTIES
-			PREFIX ""
-			LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
-		)
-		install(TARGETS afm-main-plugin LIBRARY DESTINATION ${plugin_dir})
-	else()
-		message(STATUS "Not creating the plugin for AFB-DAEMON")
-	endif()
+```cmake
+pkg_check_modules(afb afb-daemon)
+if(afb_FOUND)
+	message(STATUS "Creation afm-main-plugin for AFB-DAEMON")
+	add_library(afm-main-plugin MODULE afm-main-plugin.c)
+	target_compile_options(afm-main-plugin PRIVATE ${afb_CFLAGS})
+	target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
+	target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+	set_target_properties(afm-main-plugin PROPERTIES
+		PREFIX ""
+		LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+	)
+	install(TARGETS afm-main-plugin LIBRARY DESTINATION ${plugin_dir})
+else()
+	message(STATUS "Not creating the plugin for AFB-DAEMON")
+endif()
+```
 
 Let now describe some of these lines.
 
-	pkg_check_modules(afb afb-daemon)
+```cmake
+pkg_check_modules(afb afb-daemon)
+```
 
 This first lines searches to the *pkg-config* configuration file for
 **afb-daemon**. Resulting data are stored in the following variables:
@@ -1110,17 +1164,21 @@ afb_CFLAGS        | All required cflags for compiling afb-daemon plugins
 If development files are found, the plugin can be added to the set of
 target to build.
 
-	add_library(afm-main-plugin MODULE afm-main-plugin.c)
+```cmake
+add_library(afm-main-plugin MODULE afm-main-plugin.c)
+```
 
 This line asks to create a shared library having a single
 source file named afm-main-plugin.c to be compiled.
 The default name of the created shared object is
 **libafm-main-plugin.so**.
 
-	set_target_properties(afm-main-plugin PROPERTIES
-		PREFIX ""
-		LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
-	)
+```cmake
+set_target_properties(afm-main-plugin PROPERTIES
+	PREFIX ""
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+)
+```
 
 This lines are doing two things:
 
@@ -1136,8 +1194,10 @@ a shared library linker exports all the public symbols (C functions that are not
 
 Next line are:
 
-	target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
-	target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+```cmake
+target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
+target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+```
 
 As you can see it uses the variables computed by ***pkg_check_modules(afb afb-daemon)***
 to configure the compiler and the linker.

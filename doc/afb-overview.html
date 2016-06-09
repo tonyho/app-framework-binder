@@ -1,50 +1,51 @@
+<!DOCTYPE html>
 <html>
 <head>
-  <link rel="stylesheet" type="text/css" href="doc.css">
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="José Bollo">
+  <title>Overview of AFB-DAEMON</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="doc.css">
 </head>
 <body>
-<a name="Overview.of.AFB-DAEMON"></a>
-<h1>Overview of AFB-DAEMON</h1>
-
+<header>
+<h1 class="title">Overview of AFB-DAEMON</h1>
+<h2 class="author">José Bollo</h2>
+<h3 class="date">30 mai 2016</h3>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#overview-of-afb-daemon">Overview of AFB-DAEMON</a><ul>
+<li><a href="#roles-of-afb-daemon">Roles of afb-daemon</a></li>
+<li><a href="#use-cases-of-the-binder-afb-daemon">Use cases of the binder afb-daemon</a><ul>
+<li><a href="#remotely-running-application">Remotely running application</a></li>
+<li><a href="#adding-native-features-to-html5qml-applications">Adding native features to HTML5/QML applications</a></li>
+<li><a href="#offering-services-to-the-system">Offering services to the system</a></li>
+</ul></li>
+<li><a href="#the-plugins-of-the-binder-afb-daemon">The plugins of the binder afb-daemon</a></li>
+<li><a href="#launching-the-binder-afb-daemon">Launching the binder afb-daemon</a></li>
+<li><a href="#future-development-of-afb-daemon">Future development of afb-daemon</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="overview-of-afb-daemon">Overview of AFB-DAEMON</h1>
 <pre><code>version: 1
 Date:    30 mai 2016
-Author:  José Bollo
-</code></pre>
-
-<p><ul>
- <li><a href="#Overview.of.AFB-DAEMON">Overview of AFB-DAEMON</a>
- <ul>
-  <li><a href="#Roles.of.afb-daemon">Roles of afb-daemon</a></li>
-  <li><a href="#Use.cases.of.the.binder.afb-daemon">Use cases of the binder afb-daemon</a>
-  <ul>
-   <li><a href="#Remotely.running.application">Remotely running application</a></li>
-   <li><a href="#Adding.native.features.to.HTML5.QML.applications">Adding native features to HTML5/QML applications</a></li>
-   <li><a href="#Offering.services.to.the.system">Offering services to the system</a></li>
-  </ul>
-  </li>
-  <li><a href="#The.plugins.of.the.binder.afb-daemon">The plugins of the binder afb-daemon</a></li>
-  <li><a href="#Launching.the.binder.afb-daemon">Launching the binder afb-daemon</a></li>
-  <li><a href="#Future.development.of.afb-daemon">Future development of afb-daemon</a></li>
- </ul>
- </li>
-</ul></p>
-
-<a name="Roles.of.afb-daemon"></a>
-<h2>Roles of afb-daemon</h2>
-
-<p>The name <strong>afb-daemon</strong> stands for <em>Application
-Framework Binder Daemon</em>. That is why afb-daemon
-is also named <strong><em>the binder</em></strong>.</p>
-
-<p><strong>Afb-daemon</strong> is in charge to bind one instance of
-an application to the AGL framework and AGL system.</p>
-
-<p>On the following figure, you can use a typical use
-of afb-daemon:</p>
-
-<p><a id="binder-fig-basis"><h4>Figure: binder afb-daemon, basis</h4></a></p>
-
+Author:  José Bollo</code></pre>
+<h2 id="roles-of-afb-daemon">Roles of afb-daemon</h2>
+<p>The name <strong>afb-daemon</strong> stands for <em>Application Framework Binder Daemon</em>. That is why afb-daemon is also named <strong><em>the binder</em></strong>.</p>
+<p><strong>Afb-daemon</strong> is in charge to bind one instance of an application to the AGL framework and AGL system.</p>
+<p>On the following figure, you can use a typical use of afb-daemon:</p>
+<a id="binder-fig-basis">
+<h4>
+Figure: binder afb-daemon, basis
+</h4>
+<p></a></p>
 <pre><code>. . . . . . . . . . . . . . . . . . . . . . . . . .
 .        Isolated security context                .
 .                                                 .
@@ -65,43 +66,24 @@ of afb-daemon:</p>
 . . . . . . . . . . . . | . . . . . . . . . . . . .
                         |
                         v
-                   AGL SYSTEM
-</code></pre>
-
-<p>The application and its companion binder run in secured and isolated
-environment set for them. Applications are intended to access to AGL
-system through the binder.</p>
-
+                   AGL SYSTEM</code></pre>
+<p>The application and its companion binder run in secured and isolated environment set for them. Applications are intended to access to AGL system through the binder.</p>
 <p>The binder afb-daemon serves multiple purposes:</p>
-
-<ol>
+<ol type="1">
 <li><p>It acts as a gateway for the application to access the system;</p></li>
 <li><p>It acts as an HTTP server for serving files to HTML5 applications;</p></li>
-<li><p>It allows HTML5 applications to have native extensions subject
-to security enforcement for accessing hardware ressources or
-for speeding parts of algorithm.</p></li>
+<li><p>It allows HTML5 applications to have native extensions subject to security enforcement for accessing hardware ressources or for speeding parts of algorithm.</p></li>
 </ol>
-
-
-<a name="Use.cases.of.the.binder.afb-daemon"></a>
-<h2>Use cases of the binder afb-daemon</h2>
-
-<p>This section tries to give a better understanding of the binder
-usage through several use cases.</p>
-
-<a name="Remotely.running.application"></a>
-<h3>Remotely running application</h3>
-
-<p>One of the most interresting aspect of using the binder afb-daemon
-is the ability to run applications remotely. This feature is
-possible because the binder afb-daemon implements native web
-protocols.</p>
-
-<p>So the <a href="#binder-fig-1">figure binder, basis</a> would become
-when the application is run remotely:</p>
-
-<p><a id="binder-fig-remote"><h4>Figure: binder afb-daemon and remotely running application</h4></a></p>
-
+<h2 id="use-cases-of-the-binder-afb-daemon">Use cases of the binder afb-daemon</h2>
+<p>This section tries to give a better understanding of the binder usage through several use cases.</p>
+<h3 id="remotely-running-application">Remotely running application</h3>
+<p>One of the most interresting aspect of using the binder afb-daemon is the ability to run applications remotely. This feature is possible because the binder afb-daemon implements native web protocols.</p>
+<p>So the <a href="#binder-fig-1">figure binder, basis</a> would become when the application is run remotely:</p>
+<a id="binder-fig-remote">
+<h4>
+Figure: binder afb-daemon and remotely running application
+</h4>
+<p></a></p>
 <pre><code>             +------------------------------+
              |                              |
              |    A P P L I C A T I O N     |
@@ -131,35 +113,22 @@ when the application is run remotely:</p>
 . . . . . . . . . . . . . . | . . . . . . . . . . . . . .
                             |
                             v
-                       AGL SYSTEM
-</code></pre>
-
-<a name="Adding.native.features.to.HTML5.QML.applications"></a>
-<h3>Adding native features to HTML5/QML applications</h3>
-
-<p>Applications can provide with their packaged delivery a plugin.
-That plugin will be instanciated for each application instance.
-The methods of the plugin will be accessible by applications and
-will be excuted within the security context.</p>
-
-<a name="Offering.services.to.the.system"></a>
-<h3>Offering services to the system</h3>
-
-<p>It is possible to run the binder afb-daemon as a daemon that provides the
-API of its plugins.</p>
-
+                       AGL SYSTEM</code></pre>
+<h3 id="adding-native-features-to-html5qml-applications">Adding native features to HTML5/QML applications</h3>
+<p>Applications can provide with their packaged delivery a plugin. That plugin will be instanciated for each application instance. The methods of the plugin will be accessible by applications and will be excuted within the security context.</p>
+<h3 id="offering-services-to-the-system">Offering services to the system</h3>
+<p>It is possible to run the binder afb-daemon as a daemon that provides the API of its plugins.</p>
 <p>This will be used for:</p>
-
-<ol>
+<ol type="1">
 <li><p>offering common APIs</p></li>
-<li><p>provide application&rsquo;s services (services provided as application)</p></li>
+<li><p>provide application's services (services provided as application)</p></li>
 </ol>
-
-
 <p>In that case, the figure showing the whole aspects is</p>
-
-<p><a id="binder-fig-remote"><h4>Figure: binder afb-daemon for services</h4></a></p>
-
+<a id="binder-fig-remote">
+<h4>
+Figure: binder afb-daemon for services
+</h4>
+<p></a></p>
 <pre><code>. . . . . . . . . . . . . . . . . . . . . . 
 .  Isolated security context application  . 
 .                                         . 
@@ -195,176 +164,151 @@ API of its plugins.</p>
 . +------------------------------------+  .     . +------------------------------------+  .
 .                                         .     .                                         .
 .        Isolated security context B      .     .        Isolated security context C      .
-. . . . . . . . . . . . . . . . . . . . . .     . . . . . . . . . . . . . . . . . . . . . .
-</code></pre>
-
-<p>For this case, the binder afb-daemon takes care to attribute one single session
-context to each client instance. It allows plugins to store and retrieve data
-associated to each of its client.</p>
-
-<a name="The.plugins.of.the.binder.afb-daemon"></a>
-<h2>The plugins of the binder afb-daemon</h2>
-
-<p>The binder can instanciate plugins. The primary use of plugins
-is to add native methods that can be accessed by applications
-written with any language through web technologies ala JSON RPC.</p>
-
+. . . . . . . . . . . . . . . . . . . . . .     . . . . . . . . . . . . . . . . . . . . . .</code></pre>
+<p>For this case, the binder afb-daemon takes care to attribute one single session context to each client instance. It allows plugins to store and retrieve data associated to each of its client.</p>
+<h2 id="the-plugins-of-the-binder-afb-daemon">The plugins of the binder afb-daemon</h2>
+<p>The binder can instanciate plugins. The primary use of plugins is to add native methods that can be accessed by applications written with any language through web technologies ala JSON RPC.</p>
 <p>This simple idea is declined to serves multiple purposes:</p>
-
-<ol>
+<ol type="1">
 <li><p>add native feature to applications</p></li>
 <li><p>add common API available by any applications</p></li>
 <li><p>provide customers services</p></li>
 </ol>
-
-
-<p>A specific document explains how to write an afb-daemon binder plugin:
-<a href="afb-plugin-writing.html">HOWTO WRITE a PLUGIN for AFB-DAEMON</a></p>
-
-<a name="Launching.the.binder.afb-daemon"></a>
-<h2>Launching the binder afb-daemon</h2>
-
+<p>A specific document explains how to write an afb-daemon binder plugin: <a href="afb-plugin-writing.html">HOWTO WRITE a PLUGIN for AFB-DAEMON</a></p>
+<h2 id="launching-the-binder-afb-daemon">Launching the binder afb-daemon</h2>
 <p>The launch options for binder <strong>afb-daemon</strong> are:</p>
-
 <pre><code>  --help
 
-        Prints help with available options
+    Prints help with available options
 
   --version
 
-        Display version and copyright
+    Display version and copyright
 
   --verbose
 
-        Increases the verbosity, can be repeated
+    Increases the verbosity, can be repeated
 
   --port=xxxx
 
-        HTTP listening TCP port  [default 1234]
+    HTTP listening TCP port  [default 1234]
 
   --rootdir=xxxx
 
-        HTTP Root Directory [default $AFBDIR or else $HOME/.AFB]
+    HTTP Root Directory [default $AFBDIR or else $HOME/.AFB]
 
   --rootbase=xxxx
 
-        Angular Base Root URL [default /opa]
+    Angular Base Root URL [default /opa]
 
-        This is used for any application of kind OPA (one page application).
-        When set, any missing document whose url has the form /opa/zzz
-        is translated to /opa/#!zzz
+    This is used for any application of kind OPA (one page application).
+    When set, any missing document whose url has the form /opa/zzz
+    is translated to /opa/#!zzz
 
   --rootapi=xxxx
 
-        HTML Root API URL [default /api]
+    HTML Root API URL [default /api]
 
-        The plugins are available within that url.
+    The plugins are available within that url.
 
   --alias=xxxx
 
-        Maps a path located anywhere in the file system to the
-        a subdirectory. The syntax for mapping a PATH to the
-        subdirectory NAME is: --alias=/NAME:PATH.
+    Maps a path located anywhere in the file system to the
+    a subdirectory. The syntax for mapping a PATH to the
+    subdirectory NAME is: --alias=/NAME:PATH.
 
-        Example: --alias=/icons:/usr/share/icons maps the
-        content of /usr/share/icons within the subpath /icons.
+    Example: --alias=/icons:/usr/share/icons maps the
+    content of /usr/share/icons within the subpath /icons.
 
-        This option can be repeated.
+    This option can be repeated.
 
   --apitimeout=xxxx
 
-        Plugin API timeout in seconds [default 20]
+    Plugin API timeout in seconds [default 20]
 
-        Defines how many seconds maximum a method is allowed to run.
-        0 means no limit.
+    Defines how many seconds maximum a method is allowed to run.
+    0 means no limit.
 
   --cntxtimeout=xxxx
 
-        Client Session Timeout in seconds [default 3600]
+    Client Session Timeout in seconds [default 3600]
 
   --cache-eol=xxxx
 
-        Client cache end of live [default 100000 that is 27,7 hours]
+    Client cache end of live [default 100000 that is 27,7 hours]
 
   --sessiondir=xxxx
 
-        Sessions file path [default rootdir/sessions]
+    Sessions file path [default rootdir/sessions]
 
   --session-max=xxxx
 
-        Maximum count of simultaneous sessions [default 10]
+    Maximum count of simultaneous sessions [default 10]
 
   --ldpaths=xxxx
 
-        Load Plugins from given paths separated by colons
-        as for dir1:dir2:plugin1.so:... [default = $libdir/afb]
+    Load Plugins from given paths separated by colons
+    as for dir1:dir2:plugin1.so:... [default = $libdir/afb]
 
-        You can mix path to directories and to plugins.
-        The sub-directories of the given directories are searched
-        recursively.
+    You can mix path to directories and to plugins.
+    The sub-directories of the given directories are searched
+    recursively.
 
-        The plugins are the files terminated by '.so' (the extension
-        so denotes shared object) that contain the public entry symbol.
+    The plugins are the files terminated by &#39;.so&#39; (the extension
+    so denotes shared object) that contain the public entry symbol.
 
   --plugin=xxxx
 
-        Load the plugin of given path.
+    Load the plugin of given path.
 
   --token=xxxx
 
-        Initial Secret token to authenticate.
+    Initial Secret token to authenticate.
 
-        If not set, no client can authenticate.
+    If not set, no client can authenticate.
 
-        If set to the empty string, then any initial token is accepted.
+    If set to the empty string, then any initial token is accepted.
 
   --mode=xxxx
 
-        Set the mode: either local, remote or global.
+    Set the mode: either local, remote or global.
 
-        The mode indicate if the application is run locally on the host
-        or remotely through network.
+    The mode indicate if the application is run locally on the host
+    or remotely through network.
 
   --readyfd=xxxx
 
-        Set the #fd to signal when ready
+    Set the #fd to signal when ready
 
-        If set, the binder afb-daemon will write "READY=1\n" on the file
-        descriptor whose number if given (/proc/self/fd/xxx).
+    If set, the binder afb-daemon will write &quot;READY=1\n&quot; on the file
+    descriptor whose number if given (/proc/self/fd/xxx).
 
   --dbus-client=xxxx
 
-        Transparent binding to a binder afb-daemon service through dbus.
+    Transparent binding to a binder afb-daemon service through dbus.
 
-        It creates an API of name xxxx that is implemented remotely
-        and queried via DBUS.
+    It creates an API of name xxxx that is implemented remotely
+    and queried via DBUS.
 
   --dbus-server=xxxx
 
-        Provides a binder afb-daemon service through dbus.
+    Provides a binder afb-daemon service through dbus.
 
-        The name xxxx must be the name of an API defined by a plugin.
-        This API is exported through DBUS.
+    The name xxxx must be the name of an API defined by a plugin.
+    This API is exported through DBUS.
 
   --foreground
 
-        Get all in foreground mode (default)
+    Get all in foreground mode (default)
 
   --daemon
 
-        Get all in background mode
-</code></pre>
-
-<a name="Future.development.of.afb-daemon"></a>
-<h2>Future development of afb-daemon</h2>
-
+    Get all in background mode</code></pre>
+<h2 id="future-development-of-afb-daemon">Future development of afb-daemon</h2>
 <ul>
 <li><p>The binder afb-daemon would launch the applications directly.</p></li>
-<li><p>The current setting of mode (local/remote/global) might be reworked to a
-mechanism for querying configuration variables.</p></li>
-<li><p>Implements &ldquo;one-shot&rdquo; initial token. It means that after its first
-authenticated use, the initial token is removed and no client can connect
-anymore.</p></li>
+<li><p>The current setting of mode (local/remote/global) might be reworked to a mechanism for querying configuration variables.</p></li>
+<li><p>Implements &quot;one-shot&quot; initial token. It means that after its first authenticated use, the initial token is removed and no client can connect anymore.</p></li>
 <li><p>Creates some intrinsic APIs.</p></li>
 <li><p>Make the service connection using WebSocket not DBUS.</p></li>
 <li><p>Management of targetted events.</p></li>

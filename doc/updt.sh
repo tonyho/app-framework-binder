@@ -1,19 +1,15 @@
 #!/bin/bash
 
-# the HTML template
-main='<html>
-<head>
-  <link rel="stylesheet" type="text/css" href="doc.css">
-  <meta charset="UTF-8">
-</head>
-<body>
-GENERATED-MARKDOWN-HERE
-</body>
-</html>'
-
-# substitute the pattern $1 by the content of the file $2
-subst() {
-  awk -v pat="$1" -v rep="$(sed 's:\\:\\\\:g' $2)" '{gsub(pat,rep);gsub(pat,"\\&");print}'
+meta() {
+	awk '
+		NR == 1 { t = $0; next }
+		NR == 2 && $1 ~ "======" { next }
+		NR == 2 { exit }
+		$1 == "Date:" { d = $2; for(i = 3 ; i <= NF ; i++) d = d " " $i; next }
+		$1 == "Author:" { a = $2; for(i = 3 ; i <= NF ; i++) a = a " " $i; next }
+		$1 == "version" || $1 == "Version" {next}
+		/^[ \t]*$/ { printf "%% %s\n%% %s\n%% %s\n", t, a, d; exit }
+	' "$1"
 }
 
 # update the date field of file $1
@@ -29,14 +25,8 @@ updadate() {
 mkhtml() {
   local x=$1
   local h=${x%%.md}.html
-  expand -i $x | sed 's:^        :    :' > $h.pre
-  markdown -f toc,autolink $h.pre > $h.toc.no
-  markdown -Tf toc,autolink $h.pre > $h.toc.yes
-  head --bytes=-$(stat -c %s $h.toc.no) $h.toc.yes > $h.toc
-  echo "$main" |
-  subst GENERATED-MARKDOWN-HERE $h.toc.no |
-  subst TABLE-OF-CONTENT-HERE $h.toc > $h
-  rm $h.*
+  { meta "$x"; sed 's/TABLE-OF-CONTENT-HERE//' "$x"; } |
+  pandoc --css doc.css -f markdown -t html5 --toc > "$h"
 }
 
 # apply

@@ -1,106 +1,77 @@
+<!DOCTYPE html>
 <html>
 <head>
-  <link rel="stylesheet" type="text/css" href="doc.css">
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="Manuel Bachmann">
+  <title>Overview of tests shipped with AFB-Daemon</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="doc.css">
 </head>
 <body>
-<a name="Overview.of.tests.shipped.with.AFB-Daemon"></a>
-<h1>Overview of tests shipped with AFB-Daemon</h1>
-
+<header>
+<h1 class="title">Overview of tests shipped with AFB-Daemon</h1>
+<h2 class="author">Manuel Bachmann</h2>
+<h3 class="date">30 mai 2016</h3>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#overview-of-tests-shipped-with-afb-daemon">Overview of tests shipped with AFB-Daemon</a><ul>
+<li><a href="#list-of-tests">List of tests</a></li>
+<li><a href="#detail-of-tests">Detail of tests</a><ul>
+<li><a href="#afb-client-demo-command-line-websockets">afb-client-demo (command-line WebSockets)</a></li>
+<li><a href="#token-websock.qml-qtqml-websockets">token-websock.qml (Qt/QML WebSockets)</a></li>
+<li><a href="#html-html5js-http-rest-websockets">*.html (HTML5/JS HTTP-REST &amp; WebSockets)</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="overview-of-tests-shipped-with-afb-daemon">Overview of tests shipped with AFB-Daemon</h1>
 <pre><code>Version: 1
 Date:    30 mai 2016
-Author:  Manuel Bachmann
-</code></pre>
-
-<a name="List.of.tests"></a>
-<h2>List of tests</h2>
-
+Author:  Manuel Bachmann</code></pre>
+<h2 id="list-of-tests">List of tests</h2>
 <p>Here are the tests shipped in the source tree:</p>
-
 <ul>
 <li><p><strong>afb-client-demo</strong> (command-line WebSockets)</p></li>
 <li><p><strong>token-websock.qml</strong> (Qt/QML WebSockets)</p></li>
-<li><p><strong>*.html</strong> (HTML5/JS HTTP-REST &amp; WebSockets)</p></li>
+<li><p>*<strong>.html</strong> (HTML5/JS HTTP-REST &amp; WebSockets)</p></li>
 </ul>
-
-
-<a name="Detail.of.tests"></a>
-<h2>Detail of tests</h2>
-
-<a name="afb-client-demo..command-line.WebSockets."></a>
-<h3>afb-client-demo (command-line WebSockets)</h3>
-
-<p>This clients interactively calls plugins APIs from the command line, using the binder
-<a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> facility.</p>
-
+<h2 id="detail-of-tests">Detail of tests</h2>
+<h3 id="afb-client-demo-command-line-websockets">afb-client-demo (command-line WebSockets)</h3>
+<p>This clients interactively calls plugins APIs from the command line, using the binder <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> facility.</p>
 <p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
-
-<pre><code>$ afb-daemon --port=1234 --token=123456 [...]
-</code></pre>
-
+<pre><code>$ afb-daemon --port=1234 --token=123456 [...]</code></pre>
 <p>Then run the client with :</p>
-
-<pre><code>afb-client-demo ws://localhost:1234/api?token=123456 [&lt;api&gt; &lt;verb&gt; [&lt;json-data&gt;]]
-</code></pre>
-
+<pre><code>afb-client-demo ws://localhost:1234/api?token=123456 [&lt;api&gt; &lt;verb&gt; [&lt;json-data&gt;]]</code></pre>
 <p>For instance, to initialize the Audio plugin from the command line :</p>
-
-<pre><code>afb-client-demo ws://localhost:1234/api?token=123456
-</code></pre>
-
-<p>The command doesn&rsquo;t return. You should type requests of type <api> <verb> [&lt;json-data>].
-So, try:</p>
-
+<pre><code>afb-client-demo ws://localhost:1234/api?token=123456</code></pre>
+<p>The command doesn't return. You should type requests of type <api> <verb> [<json-data>]. So, try:</p>
 <pre><code>auth connect
-hello pingjson true
-</code></pre>
-
+hello pingjson true</code></pre>
 <p><br /></p>
-
-<a name="token-websock.qml..Qt.QML.WebSockets."></a>
-<h3>token-websock.qml (Qt/QML WebSockets)</h3>
-
+<h3 id="token-websock.qml-qtqml-websockets">token-websock.qml (Qt/QML WebSockets)</h3>
 <p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
-
-<pre><code>$ afb-daemon --port=1234 --token=123456 [...]
-</code></pre>
-
+<pre><code>$ afb-daemon --port=1234 --token=123456 [...]</code></pre>
 <p>and Qt5 is installed.</p>
-
 <p>For installing Qt5 on <strong>Ubuntu 16.04</strong>:</p>
-
-<pre><code>$ apt-get install qmlscene qml-module-qtwebsockets qml-module-qtquick-controls
-</code></pre>
-
+<pre><code>$ apt-get install qmlscene qml-module-qtwebsockets qml-module-qtquick-controls</code></pre>
 <p>For installing Qt5 on <strong>Fedora 23</strong> :</p>
-
-<pre><code>$ dnf install qt5-qtdeclarative-devel qt5-qtwebsockets-devel qt5-qtquickcontrols
-</code></pre>
-
+<pre><code>$ dnf install qt5-qtdeclarative-devel qt5-qtwebsockets-devel qt5-qtquickcontrols</code></pre>
 <p>Then run the client with :</p>
-
-<pre><code>qmlscene test/token-websock.qml
-</code></pre>
-
-<p>and interactively press the buttons, &ldquo;Connect&rdquo;, &ldquo;Refresh&rdquo;, &ldquo;Logout&rdquo;.</p>
-
+<pre><code>qmlscene test/token-websock.qml</code></pre>
+<p>and interactively press the buttons, &quot;Connect&quot;, &quot;Refresh&quot;, &quot;Logout&quot;.</p>
 <p><br /></p>
-
-<a name="L..html..HTML5.JS.HTTP-REST..amp..WebSockets."></a>
-<h3>*.html (HTML5/JS HTTP-REST &amp; WebSockets)</h3>
-
+<h3 id="html-html5js-http-rest-websockets">*.html (HTML5/JS HTTP-REST &amp; WebSockets)</h3>
 <p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
-
-<pre><code>$ afb-daemon --port=1234 --rootdir=$PWD/test [...]
-</code></pre>
-
-<p><em>(&ldquo;$PWD/test</em>&rdquo; being the &ldquo;test&rdquo; subdirectory of the source tree)_</p>
-
+<pre><code>$ afb-daemon --port=1234 --rootdir=$PWD/test [...]</code></pre>
+<p><em>(&quot;$PWD/test</em>&quot; being the &quot;test&quot; subdirectory of the source tree)_</p>
 <p>Then open your preferred Web browser, connect to the following URL:</p>
-
-<pre><code>http://localhost:1234
-</code></pre>
-
+<pre><code>http://localhost:1234</code></pre>
 <p>and interactively run the various tests.</p>
 </body>
 </html>

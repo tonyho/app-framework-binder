@@ -1,10 +1,12 @@
-# Overview of tests shipped with AFB-Daemon
+Overview of tests shipped with AFB-Daemon
+=========================================
     Version: 1
     Date:    30 mai 2016
     Author:  Manuel Bachmann
 
 
-## List of tests
+List of tests
+-------------
 
 Here are the tests shipped in the source tree:
 
@@ -15,7 +17,8 @@ Here are the tests shipped in the source tree:
 * ***.html** (HTML5/JS HTTP-REST & WebSockets)
 
 
-## Detail of tests
+Detail of tests
+---------------
 
 ### afb-client-demo (command-line WebSockets)
 

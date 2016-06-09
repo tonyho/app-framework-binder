@@ -1,340 +1,188 @@
+<!DOCTYPE html>
 <html>
 <head>
-  <link rel="stylesheet" type="text/css" href="doc.css">
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="José Bollo">
+  <title>HOWTO WRITE an APPLICATION above AGL FRAMEWORK</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="doc.css">
 </head>
 <body>
-<a name="HOWTO.WRITE.an.APPLICATION.above.AGL.FRAMEWORK"></a>
-<h1>HOWTO WRITE an APPLICATION above AGL FRAMEWORK</h1>
-
+<header>
+<h1 class="title">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</h1>
+<h2 class="author">José Bollo</h2>
+<h3 class="date">09 juin 2016</h3>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#howto-write-an-application-above-agl-framework">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</a><ul>
+<li><a href="#programmation-languages-for-applications">Programmation Languages for Applications</a><ul>
+<li><a href="#writing-an-html5-application">Writing an HTML5 application</a></li>
+<li><a href="#writing-a-qt-application">Writing a Qt application</a></li>
+<li><a href="#writing-c-application">Writing &quot;C&quot; application</a></li>
+</ul></li>
+<li><a href="#handling-sessions-within-applications">Handling sessions within applications</a><ul>
+<li><a href="#handling-sessions">Handling sessions</a></li>
+<li><a href="#exchanging-tokens">Exchanging tokens</a></li>
+<li><a href="#example-of-session-management">Example of session management</a></li>
+</ul></li>
+<li><a href="#format-of-replies">Format of replies</a><ul>
+<li><a href="#field-jtype">Field jtype</a></li>
+<li><a href="#field-request">Field request</a></li>
+<li><a href="#field-response">Field response</a></li>
+<li><a href="#template">Template</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="howto-write-an-application-above-agl-framework">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</h1>
 <pre><code>version: 1
 Date:    09 juin 2016
-Author:  José Bollo
-</code></pre>
-
-<p><ul>
- <li><a href="#HOWTO.WRITE.an.APPLICATION.above.AGL.FRAMEWORK">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</a>
- <ul>
-  <li><a href="#Programmation.Languages.for.Applications">Programmation Languages for Applications</a>
-  <ul>
-   <li><a href="#Writing.an.HTML5.application">Writing an HTML5 application</a></li>
-   <li><a href="#Writing.a.Qt.application">Writing a Qt application</a></li>
-   <li><a href="#Writing..C..application">Writing "C" application</a></li>
-  </ul>
-  </li>
-  <li><a href="#Handling.sessions.within.applications">Handling sessions within applications</a>
-  <ul>
-   <li><a href="#Handling.sessions">Handling sessions</a></li>
-   <li><a href="#Exchanging.tokens">Exchanging tokens</a></li>
-   <li><a href="#Example.of.session.management">Example of session management</a>
-   <ul>
-    <li><a href="#Using.curl">Using curl</a></li>
-    <li><a href="#Using.afb-client-demo">Using afb-client-demo</a>
-</li>
-   </ul>
-   </li>
-  </ul>
-  </li>
-  <li><a href="#Format.of.replies">Format of replies</a>
-  <ul>
-   <li><a href="#Field.jtype">Field jtype</a></li>
-   <li><a href="#Field.request">Field request</a>
-   <ul>
-    <li><a href="#Subfield.request.status">Subfield request.status</a></li>
-    <li><a href="#Subfield.request.info">Subfield request.info</a></li>
-    <li><a href="#Subfield.request.token">Subfield request.token</a></li>
-    <li><a href="#Subfield.request.uuid">Subfield request.uuid</a></li>
-    <li><a href="#Subfield.request.reqid">Subfield request.reqid</a></li>
-   </ul>
-   </li>
-   <li><a href="#Field.response">Field response</a></li>
-   <li><a href="#Template">Template</a></li>
-  </ul>
-  </li>
- </ul>
- </li>
-</ul></p>
-
-<a name="Programmation.Languages.for.Applications"></a>
-<h2>Programmation Languages for Applications</h2>
-
-<a name="Writing.an.HTML5.application"></a>
-<h3>Writing an HTML5 application</h3>
-
-<p>Developers of HTML5 applications (client side) can easily create
-applications for AGL framework using their preferred
-HTML5 framework.</p>
-
-<p>Developers may also take advantage of powerful server side plugins to improve
-application behavior. Server side plugins return an application/json mine-type
-and can be accessed though either HTTP or Websockets.</p>
-
+Author:  José Bollo</code></pre>
+<h2 id="programmation-languages-for-applications">Programmation Languages for Applications</h2>
+<h3 id="writing-an-html5-application">Writing an HTML5 application</h3>
+<p>Developers of HTML5 applications (client side) can easily create applications for AGL framework using their preferred HTML5 framework.</p>
+<p>Developers may also take advantage of powerful server side plugins to improve application behavior. Server side plugins return an application/json mine-type and can be accessed though either HTTP or Websockets.</p>
 <p>In a near future, JSON-RPC protocol should be added to complete current x-afb-json1 protocol.</p>
-
 <p>Two examples of HTML5 applications are given:</p>
-
 <ul>
-<li><p><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afb-client">afb-client</a> a simple &ldquo;hello world&rdquo; application template</p></li>
-<li><p><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afm-client">afm-client</a> a simple &ldquo;Home screen&rdquo; application template</p></li>
+<li><p><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afb-client">afb-client</a> a simple &quot;hello world&quot; application template</p></li>
+<li><p><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afm-client">afm-client</a> a simple &quot;Home screen&quot; application template</p></li>
 </ul>
-
-
-<a name="Writing.a.Qt.application"></a>
-<h3>Writing a Qt application</h3>
-
+<h3 id="writing-a-qt-application">Writing a Qt application</h3>
 <p>Writing Qt applications is also supported. Qt offers standard API to send request through HTTP or WebSockets.</p>
-
 <p>It is also possible to write QML applications. A sample QML application [token-websock] is avaliable..</p>
-
 <ul>
-<li><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=test/token-websock.qml">token-websock</a>
-a simple &ldquo;hello world&rdquo; application in QML</li>
+<li><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=test/token-websock.qml">token-websock</a> a simple &quot;hello world&quot; application in QML</li>
 </ul>
-
-
-<a name="Writing..C..application"></a>
-<h3>Writing &ldquo;C&rdquo; application</h3>
-
+<h3 id="writing-c-application">Writing &quot;C&quot; application</h3>
 <p>C applications can use afb-daemon binder through a websocket connection.</p>
-
-<p>The library <strong>libafbwsc</strong> is provided for C clients that need
-to connect with an afb-daemon binder.</p>
-
-<p>The program <strong>afb-client-demo</strong> is the C example that use
-<strong>libafbwsc</strong> library.
-Source code is available here
-<a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=src/afb-client-demo.c">src/afb-client-demo.c</a>.</p>
-
-<p>Current implementation relies on libsystemd and file descriptors.
-This model might be review in the future to support secure sockets
-and free the dependency with libsystemd.</p>
-
-<a name="Handling.sessions.within.applications"></a>
-<h2>Handling sessions within applications</h2>
-
+<p>The library <strong>libafbwsc</strong> is provided for C clients that need to connect with an afb-daemon binder.</p>
+<p>The program <strong>afb-client-demo</strong> is the C example that use <strong>libafbwsc</strong> library. Source code is available here <a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=src/afb-client-demo.c">src/afb-client-demo.c</a>.</p>
+<p>Current implementation relies on libsystemd and file descriptors. This model might be review in the future to support secure sockets and free the dependency with libsystemd.</p>
+<h2 id="handling-sessions-within-applications">Handling sessions within applications</h2>
 <p>Applications should understand sessions and tokens management when interacting with afb-daemon binder.</p>
-
-<p>Applications are communicating with their private binder(afb-daemon) using
-a network connection or potentially any other connection channel. While current version
-does not yet implement unix domain this feature might be added in a near future.
-Developers need to be warn that HTTP protocol is a none connected protocol. This prevents
-from using HTTP socket connection to authenticate clients.</p>
-
-<p>For this reason, the binder should authenticate the application
-by using a shared secret. The secret is named &ldquo;token&rdquo; and the identification
-of client is named &ldquo;session&rdquo;.</p>
-
-<p>The examples <strong>token-websock.qml</strong> and <strong>afb-client</strong> are demonstrating
-how authentication and sessions are managed.</p>
-
-<a name="Handling.sessions"></a>
-<h3>Handling sessions</h3>
-
-<p>Plugins and other binder feature need to keep track of client
-instances. This is especially important for plugins running as services
-as they may typically have to keep each client&rsquo;s data separated.</p>
-
-<p>For HTML5 applications, the web runtime handles the cookie of session
-that the binder afb-daemon automatically sets.</p>
-
-<p>Session identifier can be set using the parameter
-<strong>uuid</strong> or <strong>x-afb-uuid</strong> in URI requests. Within current version of the
-framework session UUID is supported by both HTTP requests and websocket negotiation.</p>
-
-<a name="Exchanging.tokens"></a>
-<h3>Exchanging tokens</h3>
-
-<p>At application start, AGL framework communicates a shared secret to both binder
-and client application. This initial secret is called the &ldquo;initial token&rdquo;.</p>
-
-<p>For each of its client application, the binder manages a current active
-token for session management. This authentication token can be use to restrict
-access to some plugin&rsquo;s methods.</p>
-
-<p>The token must be included in URI request on HTTP or during websockets
-connection using parameter <strong>token</strong> or <strong>x-afb-token</strong>.</p>
-
+<p>Applications are communicating with their private binder(afb-daemon) using a network connection or potentially any other connection channel. While current version does not yet implement unix domain this feature might be added in a near future. Developers need to be warn that HTTP protocol is a none connected protocol. This prevents from using HTTP socket connection to authenticate clients.</p>
+<p>For this reason, the binder should authenticate the application by using a shared secret. The secret is named &quot;token&quot; and the identification of client is named &quot;session&quot;.</p>
+<p>The examples <strong>token-websock.qml</strong> and <strong>afb-client</strong> are demonstrating how authentication and sessions are managed.</p>
+<h3 id="handling-sessions">Handling sessions</h3>
+<p>Plugins and other binder feature need to keep track of client instances. This is especially important for plugins running as services as they may typically have to keep each client's data separated.</p>
+<p>For HTML5 applications, the web runtime handles the cookie of session that the binder afb-daemon automatically sets.</p>
+<p>Session identifier can be set using the parameter <strong>uuid</strong> or <strong>x-afb-uuid</strong> in URI requests. Within current version of the framework session UUID is supported by both HTTP requests and websocket negotiation.</p>
+<h3 id="exchanging-tokens">Exchanging tokens</h3>
+<p>At application start, AGL framework communicates a shared secret to both binder and client application. This initial secret is called the &quot;initial token&quot;.</p>
+<p>For each of its client application, the binder manages a current active token for session management. This authentication token can be use to restrict access to some plugin's methods.</p>
+<p>The token must be included in URI request on HTTP or during websockets connection using parameter <strong>token</strong> or <strong>x-afb-token</strong>.</p>
 <p>To ensure security, tokens must be refreshed periodically.</p>
-
-<a name="Example.of.session.management"></a>
-<h3>Example of session management</h3>
-
+<h3 id="example-of-session-management">Example of session management</h3>
 <p>In following examples, we suppose that <strong>afb-daemon</strong> is launched with something equivalent to:</p>
-
-<pre><code>$ afb-daemon --port=1234 --token=123456 [...]
-</code></pre>
-
+<pre><code>$ afb-daemon --port=1234 --token=123456 [...]</code></pre>
 <p>making the expectation that <strong>AuthLogin</strong> plugin is requested as default.</p>
-
-<a name="Using.curl"></a>
-<h4>Using curl</h4>
-
+<h4 id="using-curl">Using curl</h4>
 <p>First, connects with the initial token, 123456:</p>
-
 <pre><code>$ curl http://localhost:1234/api/auth/connect?token=123456
 {
-  "jtype": "afb-reply",
-  "request": {
- "status": "success",
- "token": "0aef6841-2ddd-436d-b961-ae78da3b5c5f",
- "uuid": "850c4594-1be1-4e9b-9fcc-38cc3e6ff015"
+  &quot;jtype&quot;: &quot;afb-reply&quot;,
+  &quot;request&quot;: {
+     &quot;status&quot;: &quot;success&quot;,
+     &quot;token&quot;: &quot;0aef6841-2ddd-436d-b961-ae78da3b5c5f&quot;,
+     &quot;uuid&quot;: &quot;850c4594-1be1-4e9b-9fcc-38cc3e6ff015&quot;
   },
-  "response": {"token": "A New Token and Session Context Was Created"}
-}
-</code></pre>
-
-<p>It returns an answer containing session UUID, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015,
-and a refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
-
+  &quot;response&quot;: {&quot;token&quot;: &quot;A New Token and Session Context Was Created&quot;}
+}</code></pre>
+<p>It returns an answer containing session UUID, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015, and a refreshed token, 850c4594-1be1-4e9b-9fcc-38cc3e6ff015.</p>
 <p>Check if session and token is valid:</p>
-
-<pre><code>$ curl http://localhost:1234/api/auth/check?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+<pre><code>$ curl http://localhost:1234/api/auth/check?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f\&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
-  "jtype": "afb-reply",
-  "request": {"status":"success"},
-  "response": {"isvalid":true}
-}
-</code></pre>
-
+  &quot;jtype&quot;: &quot;afb-reply&quot;,
+  &quot;request&quot;: {&quot;status&quot;:&quot;success&quot;},
+  &quot;response&quot;: {&quot;isvalid&quot;:true}
+}</code></pre>
 <p>Refresh the token:</p>
-
-<pre><code>$ curl http://localhost:1234/api/auth/refresh?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+<pre><code>$ curl http://localhost:1234/api/auth/refresh?token=0aef6841-2ddd-436d-b961-ae78da3b5c5f\&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
-  "jtype": "afb-reply",
-  "request": {
- "status":"success",
- "token":"b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9"
+  &quot;jtype&quot;: &quot;afb-reply&quot;,
+  &quot;request&quot;: {
+     &quot;status&quot;:&quot;success&quot;,
+     &quot;token&quot;:&quot;b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&quot;
   },
-  "response": {"token":"Token was refreshed"}
-}
-</code></pre>
-
+  &quot;response&quot;: {&quot;token&quot;:&quot;Token was refreshed&quot;}
+}</code></pre>
 <p>Close the session:</p>
-
-<pre><code>curl http://localhost:1234/api/auth/logout?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+<pre><code>curl http://localhost:1234/api/auth/logout?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9\&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
-  "jtype": "afb-reply",
-  "request": {"status": "success"},
-  "response": {"info":"Token and all resources are released"}
-}
-</code></pre>
-
+  &quot;jtype&quot;: &quot;afb-reply&quot;,
+  &quot;request&quot;: {&quot;status&quot;: &quot;success&quot;},
+  &quot;response&quot;: {&quot;info&quot;:&quot;Token and all resources are released&quot;}
+}</code></pre>
 <p>Checking on closed session for uuid should be refused:</p>
-
-<pre><code>curl http://localhost:1234/api/auth/check?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
+<pre><code>curl http://localhost:1234/api/auth/check?token=b8ec3ec3-6ffe-448c-9a6c-efda69ad7bd9\&amp;uuid=850c4594-1be1-4e9b-9fcc-38cc3e6ff015
 {
-  "jtype": "afb-reply",
-  "request": {
- "status": "failed",
- "info": "invalid token's identity"
+  &quot;jtype&quot;: &quot;afb-reply&quot;,
+  &quot;request&quot;: {
+     &quot;status&quot;: &quot;failed&quot;,
+     &quot;info&quot;: &quot;invalid token&#39;s identity&quot;
   }
-}
-</code></pre>
-
-<a name="Using.afb-client-demo"></a>
-<h4>Using afb-client-demo</h4>
-
+}</code></pre>
+<h4 id="using-afb-client-demo">Using afb-client-demo</h4>
 <p>Here is an example of exchange using <strong>afb-client-demo</strong>:</p>
-
 <pre><code>$ afb-client-demo ws://localhost:1234/api?token=123456
 auth connect
-ON-REPLY 1:auth/connect: {"jtype":"afb-reply","request":{"status":"success",
-   "token":"63f71a29-8b52-4f9b-829f-b3028ba46b68","uuid":"5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1"},
-   "response":{"token":"A New Token and Session Context Was Created"}}
+ON-REPLY 1:auth/connect: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;,
+   &quot;token&quot;:&quot;63f71a29-8b52-4f9b-829f-b3028ba46b68&quot;,&quot;uuid&quot;:&quot;5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1&quot;},
+   &quot;response&quot;:{&quot;token&quot;:&quot;A New Token and Session Context Was Created&quot;}}
 auth check
-ON-REPLY 2:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
+ON-REPLY 2:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;},&quot;response&quot;:{&quot;isvalid&quot;:true}}
 auth refresh
-ON-REPLY 4:auth/refresh: {"jtype":"afb-reply","request":{"status":"success",
-   "token":"8b8ba8f4-1b0c-48fa-962d-4a00a8c9157e"},"response":{"token":"Token was refreshed"}}
+ON-REPLY 4:auth/refresh: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;,
+   &quot;token&quot;:&quot;8b8ba8f4-1b0c-48fa-962d-4a00a8c9157e&quot;},&quot;response&quot;:{&quot;token&quot;:&quot;Token was refreshed&quot;}}
 auth check
-ON-REPLY 5:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
+ON-REPLY 5:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;},&quot;response&quot;:{&quot;isvalid&quot;:true}}
 auth refresh
-ON-REPLY 6:auth/refresh: {"jtype":"afb-reply","request":{"status":"success",
-   "token":"e83b36f8-d945-463d-b983-5d8ed73ba529"},"response":{"token":"Token was refreshed"}}
-</code></pre>
-
+ON-REPLY 6:auth/refresh: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;,
+   &quot;token&quot;:&quot;e83b36f8-d945-463d-b983-5d8ed73ba529&quot;},&quot;response&quot;:{&quot;token&quot;:&quot;Token was refreshed&quot;}}</code></pre>
 <p>After closing connection, reconnect as here after:</p>
-
-<pre><code>$ afb-client-demo ws://localhost:1234/api?token=e83b36f8-d945-463d-b983-5d8ed73ba529&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1 auth check
-ON-REPLY 1:auth/check: {"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
-</code></pre>
-
+<pre><code>$ afb-client-demo ws://localhost:1234/api?token=e83b36f8-d945-463d-b983-5d8ed73ba529\&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1 auth check
+ON-REPLY 1:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;},&quot;response&quot;:{&quot;isvalid&quot;:true}}</code></pre>
 <p>Same connection check using <strong>curl</strong>:</p>
-
-<pre><code>$ curl http://localhost:1234/api/auth/check?token=e83b36f8-d945-463d-b983-5d8ed73ba529&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1
-{"jtype":"afb-reply","request":{"status":"success"},"response":{"isvalid":true}}
-</code></pre>
-
-<a name="Format.of.replies"></a>
-<h2>Format of replies</h2>
-
+<pre><code>$ curl http://localhost:1234/api/auth/check?token=e83b36f8-d945-463d-b983-5d8ed73ba529\&amp;uuid=5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1
+{&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&quot;:{&quot;status&quot;:&quot;success&quot;},&quot;response&quot;:{&quot;isvalid&quot;:true}}</code></pre>
+<h2 id="format-of-replies">Format of replies</h2>
 <p>Replies use javascript object returned as serialized JSON.</p>
-
-<p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong>
-and one optional field of name <strong>response</strong>.</p>
-
-<a name="Field.jtype"></a>
-<h3>Field jtype</h3>
-
-<p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&ldquo;afb-reply&rdquo;</strong>.</p>
-
-<a name="Field.request"></a>
-<h3>Field request</h3>
-
-<p>The field <strong>request</strong> must have a value of type object. This request object
-has at least one field named <strong>status</strong> and four optional fields named
-<strong>info</strong>, <strong>token</strong>, <strong>uuid</strong>, <strong>reqid</strong>.</p>
-
-<a name="Subfield.request.status"></a>
-<h4>Subfield request.status</h4>
-
-<p><strong>status</strong> must have a value of type string. This string is equal to <strong>&ldquo;success&rdquo;</strong>
-only in case of success.</p>
-
-<a name="Subfield.request.info"></a>
-<h4>Subfield request.info</h4>
-
+<p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong> and one optional field of name <strong>response</strong>.</p>
+<h3 id="field-jtype">Field jtype</h3>
+<p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&quot;afb-reply&quot;</strong>.</p>
+<h3 id="field-request">Field request</h3>
+<p>The field <strong>request</strong> must have a value of type object. This request object has at least one field named <strong>status</strong> and four optional fields named <strong>info</strong>, <strong>token</strong>, <strong>uuid</strong>, <strong>reqid</strong>.</p>
+<h4 id="subfield-request.status">Subfield request.status</h4>
+<p><strong>status</strong> must have a value of type string. This string is equal to <strong>&quot;success&quot;</strong> only in case of success.</p>
+<h4 id="subfield-request.info">Subfield request.info</h4>
 <p><strong>info</strong> is of type string and represent optional information added to the reply.</p>
-
-<a name="Subfield.request.token"></a>
-<h4>Subfield request.token</h4>
-
-<p><strong>token</strong> is of type string. It is sent either at session creation
-or when the token is refreshed.</p>
-
-<a name="Subfield.request.uuid"></a>
-<h4>Subfield request.uuid</h4>
-
+<h4 id="subfield-request.token">Subfield request.token</h4>
+<p><strong>token</strong> is of type string. It is sent either at session creation or when the token is refreshed.</p>
+<h4 id="subfield-request.uuid">Subfield request.uuid</h4>
 <p><strong>uuid</strong> is of type string. It is sent at session creation.</p>
-
-<a name="Subfield.request.reqid"></a>
-<h4>Subfield request.reqid</h4>
-
-<p><strong>reqid</strong> is of type string. It is sent in response to HTTP requests
-that added a parameter of name <strong>reqid</strong> or <strong>x-afb-reqid</strong> at request time.
-Value returns in the reply has the exact same value as the one received in the request.</p>
-
-<a name="Field.response"></a>
-<h3>Field response</h3>
-
+<h4 id="subfield-request.reqid">Subfield request.reqid</h4>
+<p><strong>reqid</strong> is of type string. It is sent in response to HTTP requests that added a parameter of name <strong>reqid</strong> or <strong>x-afb-reqid</strong> at request time. Value returns in the reply has the exact same value as the one received in the request.</p>
+<h3 id="field-response">Field response</h3>
 <p>This field response optionally contains an object returned when request succeeded.</p>
-
-<a name="Template"></a>
-<h3>Template</h3>
-
+<h3 id="template">Template</h3>
 <p>This is a template of replies:</p>
-
 <pre><code>{
-  "jtype": "afb-reply",
-  "request": {
-   "status": "success",
-   "info": "informationnal text",
-   "token": "e83b36f8-d945-463d-b983-5d8ed73ba52",
-   "uuid": "5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1",
-   "reqid": "application-generated-id-23456"
- },
-  "response": ....any response object....
-}
-</code></pre>
+  &quot;jtype&quot;: &quot;afb-reply&quot;,
+  &quot;request&quot;: {
+       &quot;status&quot;: &quot;success&quot;,
+       &quot;info&quot;: &quot;informationnal text&quot;,
+       &quot;token&quot;: &quot;e83b36f8-d945-463d-b983-5d8ed73ba52&quot;,
+       &quot;uuid&quot;: &quot;5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1&quot;,
+       &quot;reqid&quot;: &quot;application-generated-id-23456&quot;
+     },
+  &quot;response&quot;: ....any response object....
+}</code></pre>
 </body>
 </html>
