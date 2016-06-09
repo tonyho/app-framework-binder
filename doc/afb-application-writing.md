@@ -1,7 +1,7 @@
 HOWTO WRITE an APPLICATION above AGL FRAMEWORK
 ==============================================
     version: 1
-    Date:    30 mai 2016
+    Date:    09 juin 2016
     Author:  José Bollo
 
 TABLE-OF-CONTENT-HERE
@@ -23,9 +23,9 @@ In a near future, JSON-RPC protocol should be added to complete current x-afb-js
 
 Two examples of HTML5 applications are given:
 
-- [afb-client](https://github.com/iotbzh/afb-client) a simple "hello world" application template
+- [afb-client](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afb-client) a simple "hello world" application template
 
-- [afm-client](https://github.com/iotbzh/afm-client) a simple "Home screen" application template
+- [afm-client](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afm-client) a simple "Home screen" application template
 
 ### Writing a Qt application
 
@@ -33,7 +33,7 @@ Writing Qt applications is also supported. Qt offers standard API to send reques
 
 It is also possible to write QML applications. A sample QML application [token-websock] is avaliable..
 
-- [token-websock](https://github.com/iotbzh/afb-daemon/blob/master/test/token-websock.qml) 
+- [token-websock](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=test/token-websock.qml)
 a simple "hello world" application in QML
 
 ### Writing "C" application
@@ -46,7 +46,7 @@ to connect with an afb-daemon binder.
 The program **afb-client-demo** is the C example that use
 **libafbwsc** library.
 Source code is available here
-[src/afb-client-demo.c](https://github.com/iotbzh/afb-daemon/blob/master/src/afb-client-demo.c).
+[src/afb-client-demo.c](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=src/afb-client-demo.c).
 
 Current implementation relies on libsystemd and file descriptors.
 This model might be review in the future to support secure sockets

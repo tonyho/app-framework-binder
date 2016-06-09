@@ -8,7 +8,7 @@
 <h1>HOWTO WRITE an APPLICATION above AGL FRAMEWORK</h1>
 
 <pre><code>version: 1
-Date:    30 mai 2016
+Date:    09 juin 2016
 Author:  José Bollo
 </code></pre>
 
@@ -74,8 +74,8 @@ and can be accessed though either HTTP or Websockets.</p>
 <p>Two examples of HTML5 applications are given:</p>
 
 <ul>
-<li><p><a href="https://github.com/iotbzh/afb-client">afb-client</a> a simple &ldquo;hello world&rdquo; application template</p></li>
-<li><p><a href="https://github.com/iotbzh/afm-client">afm-client</a> a simple &ldquo;Home screen&rdquo; application template</p></li>
+<li><p><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afb-client">afb-client</a> a simple &ldquo;hello world&rdquo; application template</p></li>
+<li><p><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree;f=afm-client">afm-client</a> a simple &ldquo;Home screen&rdquo; application template</p></li>
 </ul>
 
 
@@ -87,7 +87,7 @@ and can be accessed though either HTTP or Websockets.</p>
 <p>It is also possible to write QML applications. A sample QML application [token-websock] is avaliable..</p>
 
 <ul>
-<li><a href="https://github.com/iotbzh/afb-daemon/blob/master/test/token-websock.qml">token-websock</a>
+<li><a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=test/token-websock.qml">token-websock</a>
 a simple &ldquo;hello world&rdquo; application in QML</li>
 </ul>
 
@@ -103,7 +103,7 @@ to connect with an afb-daemon binder.</p>
 <p>The program <strong>afb-client-demo</strong> is the C example that use
 <strong>libafbwsc</strong> library.
 Source code is available here
-<a href="https://github.com/iotbzh/afb-daemon/blob/master/src/afb-client-demo.c">src/afb-client-demo.c</a>.</p>
+<a href="https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-binder.git;a=blob;f=src/afb-client-demo.c">src/afb-client-demo.c</a>.</p>
 
 <p>Current implementation relies on libsystemd and file descriptors.
 This model might be review in the future to support secure sockets

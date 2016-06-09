@@ -1,6 +1,6 @@
 # Overview of plugins shipped with AFB-Daemon
     Version: 1
-    Date:    30 mai 2016
+    Date:    09 juin 2016
     Author:  Manuel Bachmann
 
 
@@ -157,6 +157,9 @@ _(if GUPnP/GSSDP development libraries are not fund at build time, this plugin w
 
 Sample command-line applications: _afb-client-demo_ (built by default)
 
-Sample HTML5 applications: **test/*.html**, **[afb-client](https://github.com/iotbzh/afb-client)**, **[afb-radio](https://github.com/iotbzh/afb-radio)**
+Sample HTML5 applications: 
+**test/*.html**, 
+**[afb-client](https://gerrit.automotivelinux.org/gerrit/gitweb?p=src/app-framework-demo.git;a=tree)**, 
+**[afb-radio](https://github.com/iotbzh/afb-radio)**
 
 Sample Qt/QML applications: *test/token-websock.qml*
