@@ -55,7 +55,7 @@ static void pingEvent(struct afb_req request)
 {
 	json_object *query = afb_req_json(request);
 	afb_daemon_broadcast_event(interface->daemon, "event", json_object_get(query));
-	ping(request, query, "event");
+	ping(request, json_object_get(query), "event");
 }
 
 
