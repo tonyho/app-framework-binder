@@ -47,13 +47,15 @@ struct json_object *afb_msg_json_reply(const char *status, const char *info, str
 	if (reqid != NULL)
 		json_object_object_add(request, "reqid", json_object_new_string(reqid));
 
-	token = afb_context_sent_token(context);
-	if (token != NULL)
-		json_object_object_add(request, "token", json_object_new_string(token));
+	if (context != NULL) {
+		token = afb_context_sent_token(context);
+		if (token != NULL)
+			json_object_object_add(request, "token", json_object_new_string(token));
 
-	uuid = afb_context_sent_uuid(context);
-	if (uuid != NULL)
-		json_object_object_add(request, "uuid", json_object_new_string(uuid));
+		uuid = afb_context_sent_uuid(context);
+		if (uuid != NULL)
+			json_object_object_add(request, "uuid", json_object_new_string(uuid));
+	}
 
 	return msg;
 }

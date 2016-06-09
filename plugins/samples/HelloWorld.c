@@ -76,6 +76,29 @@ static void pingJson (struct afb_req request) {
     ping(request, jresp, "pingJson");
 }
 
+static void subcallcb (void *prequest, int iserror, json_object *object)
+{
+	struct afb_req request = afb_req_unstore(prequest);
+	if (iserror)
+		afb_req_fail(request, "failed", json_object_to_json_string(object));
+	else
+		afb_req_success(request, object, NULL);
+	afb_req_unref(request);
+}
+
+static void subcall (struct afb_req request)
+{
+	const char *api = afb_req_value(request, "api");
+	const char *verb = afb_req_value(request, "verb");
+	const char *args = afb_req_value(request, "args");
+	json_object *object = api && verb && args ? json_tokener_parse(args) : NULL;
+
+	if (object == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else
+		afb_req_subcall(request, api, verb, object, subcallcb, afb_req_store(request));
+}
+
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
 static const struct AFB_verb_desc_v1 verbs[]= {
@@ -85,6 +108,7 @@ static const struct AFB_verb_desc_v1 verbs[]= {
   {"pingbug"  , AFB_SESSION_NONE, pingBug     , "Do a Memory Violation"},
   {"pingJson" , AFB_SESSION_NONE, pingJson    , "Return a JSON object"},
   {"pingevent", AFB_SESSION_NONE, pingEvent   , "Send an event"},
+  {"subcall",   AFB_SESSION_NONE, subcall     , "Call api/verb(args)"},
   {NULL}
 };
 

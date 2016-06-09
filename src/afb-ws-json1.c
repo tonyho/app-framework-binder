@@ -25,14 +25,16 @@
 
 #include <json-c/json.h>
 
+#include <afb/afb-req-itf.h>
+
 #include "afb-wsj1.h"
 #include "afb-ws-json1.h"
 #include "afb-msg-json.h"
 #include "session.h"
-#include <afb/afb-req-itf.h>
 #include "afb-apis.h"
 #include "afb-context.h"
 #include "afb-evt.h"
+#include "afb-subcall.h"
 #include "verbose.h"
 
 static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1);
@@ -144,6 +146,7 @@ static const char *wsreq_raw(struct afb_wsreq *wsreq, size_t *size);
 static void wsreq_send(struct afb_wsreq *wsreq, const char *buffer, size_t size);
 static int wsreq_subscribe(struct afb_wsreq *wsreq, struct afb_event event);
 static int wsreq_unsubscribe(struct afb_wsreq *wsreq, struct afb_event event);
+static void wsreq_subcall(struct afb_wsreq *wsreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure);
 
 const struct afb_req_itf afb_ws_json1_req_itf = {
 	.json = (void*)wsreq_json,
@@ -159,7 +162,8 @@ const struct afb_req_itf afb_ws_json1_req_itf = {
 	.session_close = (void*)afb_context_close,
 	.session_set_LOA = (void*)afb_context_change_loa,
 	.subscribe = (void*)wsreq_subscribe,
-	.unsubscribe = (void*)wsreq_unsubscribe
+	.unsubscribe = (void*)wsreq_unsubscribe,
+	.subcall = (void*)wsreq_subcall
 };
 
 static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg)
@@ -280,5 +284,10 @@ static int wsreq_subscribe(struct afb_wsreq *wsreq, struct afb_event event)
 static int wsreq_unsubscribe(struct afb_wsreq *wsreq, struct afb_event event)
 {
 	return afb_evt_remove_watch(wsreq->aws->listener, event);
+}
+
+static void wsreq_subcall(struct afb_wsreq *wsreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
+{
+	afb_subcall(&wsreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_ws_json1_req_itf, .closure = wsreq });
 }
 

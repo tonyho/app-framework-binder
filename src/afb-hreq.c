@@ -37,6 +37,7 @@
 #include "afb-msg-json.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
+#include "afb-subcall.h"
 #include "session.h"
 #include "verbose.h"
 
@@ -75,6 +76,7 @@ static void req_success(struct afb_hreq *hreq, json_object *obj, const char *inf
 static const char *req_raw(struct afb_hreq *hreq, size_t *size);
 static void req_send(struct afb_hreq *hreq, const char *buffer, size_t size);
 static int req_subscribe_unsubscribe_error(struct afb_hreq *hreq, struct afb_event event);
+static void req_subcall(struct afb_hreq *hreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure);
 
 const struct afb_req_itf afb_hreq_req_itf = {
 	.json = (void*)req_json,
@@ -90,7 +92,8 @@ const struct afb_req_itf afb_hreq_req_itf = {
 	.session_close = (void*)afb_context_close,
 	.session_set_LOA = (void*)afb_context_change_loa,
 	.subscribe = (void*)req_subscribe_unsubscribe_error,
-	.unsubscribe = (void*)req_subscribe_unsubscribe_error
+	.unsubscribe = (void*)req_subscribe_unsubscribe_error,
+	.subcall = (void*)req_subcall
 };
 
 static struct hreq_data *get_data(struct afb_hreq *hreq, const char *key, int create)
@@ -805,6 +808,11 @@ static int req_subscribe_unsubscribe_error(struct afb_hreq *hreq, struct afb_eve
 {
 	errno = EINVAL;
 	return -1;
+}
+
+static void req_subcall(struct afb_hreq *hreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
+{
+	afb_subcall(&hreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_hreq_req_itf, .closure = hreq });
 }
 
 int afb_hreq_init_context(struct afb_hreq *hreq)

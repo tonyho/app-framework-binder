@@ -70,6 +70,8 @@ struct afb_req_itf {
 
 	int (*subscribe)(void *closure, struct afb_event event);
 	int (*unsubscribe)(void *closure, struct afb_event event);
+
+	void (*subcall)(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 };
 
 /*
@@ -340,8 +342,18 @@ static inline int afb_req_unsubscribe(struct afb_req req, struct afb_event event
 	return req.itf->unsubscribe(req.closure, event);
 }
 
-
-
+/*
+ * Makes a call to the method of name 'api' / 'verb' with the object 'args'.
+ * This call is made in the context of the request 'req'.
+ * On completion, the function 'callback' is invoked with the
+ * 'closure' given at call and two other parameters: 'iserror' and 'result'.
+ * 'iserror' is a boolean that indicates if the reply is an error reply.
+ * 'result' is the json object of the reply.
+ */
+static inline void afb_req_subcall(struct afb_req req, const char *api, const char *verb, struct json_object *args, void (*callback)(void *closure, int iserror, struct json_object *result), void *closure)
+{
+	req.itf->subcall(req.closure, api, verb, args, callback, closure);
+}
 
 /* internal use */
 static inline const char *afb_req_raw(struct afb_req req, size_t *size)

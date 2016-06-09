@@ -42,6 +42,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-method.c
 	afb-msg-json.c
 	afb-sig-handler.c
+	afb-subcall.c
 	afb-websock.c
 	afb-ws-client.c
 	afb-ws-json1.c

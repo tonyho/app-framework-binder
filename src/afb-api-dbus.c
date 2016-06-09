@@ -36,6 +36,7 @@
 #include "afb-api-so.h"
 #include "afb-context.h"
 #include "afb-evt.h"
+#include "afb-subcall.h"
 #include "verbose.h"
 
 static const char DEFAULT_PATH_PREFIX[] = "/org/agl/afb/api/";
@@ -446,6 +447,18 @@ static void dbus_req_send(struct dbus_req *dreq, const char *buffer, size_t size
 	dbus_req_reply(dreq, RETRAW, buffer, "");
 }
 
+static int dbus_req_subscribe(struct dbus_req *dreq, struct afb_event event)
+{
+	return -1;
+}
+
+static int dbus_req_unsubscribe(struct dbus_req *dreq, struct afb_event event)
+{
+	return -1;
+}
+
+static void dbus_req_subcall(struct dbus_req *dreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure);
+
 const struct afb_req_itf afb_api_dbus_req_itf = {
 	.json = (void*)dbus_req_json,
 	.get = (void*)dbus_req_get,
@@ -456,8 +469,18 @@ const struct afb_req_itf afb_api_dbus_req_itf = {
 	.context_get = (void*)afb_context_get,
 	.context_set = (void*)afb_context_set,
 	.addref = (void*)dbus_req_addref,
-	.unref = (void*)dbus_req_unref
+	.unref = (void*)dbus_req_unref,
+	.session_close = (void*)afb_context_close,
+	.session_set_LOA = (void*)afb_context_change_loa,
+	.subscribe = (void*)dbus_req_subscribe,
+	.unsubscribe = (void*)dbus_req_unsubscribe,
+	.subcall = (void*)dbus_req_subcall
 };
+
+static void dbus_req_subcall(struct dbus_req *dreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
+{
+	afb_subcall(&dreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_api_dbus_req_itf, .closure = dreq });
+}
 
 /******************* server part **********************************/
 
