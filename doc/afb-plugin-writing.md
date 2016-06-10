@@ -1,10 +1,10 @@
 HOWTO WRITE a PLUGIN for AFB-DAEMON
 ===================================
     version: 1
-    Date:    30 mai 2016
+    Date:    09 juin 2016
     Author:  José Bollo
 
-TABLE-OF-CONTENT-HERE
+
 
 Summary
 -------

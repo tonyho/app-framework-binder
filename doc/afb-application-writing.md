@@ -4,7 +4,7 @@ HOWTO WRITE an APPLICATION above AGL FRAMEWORK
     Date:    09 juin 2016
     Author:  José Bollo
 
-TABLE-OF-CONTENT-HERE
+
 
 Programmation Languages for Applications
 -----------------------------------------
@@ -166,6 +166,8 @@ Checking on closed session for uuid should be refused:
 
 #### Using afb-client-demo
 
+> The program is packaged within AGL in the rpm **libafbwsc-dev**
+
 Here is an example of exchange using **afb-client-demo**:
 
     $ afb-client-demo ws://localhost:1234/api?token=123456
@@ -201,6 +203,24 @@ Replies use javascript object returned as serialized JSON.
 
 This object contains at least 2 mandatory fields of name **jtype** and **request**
 and one optional field of name **response**.
+
+### Template
+
+This is a template of replies:
+
+```json
+{
+   "jtype": "afb-reply",
+   "request": {
+      "status": "success",
+      "info": "informationnal text",
+      "token": "e83b36f8-d945-463d-b983-5d8ed73ba52",
+      "uuid": "5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1",
+      "reqid": "application-generated-id-23456"
+   },
+   "response": ....any response object....
+}
+```
 
 ### Field jtype
 
@@ -240,19 +260,39 @@ Value returns in the reply has the exact same value as the one received in the r
 
 This field response optionally contains an object returned when request succeeded.
 
+Format of events
+----------------
+
+Events are javascript object serialized as JSON.
+
+This object contains at least 2 mandatory fields of name **jtype** and **event**
+and one optional field of name **data**.
+
 ### Template
 
-This is a template of replies:
+Here is a template of event:
 
-    {
-      "jtype": "afb-reply",
-      "request": {
-           "status": "success",
-           "info": "informationnal text",
-           "token": "e83b36f8-d945-463d-b983-5d8ed73ba52",
-           "uuid": "5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1",
-           "reqid": "application-generated-id-23456"
-         },
-      "response": ....any response object....
-    }
+```json
+{
+   "jtype": "afb-event",
+   "event": "sample_api_name/sample_event_name",
+   "data": ...any event data...
+}
+```
+
+### Field jtype
+
+The field **jtype** must have a value of type string equal to **"afb-event"**.
+
+### Field event
+
+The field **event** carries the event's name.
+
+The name of the event is made of two parts separated by a slash:
+the name of the name of the API that generated the event
+and the name of event within the API.
+
+### Field data
+
+This field data if present holds the data carried by the event.
 

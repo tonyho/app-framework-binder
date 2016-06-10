@@ -1,7 +1,7 @@
 Overview of tests shipped with AFB-Daemon
 =========================================
     Version: 1
-    Date:    30 mai 2016
+    Date:    09 juin 2016
     Author:  Manuel Bachmann
 
 

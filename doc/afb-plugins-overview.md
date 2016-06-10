@@ -1,10 +1,12 @@
-# Overview of plugins shipped with AFB-Daemon
+Overview of plugins shipped with AFB-Daemon
+===========================================
     Version: 1
     Date:    09 juin 2016
     Author:  Manuel Bachmann
 
 
-## List of plugins
+List of plugins
+---------------
 
 Here are the plugins shipped in the source tree:
 
@@ -18,7 +20,8 @@ Here are the plugins shipped in the source tree:
 All plugins may not be built, depending on the development libraries present on the system at build time.
 
 
-## Detail of plugins
+Detail of plugins
+-----------------
 
 ### Hello World
 

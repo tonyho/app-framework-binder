@@ -5,17 +5,38 @@
   <meta name="generator" content="pandoc">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <meta name="author" content="José Bollo">
+  <meta name="author" content="Fulup Ar Foll">
   <title>HOWTO WRITE an APPLICATION above AGL FRAMEWORK</title>
   <style type="text/css">code{white-space: pre;}</style>
   <!--[if lt IE 9]>
     <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
   <![endif]-->
+  <style type="text/css">
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+  </style>
   <link rel="stylesheet" href="doc.css">
 </head>
 <body>
 <header>
 <h1 class="title">HOWTO WRITE an APPLICATION above AGL FRAMEWORK</h1>
 <h2 class="author">José Bollo</h2>
+<h2 class="author">Fulup Ar Foll</h2>
 <h3 class="date">09 juin 2016</h3>
 </header>
 <nav id="TOC">
@@ -32,10 +53,16 @@
 <li><a href="#example-of-session-management">Example of session management</a></li>
 </ul></li>
 <li><a href="#format-of-replies">Format of replies</a><ul>
+<li><a href="#template">Template</a></li>
 <li><a href="#field-jtype">Field jtype</a></li>
 <li><a href="#field-request">Field request</a></li>
 <li><a href="#field-response">Field response</a></li>
-<li><a href="#template">Template</a></li>
+</ul></li>
+<li><a href="#format-of-events">Format of events</a><ul>
+<li><a href="#template-1">Template</a></li>
+<li><a href="#field-jtype-1">Field jtype</a></li>
+<li><a href="#field-event">Field event</a></li>
+<li><a href="#field-data">Field data</a></li>
 </ul></li>
 </ul></li>
 </ul>
@@ -130,6 +157,9 @@ Author:  José Bollo</code></pre>
   }
 }</code></pre>
 <h4 id="using-afb-client-demo">Using afb-client-demo</h4>
+<blockquote>
+<p>The program is packaged within AGL in the rpm <strong>libafbwsc-dev</strong></p>
+</blockquote>
 <p>Here is an example of exchange using <strong>afb-client-demo</strong>:</p>
 <pre><code>$ afb-client-demo ws://localhost:1234/api?token=123456
 auth connect
@@ -155,6 +185,19 @@ ON-REPLY 1:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&qu
 <h2 id="format-of-replies">Format of replies</h2>
 <p>Replies use javascript object returned as serialized JSON.</p>
 <p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong> and one optional field of name <strong>response</strong>.</p>
+<h3 id="template">Template</h3>
+<p>This is a template of replies:</p>
+<pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
+   <span class="dt">&quot;jtype&quot;</span><span class="fu">:</span> <span class="st">&quot;afb-reply&quot;</span><span class="fu">,</span>
+   <span class="dt">&quot;request&quot;</span><span class="fu">:</span> <span class="fu">{</span>
+      <span class="dt">&quot;status&quot;</span><span class="fu">:</span> <span class="st">&quot;success&quot;</span><span class="fu">,</span>
+      <span class="dt">&quot;info&quot;</span><span class="fu">:</span> <span class="st">&quot;informationnal text&quot;</span><span class="fu">,</span>
+      <span class="dt">&quot;token&quot;</span><span class="fu">:</span> <span class="st">&quot;e83b36f8-d945-463d-b983-5d8ed73ba52&quot;</span><span class="fu">,</span>
+      <span class="dt">&quot;uuid&quot;</span><span class="fu">:</span> <span class="st">&quot;5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1&quot;</span><span class="fu">,</span>
+      <span class="dt">&quot;reqid&quot;</span><span class="fu">:</span> <span class="st">&quot;application-generated-id-23456&quot;</span>
+   <span class="fu">},</span>
+   <span class="dt">&quot;response&quot;</span><span class="fu">:</span> <span class="er">....any</span> <span class="er">response</span> <span class="er">object....</span>
+<span class="fu">}</span></code></pre>
 <h3 id="field-jtype">Field jtype</h3>
 <p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&quot;afb-reply&quot;</strong>.</p>
 <h3 id="field-request">Field request</h3>
@@ -171,18 +214,22 @@ ON-REPLY 1:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&qu
 <p><strong>reqid</strong> is of type string. It is sent in response to HTTP requests that added a parameter of name <strong>reqid</strong> or <strong>x-afb-reqid</strong> at request time. Value returns in the reply has the exact same value as the one received in the request.</p>
 <h3 id="field-response">Field response</h3>
 <p>This field response optionally contains an object returned when request succeeded.</p>
-<h3 id="template">Template</h3>
-<p>This is a template of replies:</p>
-<pre><code>{
-  &quot;jtype&quot;: &quot;afb-reply&quot;,
-  &quot;request&quot;: {
-       &quot;status&quot;: &quot;success&quot;,
-       &quot;info&quot;: &quot;informationnal text&quot;,
-       &quot;token&quot;: &quot;e83b36f8-d945-463d-b983-5d8ed73ba52&quot;,
-       &quot;uuid&quot;: &quot;5fcc3f3d-4b84-4fc7-ba66-2d8bd34ae7d1&quot;,
-       &quot;reqid&quot;: &quot;application-generated-id-23456&quot;
-     },
-  &quot;response&quot;: ....any response object....
-}</code></pre>
+<h2 id="format-of-events">Format of events</h2>
+<p>Events are javascript object serialized as JSON.</p>
+<p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>event</strong> and one optional field of name <strong>data</strong>.</p>
+<h3 id="template-1">Template</h3>
+<p>Here is a template of event:</p>
+<pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
+   <span class="dt">&quot;jtype&quot;</span><span class="fu">:</span> <span class="st">&quot;afb-event&quot;</span><span class="fu">,</span>
+   <span class="dt">&quot;event&quot;</span><span class="fu">:</span> <span class="st">&quot;sample_api_name/sample_event_name&quot;</span><span class="fu">,</span>
+   <span class="dt">&quot;data&quot;</span><span class="fu">:</span> <span class="er">...any</span> <span class="er">event</span> <span class="er">data...</span>
+<span class="fu">}</span></code></pre>
+<h3 id="field-jtype-1">Field jtype</h3>
+<p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&quot;afb-event&quot;</strong>.</p>
+<h3 id="field-event">Field event</h3>
+<p>The field <strong>event</strong> carries the event's name.</p>
+<p>The name of the event is made of two parts separated by a slash: the name of the name of the API that generated the event and the name of event within the API.</p>
+<h3 id="field-data">Field data</h3>
+<p>This field data if present holds the data carried by the event.</p>
 </body>
 </html>

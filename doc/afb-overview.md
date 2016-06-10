@@ -4,7 +4,7 @@ Overview of AFB-DAEMON
     Date:    30 mai 2016
     Author:  José Bollo
 
-TABLE-OF-CONTENT-HERE
+
 
 Roles of afb-daemon
 -------------------

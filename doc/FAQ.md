@@ -4,6 +4,5 @@ Frequently Asked Question about AFB-DAEMON
     Date:    27 mai 2016
     Author:  José Bollo
 
-TABLE-OF-CONTENT-HERE
 
 
