@@ -159,13 +159,23 @@ static void subcall_subcall(struct afb_subcall *subcall, const char *api, const 
 	afb_subcall(&subcall->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_subcall_req_itf, .closure = subcall });
 }
 
+void afb_subcall_internal_error(void (*callback)(void*, int, struct json_object*), void *closure)
+{
+	static struct json_object *obj;
+
+	if (obj == NULL)
+		obj = afb_msg_json_reply_error("failed", "internal error", NULL, NULL);
+
+	callback(closure, 1, obj);
+}
+
 void afb_subcall(struct afb_context *context, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure, struct afb_req req)
 {
 	struct afb_subcall *subcall;
 
 	subcall = calloc(1, sizeof *subcall);
 	if (subcall == NULL) {
-		callback(closure, 1, afb_msg_json_reply_error("failed", "out of memory", NULL, NULL));
+		afb_subcall_internal_error(callback, closure);
 		return;
 	}
 
