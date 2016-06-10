@@ -42,6 +42,7 @@ struct AFB_clientCtx
 {
 	unsigned refcount;
 	unsigned loa;
+	int timeout;
 	time_t expiration;    // expiration time of the token
 	time_t access;
 	char uuid[37];        // long term authentication of remote client
@@ -221,7 +222,14 @@ static struct AFB_clientCtx *new_context (const char *uuid, int timeout, time_t 
 
 	/* init the token */
 	strcpy(clientCtx->token, sessions.initok);
-	clientCtx->expiration = now + sessions.timeout;
+	clientCtx->timeout = timeout;
+	if (timeout != 0)
+		clientCtx->expiration = now + timeout;
+	else {
+		clientCtx->expiration = (time_t)(~(time_t)0);
+		if (clientCtx->expiration < 0)
+			clientCtx->expiration = (time_t)(((unsigned long long)clientCtx->expiration) >> 1);
+	}
 	if (!ctxStoreAdd (clientCtx)) {
 		errno = ENOMEM;
 		goto error2;
@@ -337,7 +345,8 @@ void ctxTokenNew (struct AFB_clientCtx *clientCtx)
 	new_uuid(clientCtx->token);
 
 	// keep track of time for session timeout and further clean up
-	clientCtx->expiration = NOW + sessions.timeout;
+	if (clientCtx->timeout != 0)
+		clientCtx->expiration = NOW + clientCtx->timeout;
 }
 
 const char *ctxClientGetUuid (struct AFB_clientCtx *clientCtx)
