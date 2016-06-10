@@ -196,6 +196,64 @@ static void ctxStoreCleanUp (time_t now)
 	}
 }
 
+static struct AFB_clientCtx *new_context (const char *uuid, int timeout, time_t now)
+{
+	struct AFB_clientCtx *clientCtx;
+
+	/* allocates a new one */
+        clientCtx = calloc(1, sizeof(struct AFB_clientCtx) + ((unsigned)sessions.apicount * sizeof(*clientCtx->values)));
+	if (clientCtx == NULL) {
+		errno = ENOMEM;
+		goto error;
+	}
+        clientCtx->values = (void*)(clientCtx + 1);
+
+	/* generate the uuid */
+	if (uuid == NULL) {
+		new_uuid(clientCtx->uuid);
+	} else {
+		if (strlen(uuid) >= sizeof clientCtx->uuid) {
+			errno = EINVAL;
+			goto error2;
+		}
+		strcpy(clientCtx->uuid, uuid);
+	}
+
+	/* init the token */
+	strcpy(clientCtx->token, sessions.initok);
+	clientCtx->expiration = now + sessions.timeout;
+	if (!ctxStoreAdd (clientCtx)) {
+		errno = ENOMEM;
+		goto error2;
+	}
+
+	clientCtx->access = now;
+	clientCtx->refcount = 1;
+	return clientCtx;
+
+error2:
+	free(clientCtx);
+error:
+	return NULL;
+}
+
+struct AFB_clientCtx *ctxClientCreate (const char *uuid, int timeout)
+{
+	time_t now;
+
+	/* cleaning */
+	now = NOW;
+	ctxStoreCleanUp (now);
+
+	/* search for an existing one not too old */
+	if (uuid != NULL && ctxStoreSearch(uuid) != NULL) {
+		errno = EEXIST;
+		return NULL;
+	}
+
+	return new_context(uuid, timeout, now);
+}
+
 // This function will return exiting client context or newly created client context
 struct AFB_clientCtx *ctxClientGetSession (const char *uuid, int *created)
 {
@@ -208,50 +266,17 @@ struct AFB_clientCtx *ctxClientGetSession (const char *uuid, int *created)
 
 	/* search for an existing one not too old */
 	if (uuid != NULL) {
-		if (strlen(uuid) >= sizeof clientCtx->uuid) {
-			errno = EINVAL;
-			goto error;
-		}
 		clientCtx = ctxStoreSearch(uuid);
 		if (clientCtx != NULL) {
 			*created = 0;
-			goto found;
+			clientCtx->access = now;
+			clientCtx->refcount++;
+			return clientCtx;
 		}
 	}
 
-	/* returns a new one */
-        clientCtx = calloc(1, sizeof(struct AFB_clientCtx) + ((unsigned)sessions.apicount * sizeof(*clientCtx->values)));
-	if (clientCtx == NULL) {
-		errno = ENOMEM;
-		goto error;
-	}
-        clientCtx->values = (void*)(clientCtx + 1);
-
-	/* generate the uuid */
-	if (uuid == NULL) {
-		new_uuid(clientCtx->uuid);
-	} else {
-		strcpy(clientCtx->uuid, uuid);
-	}
-
-	/* init the token */
-	strcpy(clientCtx->token, sessions.initok);
-	clientCtx->expiration = now + sessions.timeout;
-	if (!ctxStoreAdd (clientCtx)) {
-		errno = ENOMEM;
-		goto error2;
-	}
 	*created = 1;
-
-found:
-	clientCtx->access = now;
-	clientCtx->refcount++;
-	return clientCtx;
-
-error2:
-	free(clientCtx);
-error:
-	return NULL;
+	return new_context(uuid, sessions.timeout, now);
 }
 
 struct AFB_clientCtx *ctxClientAddRef(struct AFB_clientCtx *clientCtx)

@@ -22,6 +22,7 @@ struct AFB_clientCtx;
 
 extern void ctxStoreInit (int max_session_count, int timeout, const char *initok, int context_count);
 
+extern struct AFB_clientCtx *ctxClientCreate (const char *uuid, int timeout);
 extern struct AFB_clientCtx *ctxClientGetSession (const char *uuid, int *created);
 extern struct AFB_clientCtx *ctxClientAddRef(struct AFB_clientCtx *clientCtx);
 extern void ctxClientUnref(struct AFB_clientCtx *clientCtx);
