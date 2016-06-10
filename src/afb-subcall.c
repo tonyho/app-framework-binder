@@ -99,18 +99,7 @@ static struct json_object *subcall_json(struct afb_subcall *subcall)
 
 static struct afb_arg subcall_get(struct afb_subcall *subcall, const char *name)
 {
-	struct afb_arg arg;
-	struct json_object *value;
-
-	if (json_object_object_get_ex(subcall->args, name, &value)) {
-		arg.name = name;
-		arg.value = json_object_get_string(value);
-	} else {
-		arg.name = NULL;
-		arg.value = NULL;
-	}
-	arg.path = NULL;
-	return arg;
+	return afb_msg_json_get_arg(subcall->args, name);
 }
 
 static void subcall_emit(struct afb_subcall *subcall, int iserror, struct json_object *object)

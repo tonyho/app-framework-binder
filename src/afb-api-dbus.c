@@ -32,6 +32,7 @@
 #include "afb-common.h"
 
 #include "session.h"
+#include "afb-msg-json.h"
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-context.h"
@@ -400,19 +401,7 @@ static struct json_object *dbus_req_json(struct dbus_req *dreq)
 /* get the argument of the request of 'name' */
 static struct afb_arg dbus_req_get(struct dbus_req *dreq, const char *name)
 {
-	struct afb_arg arg;
-	struct json_object *value, *root;
-
-	root = dbus_req_json(dreq);
-	if (root != NULL && json_object_object_get_ex(root, name, &value)) {
-		arg.name = name;
-		arg.value = json_object_get_string(value);
-	} else {
-		arg.name = NULL;
-		arg.value = NULL;
-	}
-	arg.path = NULL;
-	return arg;
+	return afb_msg_json_get_arg(dbus_req_json(dreq), name);
 }
 
 static void dbus_req_reply(struct dbus_req *dreq, uint8_t type, const char *first, const char *second)

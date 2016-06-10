@@ -19,6 +19,8 @@
 
 #include <json-c/json.h>
 
+#include <afb/afb-req-itf.h>
+
 #include "afb-msg-json.h"
 #include "afb-context.h"
 
@@ -88,4 +90,21 @@ struct json_object *afb_msg_json_event(const char *event, struct json_object *ob
 
 	return msg;
 }
+
+struct afb_arg afb_msg_json_get_arg(struct json_object *object, const char *name)
+{
+	struct afb_arg arg;
+	struct json_object *value;
+
+	if (json_object_object_get_ex(object, name, &value)) {
+		arg.name = name;
+		arg.value = json_object_get_string(value);
+	} else {
+		arg.name = NULL;
+		arg.value = NULL;
+	}
+	arg.path = NULL;
+	return arg;
+}
+
 

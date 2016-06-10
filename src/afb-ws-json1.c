@@ -224,19 +224,7 @@ static struct json_object *wsreq_json(struct afb_wsreq *wsreq)
 
 static struct afb_arg wsreq_get(struct afb_wsreq *wsreq, const char *name)
 {
-	struct afb_arg arg;
-	struct json_object *value, *root;
-
-	root = wsreq_json(wsreq);
-	if (json_object_object_get_ex(root, name, &value)) {
-		arg.name = name;
-		arg.value = json_object_get_string(value);
-	} else {
-		arg.name = NULL;
-		arg.value = NULL;
-	}
-	arg.path = NULL;
-	return arg;
+	return afb_msg_json_get_arg(wsreq_json(wsreq), name);
 }
 
 static void wsreq_fail(struct afb_wsreq *wsreq, const char *status, const char *info)
