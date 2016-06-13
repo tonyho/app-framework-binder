@@ -53,16 +53,29 @@ struct api_so_desc {
 	struct AFB_interface interface;	/* interface for the plugin */
 };
 
-static int api_timeout = 15;
+struct monitoring {
+	struct afb_req req;
+	void (*action)(struct afb_req);
+};
 
 static const char plugin_register_function_v1[] = "pluginAfbV1Register";
 static const char plugin_service_init_function_v1[] = "pluginAfbV1ServiceInit";
 static const char plugin_service_event_function_v1[] = "pluginAfbV1ServiceEvent";
 
-void afb_api_so_set_timeout(int to)
-{
-	api_timeout = to;
-}
+static int api_timeout = 15;
+
+static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const char *name);
+static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object);
+static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char *file, int line, const char *fmt, va_list args);
+
+static const struct afb_daemon_itf daemon_itf = {
+	.event_broadcast = (void*)afb_api_so_event_broadcast,
+	.get_event_loop = (void*)afb_common_get_event_loop,
+	.get_user_bus = (void*)afb_common_get_user_bus,
+	.get_system_bus = (void*)afb_common_get_system_bus,
+	.vverbose = (void*)afb_api_so_vverbose,
+	.event_make = (void*)afb_api_so_event_make
+};
 
 static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const char *name)
 {
@@ -108,20 +121,6 @@ static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char 
 		free(p);
 	}
 }
-
-static const struct afb_daemon_itf daemon_itf = {
-	.event_broadcast = (void*)afb_api_so_event_broadcast,
-	.get_event_loop = (void*)afb_common_get_event_loop,
-	.get_user_bus = (void*)afb_common_get_user_bus,
-	.get_system_bus = (void*)afb_common_get_system_bus,
-	.vverbose = (void*)afb_api_so_vverbose,
-	.event_make = (void*)afb_api_so_event_make
-};
-
-struct monitoring {
-	struct afb_req req;
-	void (*action)(struct afb_req);
-};
 
 static void monitored_call(int signum, struct monitoring *data)
 {
@@ -234,6 +233,11 @@ static int service_start(struct api_so_desc *desc, int share_session, int onneed
 	}
 
 	return 0;
+}
+
+void afb_api_so_set_timeout(int to)
+{
+	api_timeout = to;
 }
 
 int afb_api_so_add_plugin(const char *path)
