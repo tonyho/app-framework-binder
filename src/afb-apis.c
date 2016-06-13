@@ -134,3 +134,27 @@ void afb_apis_call(struct afb_req req, struct afb_context *context, const char *
 	afb_req_fail(req, "fail", "api not found");
 }
 
+int afb_apis_start_service(const char *api, int share_session, int onneed)
+{
+	int i;
+
+	for (i = 0 ; i < apis_count ; i++) {
+		if (!strcasecmp(apis_array[i].name, api))
+			return apis_array[i].api.service_start(apis_array[i].api.closure, share_session, onneed);
+	}
+	ERROR("can't find service %s", api);
+	return -1;
+}
+
+int afb_apis_start_all_services(int share_session)
+{
+	int i, rc;
+
+	for (i = 0 ; i < apis_count ; i++) {
+		rc = apis_array[i].api.service_start(apis_array[i].api.closure, share_session, 1);
+		if (rc < 0)
+			return rc;
+	}
+	return 0;
+}
+

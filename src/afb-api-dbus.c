@@ -296,6 +296,17 @@ static void api_dbus_client_call(struct api_dbus *api, struct afb_req req, struc
 	}
 }
 
+static int api_dbus_service_start(struct api_dbus *api, int share_session, int onneed)
+{
+	/* not an error when onneed */
+	if (onneed != 0)
+		return 0;
+
+	/* already started: it is an error */
+	ERROR("The Dbus binding %s is not a startable service", api->name);
+	return -1;
+}
+
 /* receives events */
 static int api_dbus_client_on_event(sd_bus_message *m, void *userdata, sd_bus_error *ret_error)
 {
@@ -343,6 +354,7 @@ int afb_api_dbus_add_client(const char *path)
 	/* record it as an API */
 	afb_api.closure = api;
 	afb_api.call = (void*)api_dbus_client_call;
+	afb_api.service_start = (void*)api_dbus_service_start;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error2;
 

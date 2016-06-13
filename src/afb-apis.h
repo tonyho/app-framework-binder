@@ -24,12 +24,18 @@ struct afb_api
 {
 	void *closure;
 	void (*call)(void *closure, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb);
+	int (*service_start)(void *closure, int share_session, int onneed);
 };
 
 
 extern int afb_apis_count();
 extern int afb_apis_is_valid_api_name(const char *name);
+
 extern int afb_apis_add(const char *name, struct afb_api api);
+
+extern int afb_apis_start_all_services(int share_session);
+extern int afb_apis_start_service(const char *name, int share_session, int onneed);
+
 extern void afb_apis_call(struct afb_req req, struct afb_context *context, const char *api, size_t lenapi, const char *verb, size_t lenverb);
 extern void afb_apis_call_(struct afb_req req, struct afb_context *context, const char *api, const char *verb);
 

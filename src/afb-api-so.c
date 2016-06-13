@@ -39,6 +39,7 @@
 #include "afb-api-so.h"
 #include "afb-sig-handler.h"
 #include "afb-evt.h"
+#include "afb-svc.h"
 #include "verbose.h"
 
 /*
@@ -48,12 +49,15 @@ struct api_so_desc {
 	struct AFB_plugin *plugin;	/* descriptor */
 	size_t apilength;		/* length of the API name */
 	void *handle;			/* context of dlopen */
+	struct afb_svc *service;	/* handler for service started */
 	struct AFB_interface interface;	/* interface for the plugin */
 };
 
 static int api_timeout = 15;
 
 static const char plugin_register_function_v1[] = "pluginAfbV1Register";
+static const char plugin_service_init_function_v1[] = "pluginAfbV1ServiceInit";
+static const char plugin_service_event_function_v1[] = "pluginAfbV1ServiceEvent";
 
 void afb_api_so_set_timeout(int to)
 {
@@ -192,6 +196,46 @@ static void call(struct api_so_desc *desc, struct afb_req req, struct afb_contex
 		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->plugin->v1.prefix);
 }
 
+static int service_start(struct api_so_desc *desc, int share_session, int onneed)
+{
+	int (*init)(struct afb_service service);
+	void (*onevent)(const char *event, struct json_object *object);
+
+	/* check state */
+	if (desc->service != NULL) {
+		/* not an error when onneed */
+		if (onneed != 0)
+			return 0;
+
+		/* already started: it is an error */
+		ERROR("Service %s already started", desc->plugin->v1.prefix);
+		return -1;
+	}
+
+	/* get the initialisation */
+	init = dlsym(desc->handle, plugin_service_init_function_v1);
+	if (init == NULL) {
+		/* not an error when onneed */
+		if (onneed != 0)
+			return 0;
+
+		/* no initialisation method */
+		ERROR("Binding %s is not a service", desc->plugin->v1.prefix);
+		return -1;
+	}
+
+	/* get the event handler if any */
+	onevent = dlsym(desc->handle, plugin_service_event_function_v1);
+	desc->service = afb_svc_create(share_session, init, onevent);
+	if (desc->service == NULL) {
+		/* starting error */
+		ERROR("Starting service %s failed", desc->plugin->v1.prefix);
+		return -1;
+	}
+
+	return 0;
+}
+
 int afb_api_so_add_plugin(const char *path)
 {
 	int rc;
@@ -264,7 +308,8 @@ int afb_api_so_add_plugin(const char *path)
 	desc->apilength = strlen(desc->plugin->v1.prefix);
 	if (afb_apis_add(desc->plugin->v1.prefix, (struct afb_api){
 			.closure = desc,
-			.call = (void*)call}) < 0) {
+			.call = (void*)call,
+			.service_start = (void*)service_start }) < 0) {
 		ERROR("plugin [%s] can't be registered...", path);
 		goto error3;
 	}

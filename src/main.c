@@ -643,6 +643,10 @@ int main(int argc, char *argv[])  {
    if (hsrv == NULL)
 	exit(1);
 
+   /* start the services */
+   if (afb_apis_start_all_services(1) < 0)
+	exit(1);
+
    if (config->readyfd != 0) {
 		static const char readystr[] = "READY=1";
 		write(config->readyfd, readystr, sizeof(readystr) - 1);
