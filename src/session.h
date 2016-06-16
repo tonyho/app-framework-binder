@@ -39,3 +39,6 @@ extern void ctxClientSetLOA (struct AFB_clientCtx *clientCtx, unsigned loa);
 extern void *ctxClientValueGet(struct AFB_clientCtx *clientCtx, int index);
 extern void ctxClientValueSet(struct AFB_clientCtx *clientCtx, int index, void *value, void (*free_value)(void*));
 
+extern void *ctxClientCookieGet(struct AFB_clientCtx *clientCtx, const void *key);
+extern int ctxClientCookieSet(struct AFB_clientCtx *clientCtx, const void *key, void *value, void (*free_value)(void*));
+

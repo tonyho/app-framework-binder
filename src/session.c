@@ -38,6 +38,14 @@ struct client_value
 	void (*free_value)(void*);
 };
 
+struct cookie
+{
+	struct cookie *next;
+	const void *key;
+	void *value;
+	void (*free_value)(void*);
+};
+
 struct AFB_clientCtx
 {
 	unsigned refcount;
@@ -48,6 +56,7 @@ struct AFB_clientCtx
 	char uuid[37];        // long term authentication of remote client
 	char token[37];       // short term authentication of remote client
 	struct client_value *values;
+	struct cookie *cookies;
 };
 
 // Session UUID are store in a simple array [for 10 sessions this should be enough]
@@ -73,6 +82,7 @@ static void new_uuid(char uuid[37])
 static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 {
 	int idx;
+	struct cookie *cookie;
 
 	// If application add a handle let's free it now
 	assert (client->values != NULL);
@@ -80,6 +90,16 @@ static void ctxUuidFreeCB (struct AFB_clientCtx *client)
 	// Free client handle with a standard Free function, with app callback or ignore it
 	for (idx=0; idx < sessions.apicount; idx ++)
 		ctxClientValueSet(client, idx, NULL, NULL);
+
+	// free cookies
+	cookie = client->cookies;
+	while (cookie != NULL) {
+		client->cookies = cookie->next;
+		if (cookie->value != NULL && cookie->free_value != NULL)
+			cookie->free_value(cookie->value);
+		free(cookie);
+		cookie = client->cookies;
+	}
 }
 
 // Create a new store in RAM, not that is too small it will be automatically extended
@@ -392,3 +412,49 @@ void ctxClientValueSet(struct AFB_clientCtx *clientCtx, int index, void *value, 
 	if (prev.value != NULL && prev.value != value && prev.free_value != NULL)
 		prev.free_value(prev.value);
 }
+
+void *ctxClientCookieGet(struct AFB_clientCtx *clientCtx, const void *key)
+{
+	struct cookie *cookie;
+
+	cookie = clientCtx->cookies;
+	while(cookie != NULL) {
+		if (cookie->key == key)
+			return cookie->value;
+		cookie = cookie->next;
+	}
+	return NULL;
+}
+
+int ctxClientCookieSet(struct AFB_clientCtx *clientCtx, const void *key, void *value, void (*free_value)(void*))
+{
+	struct cookie *cookie;
+
+	/* search for a replacement */
+	cookie = clientCtx->cookies;
+	while(cookie != NULL) {
+		if (cookie->key == key) {
+			if (cookie->value != NULL && cookie->value != value && cookie->free_value != NULL)
+				cookie->free_value(cookie->value);
+			cookie->value = value;
+			cookie->free_value = free_value;
+			return 0;
+		}
+		cookie = cookie->next;
+	}
+
+	/* allocates */
+	cookie = malloc(sizeof *cookie);
+	if (cookie == NULL) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	cookie->key = key;
+	cookie->value = value;
+	cookie->free_value = free_value;
+	cookie->next = clientCtx->cookies;
+	clientCtx->cookies = cookie;
+	return 0;
+}
+
