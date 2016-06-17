@@ -63,11 +63,6 @@ static struct afb_event_itf afb_evt_event_itf = {
 
 static struct afb_evt_listener *listeners = NULL;
 
-static inline int evt_trash(struct json_object *obj)
-{
-	return 0;
-}
-
 static int evt_broadcast(struct afb_evt_event *evt, struct json_object *object)
 {
 	return afb_evt_broadcast(evt->name, object);
