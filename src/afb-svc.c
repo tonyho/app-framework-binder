@@ -64,13 +64,19 @@ struct svc_req
 };
 
 /* functions for services */
-static void svc_on_event(struct afb_svc *svc, const char *event, struct json_object *object);
+static void svc_on_event(struct afb_svc *svc, const char *event, int eventid, struct json_object *object);
 static void svc_call(struct afb_svc *svc, const char *api, const char *verb, struct json_object *args,
 				void (*callback)(void*, int, struct json_object*), void *closure);
 
 /* the interface for services */
 static const struct afb_service_itf service_itf = {
 	.call = (void*)svc_call
+};
+
+/* the interface for events */
+static const struct afb_evt_itf evt_itf = {
+	.broadcast = (void*)svc_on_event,
+	.push = (void*)svc_on_event
 };
 
 /* functions for requests of services */
@@ -130,7 +136,7 @@ struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service
 	if (on_event == NULL)
 		svc->listener = NULL;
 	else {
-		svc->listener = afb_evt_listener_create((void*)svc_on_event, svc);
+		svc->listener = afb_evt_listener_create(&evt_itf, svc);
 		if (svc->listener == NULL)
 			goto error3;
 	}
@@ -156,7 +162,7 @@ error:
 /*
  * Propagates the event to the service
  */
-static void svc_on_event(struct afb_svc *svc, const char *event, struct json_object *object)
+static void svc_on_event(struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
 {
 	svc->on_event(event, object);
 }

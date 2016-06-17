@@ -22,7 +22,15 @@ struct AFB_clientCtx;
 
 struct afb_evt_listener;
 
-extern struct afb_evt_listener *afb_evt_listener_create(void (*send)(void *closure, const char *event, struct json_object *object), void *closure);
+struct afb_evt_itf
+{
+	void (*push)(void *closure, const char *event, int eventid, struct json_object *object);
+	void (*broadcast)(void *closure, const char *event, int eventid, struct json_object *object);
+	void (*add)(void *closure, const char *event, int eventid);
+	void (*remove)(void *closure, const char *event, int eventid);
+};
+
+extern struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, void *closure);
 
 extern int afb_evt_broadcast(const char *event, struct json_object *object);
 
@@ -31,6 +39,7 @@ extern void afb_evt_listener_unref(struct afb_evt_listener *listener);
 
 extern struct afb_event afb_evt_create_event(const char *name);
 extern const char *afb_evt_event_name(struct afb_event event);
+extern int afb_evt_event_id(struct afb_event event);
 
 extern int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event);
 extern int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event event);

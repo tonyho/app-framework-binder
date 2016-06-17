@@ -38,8 +38,8 @@ struct afb_evt_listener {
 	/* chaining listeners */
 	struct afb_evt_listener *next;
 
-	/* callback on event */
-	void (*send)(void *closure, const char *event, struct json_object *object);
+	/* interface for callbacks */
+	const struct afb_evt_itf *itf;
 
 	/* closure for the callback */
 	void *closure;
@@ -56,8 +56,14 @@ struct afb_evt_listener {
  */
 struct afb_evt_event {
 
+	/* next event */
+	struct afb_evt_event *next;
+
 	/* head of the list of listeners watching the event */
 	struct afb_evt_watch *watchs;
+
+	/* id of the event */
+	int id;
 
 	/* name of the event */
 	char name[1];
@@ -79,6 +85,9 @@ struct afb_evt_watch {
 
 	/* link to the next event for the same listener */
 	struct afb_evt_watch *next_by_listener;
+
+	/* activity */
+	unsigned activity;
 };
 
 /* declare functions */
@@ -95,6 +104,11 @@ static struct afb_event_itf afb_evt_event_itf = {
 
 /* head of the list of listeners */
 static struct afb_evt_listener *listeners = NULL;
+
+/* handling id of events */
+static struct afb_evt_event *events = NULL;
+static int event_id_counter = 0;
+static int event_id_wrapped = 0;
 
 /*
  * Broadcasts the event 'evt' with its 'object'
@@ -119,9 +133,11 @@ int afb_evt_broadcast(const char *event, struct json_object *object)
 	result = 0;
 	listener = listeners;
 	while(listener) {
-		listener->send(listener->closure, event, json_object_get(object));
+		if (listener->itf->broadcast != NULL) {
+			listener->itf->broadcast(listener->closure, event, 0, json_object_get(object));
+			result++;
+		}
 		listener = listener->next;
-		result++;
 	}
 	json_object_put(object);
 	return result;
@@ -140,9 +156,11 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 
 	result = 0;
 	watch = evt->watchs;
-	while(listener) {
+	while(watch) {
 		listener = watch->listener;
-		listener->send(listener->closure, evt->name, json_object_get(obj));
+		assert(listener->itf->push != NULL);
+		if (watch->activity != 0)
+			listener->itf->push(listener->closure, evt->name, evt->id, json_object_get(obj));
 		watch = watch->next_by_event;
 		result++;
 	}
@@ -156,15 +174,23 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 static void remove_watch(struct afb_evt_watch *watch)
 {
 	struct afb_evt_watch **prv;
+	struct afb_evt_event *evt;
+	struct afb_evt_listener *listener;
+
+	/* notify listener if needed */
+	evt = watch->event;
+	listener = watch->listener;
+	if (watch->activity != 0 && listener->itf->remove != NULL)
+		listener->itf->remove(listener->closure, evt->name, evt->id);
 
 	/* unlink the watch for its event */
-	prv = &watch->event->watchs;
+	prv = &evt->watchs;
 	while(*prv != watch)
 		prv = &(*prv)->next_by_event;
 	*prv = watch->next_by_event;
 
 	/* unlink the watch for its listener */
-	prv = &watch->listener->watchs;
+	prv = &listener->watchs;
 	while(*prv != watch)
 		prv = &(*prv)->next_by_listener;
 	*prv = watch->next_by_listener;
@@ -178,11 +204,26 @@ static void remove_watch(struct afb_evt_watch *watch)
  */
 static void evt_destroy(struct afb_evt_event *evt)
 {
+	struct afb_evt_event **prv;
 	if (evt != NULL) {
-		/* removes all watchers */
-		while(evt->watchs != NULL)
-			remove_watch(evt->watchs);
-		free(evt);
+		/* removes the event if valid! */
+		prv = &events;
+		while (*prv != NULL) {
+			if (*prv != evt)
+				prv = &(*prv)->next;
+			else {
+				/* valid, unlink */
+				*prv = evt->next;
+
+				/* removes all watchers */
+				while(evt->watchs != NULL)
+					remove_watch(evt->watchs);
+
+				/* free */
+				free(evt);
+				break;
+			}
+		}
 	}
 }
 
@@ -195,13 +236,37 @@ struct afb_event afb_evt_create_event(const char *name)
 	size_t len;
 	struct afb_evt_event *evt;
 
+	/* allocates the id */
+	do {
+		if (++event_id_counter < 0) {
+			event_id_wrapped = 1;
+			event_id_counter = 1024; /* heuristic: small numbers are not destroyed */
+		}
+		if (!event_id_wrapped)
+			break;
+		evt = events;
+		while(evt != NULL && evt->id != event_id_counter)
+			evt = evt->next;
+	} while (evt != NULL);
+
+	/* allocates the event */
 	len = strlen(name);
 	evt = malloc(len + sizeof * evt);
-	if (evt != NULL) {
-		evt->watchs = NULL;
-		memcpy(evt->name, name, len + 1);
-	}
+	if (evt == NULL)
+		goto error;
+
+	/* initialize the event */
+	evt->next = events;
+	evt->watchs = NULL;
+	evt->id = event_id_counter;
+	assert(evt->id > 0);
+	memcpy(evt->name, name, len + 1);
+	events = evt;
+
+	/* returns the event */
 	return (struct afb_event){ .itf = &afb_evt_event_itf, .closure = evt };
+error:
+	return (struct afb_event){ .itf = NULL, .closure = NULL };
 }
 
 /*
@@ -213,18 +278,26 @@ const char *afb_evt_event_name(struct afb_event event)
 }
 
 /*
+ * Returns the id of the 'event'
+ */
+int afb_evt_event_id(struct afb_event event)
+{
+	return (event.itf != &afb_evt_event_itf) ? 0 : ((struct afb_evt_event *)event.closure)->id;
+}
+
+/*
  * Returns an instance of the listener defined by the 'send' callback
  * and the 'closure'.
  * Returns NULL in case of memory depletion.
  */
-struct afb_evt_listener *afb_evt_listener_create(void (*send)(void *closure, const char *event, struct json_object *object), void *closure)
+struct afb_evt_listener *afb_evt_listener_create(const struct afb_evt_itf *itf, void *closure)
 {
 	struct afb_evt_listener *listener;
 
 	/* search if an instance already exists */
 	listener = listeners;
 	while (listener != NULL) {
-		if (listener->send == send && listener->closure == closure)
+		if (listener->itf == itf && listener->closure == closure)
 			return afb_evt_listener_addref(listener);
 		listener = listener->next;
 	}
@@ -234,7 +307,7 @@ struct afb_evt_listener *afb_evt_listener_create(void (*send)(void *closure, con
 	if (listener != NULL) {
 		/* init */
 		listener->next = listeners;
-		listener->send = send;
+		listener->itf = itf;
 		listener->closure = closure;
 		listener->watchs = NULL;
 		listener->refcount = 1;
@@ -286,16 +359,17 @@ int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
 	struct afb_evt_event *evt;
 
 	/* check parameter */
-	if (event.itf != &afb_evt_event_itf) {
+	if (event.itf != &afb_evt_event_itf || listener->itf->push == NULL) {
 		errno = EINVAL;
 		return -1;
 	}
 
-	/* search the existing watch */
+	/* search the existing watch for the listener */
+	evt = event.closure;
 	watch = listener->watchs;
 	while(watch != NULL) {
-		if (watch->event == event.closure)
-			return 0;
+		if (watch->event == evt)
+			goto found;
 		watch = watch->next_by_listener;
 	}
 
@@ -307,14 +381,19 @@ int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
 	}
 
 	/* initialise and link */
-	evt = event.closure;
 	watch->event = evt;
 	watch->next_by_event = evt->watchs;
 	watch->listener = listener;
 	watch->next_by_listener = listener->watchs;
+	watch->activity = 0;
 	evt->watchs = watch;
 	listener->watchs = watch;
-	
+
+found:
+	if (watch->activity == 0 && listener->itf->add != NULL)
+		listener->itf->add(listener->closure, evt->name, evt->id);
+	watch->activity++;
+
 	return 0;
 }
 
@@ -325,6 +404,7 @@ int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event)
 int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event event)
 {
 	struct afb_evt_watch *watch;
+	struct afb_evt_event *evt;
 
 	/* check parameter */
 	if (event.itf != &afb_evt_event_itf) {
@@ -333,16 +413,21 @@ int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event eve
 	}
 
 	/* search the existing watch */
+	evt = event.closure;
 	watch = listener->watchs;
 	while(watch != NULL) {
-		if (watch->event == event.closure) {
+		if (watch->event == evt) {
 			/* found: remove it */
-			remove_watch(watch);
-			break;
+			if (watch->activity != 0) {
+				watch->activity--;
+				if (watch->activity == 0 && listener->itf->remove != NULL)
+					listener->itf->remove(listener->closure, evt->name, evt->id);
+			}
+			return 0;
 		}
 		watch = watch->next_by_listener;
 	}
-	return 0;
+	errno = ENOENT;
+	return -1;
 }
-
 

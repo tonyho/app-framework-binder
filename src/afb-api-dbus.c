@@ -537,7 +537,7 @@ static int api_dbus_server_on_object_called(sd_bus_message *message, void *userd
 	return 1;
 }
 
-static void afb_api_dbus_server_send_event(struct api_dbus *api, const char *event, struct json_object *object)
+static void afb_api_dbus_server_send_event(struct api_dbus *api, const char *event, int eventid, struct json_object *object)
 {
 	int rc;
 
@@ -547,6 +547,12 @@ static void afb_api_dbus_server_send_event(struct api_dbus *api, const char *eve
 		ERROR("error while emiting event %s", event);
 	json_object_put(object);
 }
+
+/* the interface for events */
+static const struct afb_evt_itf evt_itf = {
+	.broadcast = (void*)afb_api_dbus_server_send_event,
+	.push = (void*)afb_api_dbus_server_send_event
+};
 
 /* create the service */
 int afb_api_dbus_add_server(const char *path)
@@ -576,7 +582,7 @@ int afb_api_dbus_add_server(const char *path)
 	}
 	INFO("afb service over dbus installed, name %s, path %s", api->name, api->path);
 
-	api->listener = afb_evt_listener_create((void*)afb_api_dbus_server_send_event, api);
+	api->listener = afb_evt_listener_create(&evt_itf, api);
 
 	return 0;
 error3:

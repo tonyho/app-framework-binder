@@ -44,7 +44,7 @@ struct afb_wsreq;
 /* predeclaration of websocket callbacks */
 static void aws_on_hangup(struct afb_ws_json1 *ws, struct afb_wsj1 *wsj1);
 static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *verb, struct afb_wsj1_msg *msg);
-static void aws_on_event(struct afb_ws_json1 *ws, const char *event, struct json_object *object);
+static void aws_on_event(struct afb_ws_json1 *ws, const char *event, int eventid, struct json_object *object);
 
 /* predeclaration of wsreq callbacks */
 static void wsreq_addref(struct afb_wsreq *wsreq);
@@ -110,6 +110,12 @@ const struct afb_req_itf afb_ws_json1_req_itf = {
 	.subcall = (void*)wsreq_subcall
 };
 
+/* the interface for events */
+static const struct afb_evt_itf evt_itf = {
+	.broadcast = (void*)aws_on_event,
+	.push = (void*)aws_on_event
+};
+
 /***************************************************************
 ****************************************************************
 **
@@ -141,7 +147,7 @@ struct afb_ws_json1 *afb_ws_json1_create(int fd, struct afb_context *context, vo
 	if (result->wsj1 == NULL)
 		goto error3;
 
-	result->listener = afb_evt_listener_create((void*)aws_on_event, result);
+	result->listener = afb_evt_listener_create(&evt_itf, result);
 	if (result->listener == NULL)
 		goto error4;
 
@@ -217,7 +223,7 @@ static void aws_on_call(struct afb_ws_json1 *ws, const char *api, const char *ve
 	wsreq_unref(wsreq);
 }
 
-static void aws_on_event(struct afb_ws_json1 *aws, const char *event, struct json_object *object)
+static void aws_on_event(struct afb_ws_json1 *aws, const char *event, int eventid, struct json_object *object)
 {
 	afb_wsj1_send_event_j(aws->wsj1, event, afb_msg_json_event(event, object));
 }
