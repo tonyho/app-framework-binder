@@ -30,6 +30,7 @@ extern struct afb_evt_listener *afb_evt_listener_addref(struct afb_evt_listener 
 extern void afb_evt_listener_unref(struct afb_evt_listener *listener);
 
 extern struct afb_event afb_evt_create_event(const char *name);
+extern const char *afb_evt_event_name(struct afb_event event);
 
 extern int afb_evt_add_watch(struct afb_evt_listener *listener, struct afb_event event);
 extern int afb_evt_remove_watch(struct afb_evt_listener *listener, struct afb_event event);

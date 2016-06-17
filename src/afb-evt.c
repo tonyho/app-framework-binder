@@ -205,6 +205,14 @@ struct afb_event afb_evt_create_event(const char *name)
 }
 
 /*
+ * Returns the name of the 'event'
+ */
+const char *afb_evt_event_name(struct afb_event event)
+{
+	return (event.itf != &afb_evt_event_itf) ? NULL : ((struct afb_evt_event *)event.closure)->name;
+}
+
+/*
  * Returns an instance of the listener defined by the 'send' callback
  * and the 'closure'.
  * Returns NULL in case of memory depletion.
