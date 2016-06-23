@@ -23,6 +23,89 @@
 
 const struct AFB_interface *interface;
 
+struct event
+{
+	struct event *next;
+	struct afb_event event;
+	char tag[1];
+};
+
+static struct event *events = 0;
+
+/* searchs the event of tag */
+static struct event *event_get(const char *tag)
+{
+	struct event *e = events;
+	while(e && strcmp(e->tag, tag))
+		e = e->next;
+	return e;
+}
+
+/* deletes the event of tag */
+static int event_del(const char *tag)
+{
+	struct event *e, **p;
+
+	/* check exists */
+	e = event_get(tag);
+	if (!e) return -1;
+
+	/* unlink */
+	p = &events;
+	while(*p != e) p = &(*p)->next;
+	*p = e->next;
+
+	/* destroys */
+	afb_event_drop(e->event);
+	free(e);
+	return 0;
+}
+
+/* creates the event of tag */
+static int event_add(const char *tag, const char *name)
+{
+	struct event *e;
+
+	/* check valid tag */
+	e = event_get(tag);
+	if (e) return -1;
+
+	/* creation */
+	e = malloc(strlen(tag) + sizeof *e);
+	if (!e) return -1;
+	strcpy(e->tag, tag);
+
+	/* make the event */
+	e->event = afb_daemon_make_event(interface->daemon, name);
+	if (!e->event.closure) { free(e); return -1; }
+
+	/* link */
+	e->next = events;
+	events = e;
+	return 0;
+}
+
+static int event_subscribe(struct afb_req request, const char *tag)
+{
+	struct event *e;
+	e = event_get(tag);
+	return e ? afb_req_subscribe(request, e->event) : -1;
+}
+
+static int event_unsubscribe(struct afb_req request, const char *tag)
+{
+	struct event *e;
+	e = event_get(tag);
+	return e ? afb_req_unsubscribe(request, e->event) : -1;
+}
+
+static int event_push(struct json_object *args, const char *tag)
+{
+	struct event *e;
+	e = event_get(tag);
+	return e ? afb_event_push(e->event, json_object_get(args)) : -1;
+}
+
 // Sample Generic Ping Debug API
 static void ping(struct afb_req request, json_object *jresp, const char *tag)
 {
@@ -99,6 +182,69 @@ static void subcall (struct afb_req request)
 		afb_req_subcall(request, api, verb, object, subcallcb, afb_req_store(request));
 }
 
+static void eventadd (struct afb_req request)
+{
+	const char *tag = afb_req_value(request, "tag");
+	const char *name = afb_req_value(request, "name");
+
+	if (tag == NULL || name == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else if (0 != event_add(tag, name))
+		afb_req_fail(request, "failed", "creation error");
+	else
+		afb_req_success(request, NULL, NULL);
+}
+
+static void eventdel (struct afb_req request)
+{
+	const char *tag = afb_req_value(request, "tag");
+
+	if (tag == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else if (0 != event_del(tag))
+		afb_req_fail(request, "failed", "deletion error");
+	else
+		afb_req_success(request, NULL, NULL);
+}
+
+static void eventsub (struct afb_req request)
+{
+	const char *tag = afb_req_value(request, "tag");
+
+	if (tag == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else if (0 != event_subscribe(request, tag))
+		afb_req_fail(request, "failed", "subscription error");
+	else
+		afb_req_success(request, NULL, NULL);
+}
+
+static void eventunsub (struct afb_req request)
+{
+	const char *tag = afb_req_value(request, "tag");
+
+	if (tag == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else if (0 != event_unsubscribe(request, tag))
+		afb_req_fail(request, "failed", "unsubscription error");
+	else
+		afb_req_success(request, NULL, NULL);
+}
+
+static void eventpush (struct afb_req request)
+{
+	const char *tag = afb_req_value(request, "tag");
+	const char *data = afb_req_value(request, "data");
+	json_object *object = data ? json_tokener_parse(data) : NULL;
+
+	if (tag == NULL)
+		afb_req_fail(request, "failed", "bad arguments");
+	else if (0 > event_push(object, tag))
+		afb_req_fail(request, "failed", "push error");
+	else
+		afb_req_success(request, NULL, NULL);
+}
+
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
 static const struct AFB_verb_desc_v1 verbs[]= {
@@ -109,6 +255,11 @@ static const struct AFB_verb_desc_v1 verbs[]= {
   {"pingJson" , AFB_SESSION_NONE, pingJson    , "Return a JSON object"},
   {"pingevent", AFB_SESSION_NONE, pingEvent   , "Send an event"},
   {"subcall",   AFB_SESSION_NONE, subcall     , "Call api/verb(args)"},
+  {"eventadd",  AFB_SESSION_NONE, eventadd    , "adds the event of 'name' for the 'tag'"},
+  {"eventdel",  AFB_SESSION_NONE, eventdel    , "deletes the event of 'tag'"},
+  {"eventsub",  AFB_SESSION_NONE, eventsub    , "subscribes to the event of 'tag'"},
+  {"eventunsub",AFB_SESSION_NONE, eventunsub  , "unsubscribes to the event of 'tag'"},
+  {"eventpush", AFB_SESSION_NONE, eventpush   , "pushs the event of 'tag' with the 'data'"},
   {NULL}
 };
 
