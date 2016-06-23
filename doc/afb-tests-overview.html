@@ -18,7 +18,7 @@
 <h1 class="title">Overview of tests shipped with AFB-Daemon</h1>
 <h2 class="author">Manuel Bachmann</h2>
 <h2 class="author">José Bollo</h2>
-<h3 class="date">09 juin 2016</h3>
+<h3 class="date">23 juin 2016</h3>
 </header>
 <nav id="TOC">
 <ul>
@@ -45,12 +45,12 @@ Author:  Manuel Bachmann</code></pre>
 </ul>
 <h2 id="detail-of-tests">Detail of tests</h2>
 <h3 id="afb-client-demo-command-line-websockets">afb-client-demo (command-line WebSockets)</h3>
-<p>This clients interactively calls plugins APIs from the command line, using the binder <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> facility.</p>
+<p>This clients interactively calls bindings APIs from the command line, using the binder <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> facility.</p>
 <p>If <em>afb-daemon</em> has been launched with the following parameters:</p>
 <pre><code>$ afb-daemon --port=1234 --token=123456 [...]</code></pre>
 <p>Then run the client with :</p>
 <pre><code>afb-client-demo ws://localhost:1234/api?token=123456 [&lt;api&gt; &lt;verb&gt; [&lt;json-data&gt;]]</code></pre>
-<p>For instance, to initialize the Audio plugin from the command line :</p>
+<p>For instance, to initialize the Audio binding from the command line :</p>
 <pre><code>afb-client-demo ws://localhost:1234/api?token=123456</code></pre>
 <p>The command doesn't return. You should type requests of type <api> <verb> [<json-data>]. So, try:</p>
 <pre><code>auth connect

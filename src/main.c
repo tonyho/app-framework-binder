@@ -17,7 +17,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_PLUGIN_VERBOSE_MACRO
+#define NO_BINDING_VERBOSE_MACRO
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -42,10 +42,10 @@
 #include "verbose.h"
 #include "afb-common.h"
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 
-#if !defined(PLUGIN_INSTALL_DIR)
-#error "you should define PLUGIN_INSTALL_DIR"
+#if !defined(BINDING_INSTALL_DIR)
+#error "you should define BINDING_INSTALL_DIR"
 #endif
 
 #define AFB_VERSION    "0.5"
@@ -77,7 +77,7 @@
 
 #define DBUS_CLIENT        20
 #define DBUS_SERVICE       21
-#define SO_PLUGIN          22
+#define SO_BINDING         22
 
 #define SET_SESSIONMAX     23
 
@@ -103,13 +103,13 @@ static  AFB_options cliOptions [] = {
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api]"},
   {SET_ALIAS        ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
   
-  {SET_APITIMEOUT   ,1,"apitimeout"      , "Plugin API timeout in seconds [default 10]"},
+  {SET_APITIMEOUT   ,1,"apitimeout"      , "Binding API timeout in seconds [default 10]"},
   {SET_CNTXTIMEOUT  ,1,"cntxtimeout"     , "Client Session Context Timeout [default 900]"},
   {SET_CACHE_TIMEOUT,1,"cache-eol"       , "Client cache end of live [default 3600]"},
   
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
 
-  {SET_LDPATH       ,1,"ldpaths"         , "Load Plugins from dir1:dir2:... [default = PLUGIN_INSTALL_DIR"},
+  {SET_LDPATH       ,1,"ldpaths"         , "Load bindingss from dir1:dir2:... [default = "BINDING_INSTALL_DIR"]"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
   
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
@@ -120,7 +120,7 @@ static  AFB_options cliOptions [] = {
 
   {DBUS_CLIENT      ,1,"dbus-client"     , "bind to an afb service through dbus"},
   {DBUS_SERVICE     ,1,"dbus-server"     , "provides an afb service through dbus"},
-  {SO_PLUGIN        ,1,"plugin"          , "load the plugin of path"},
+  {SO_BINDING       ,1,"binding"         , "load the binding of path"},
 
   {SET_SESSIONMAX   ,1,"session-max"     , "max count of session simultaneously [default 10]"},
 
@@ -164,7 +164,7 @@ static void printHelp(FILE *file, const char *name)
          fprintf (file, "  --%-15s %s\n", command, cliOptions[ind].help);
       }
     }
-    fprintf (file, "Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/plugins:/usr/lib64/agl/plugins\n", name);
+    fprintf (file, "Example:\n  %s\\\n  --verbose --port=1234 --token='azerty' --ldpaths=build/bindings:/usr/lib64/agl/bindings\n", name);
 }
 
 // load config from disk and merge with CLI option
@@ -174,7 +174,7 @@ static void config_set_default (struct afb_config * config)
    if (config->httpdPort == 0)
 	config->httpdPort = 1234;
    
-   // default Plugin API timeout
+   // default binding API timeout
    if (config->apiTimeout == 0)
 	config->apiTimeout = DEFLT_API_TIMEOUT;
    
@@ -213,7 +213,7 @@ static void config_set_default (struct afb_config * config)
        config->rootapi = "/api";
 
    if  (config->ldpaths == NULL)
-       config->ldpaths = PLUGIN_INSTALL_DIR;
+       config->ldpaths = BINDING_INSTALL_DIR;
 
    // if no session dir create a default path from rootdir
    if  (config->sessiondir == NULL) {
@@ -384,7 +384,7 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 
     case DBUS_CLIENT:
     case DBUS_SERVICE:
-    case SO_PLUGIN:
+    case SO_BINDING:
        if (optarg == 0) goto needValueForOption;
        add_item(config, optc, optarg);
        break;
@@ -559,9 +559,9 @@ static void start_items(struct afb_config_item *item)
 	exit(1);
       }
       break;
-    case SO_PLUGIN:
-      if (afb_api_so_add_plugin(item->value) < 0) {
-        ERROR("can't start the plugin of path %s",item->value);
+    case SO_BINDING:
+      if (afb_api_so_add_binding(item->value) < 0) {
+        ERROR("can't start the binding of path %s",item->value);
 	exit(1);
       }
       break;
@@ -601,7 +601,7 @@ int main(int argc, char *argv[])  {
   afb_api_so_set_timeout(config->apiTimeout);
   if (config->ldpaths) {
     if (afb_api_so_add_pathset(config->ldpaths) < 0) {
-      ERROR("initialisation of plugins within %s failed", config->ldpaths);
+      ERROR("initialisation of bindings within %s failed", config->ldpaths);
       exit(1);
     }
   }

@@ -23,14 +23,12 @@
 #include <systemd/sd-bus.h>
 #include <systemd/sd-bus-protocol.h>
 
-#include <afb/afb-plugin.h>
-#include <afb/afb-plugin.h>
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 
 /*
  * the interface to afb-daemon
  */
-const struct AFB_interface *afbitf;
+const struct afb_binding_interface *afbitf;
 
 /*
  * union of possible dbus values
@@ -602,32 +600,32 @@ cleanup:
 /*
  * array of the verbs exported to afb-daemon
  */
-static const struct AFB_verb_desc_v1 plugin_verbs[] = {
+static const struct afb_verb_desc_v1 binding_verbs[] = {
   /* VERB'S NAME       SESSION MANAGEMENT          FUNCTION TO CALL     SHORT DESCRIPTION */
   { .name= "rawcall",  .session= AFB_SESSION_NONE, .callback= rawcall,  .info= "raw call to dbus method" },
   { .name= NULL } /* marker for end of the array */
 };
 
 /*
- * description of the plugin for afb-daemon
+ * description of the binding for afb-daemon
  */
-static const struct AFB_plugin plugin_description =
+static const struct afb_binding binding_description =
 {
   /* description conforms to VERSION 1 */
-  .type= AFB_PLUGIN_VERSION_1,
-  .v1= {			/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
-    .prefix= "dbus",		/* the API name (or plugin name or prefix) */
-    .info= "raw dbus binding",	/* short description of of the plugin */
-    .verbs = plugin_verbs	/* the array describing the verbs of the API */
+  .type= AFB_BINDING_VERSION_1,
+  .v1= {			/* fills the v1 field of the union when AFB_BINDING_VERSION_1 */
+    .prefix= "dbus",		/* the API name (or binding name or prefix) */
+    .info= "raw dbus binding",	/* short description of of the binding */
+    .verbs = binding_verbs	/* the array describing the verbs of the API */
   }
 };
 
 /*
- * activation function for registering the plugin called by afb-daemon
+ * activation function for registering the binding called by afb-daemon
  */
-const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register(const struct afb_binding_interface *itf)
 {
 	afbitf = itf;			/* records the interface for accessing afb-daemon */
-	return &plugin_description;	/* returns the description of the plugin */
+	return &binding_description;	/* returns the description of the binding */
 }
 

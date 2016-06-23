@@ -22,7 +22,7 @@ Detail of tests
 
 ### afb-client-demo (command-line WebSockets)
 
-This clients interactively calls plugins APIs from the command line, using the binder
+This clients interactively calls bindings APIs from the command line, using the binder
 [WebSockets](https://en.wikipedia.org/wiki/WebSocket) facility.
 
 If _afb-daemon_ has been launched with the following parameters:
@@ -35,7 +35,7 @@ Then run the client with :
 
     afb-client-demo ws://localhost:1234/api?token=123456 [<api> <verb> [<json-data>]]
 
-For instance, to initialize the Audio plugin from the command line :
+For instance, to initialize the Audio binding from the command line :
 
     afb-client-demo ws://localhost:1234/api?token=123456
 

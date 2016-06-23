@@ -1,4 +1,4 @@
-HOWTO WRITE a PLUGIN for AFB-DAEMON
+HOWTO WRITE a BINDING for AFB-DAEMON
 ===================================
     version: 1
     Date:    09 juin 2016
@@ -13,110 +13,110 @@ Afb-daemon binders serve files through HTTP protocol
 and offers to developers the capability to expose application API methods through
 HTTP or WebSocket protocol.
 
-Binder plugins are used to add API to afb-daemon.
-This part describes how to write a plugin for afb-daemon.
+Binder bindings are used to add API to afb-daemon.
+This part describes how to write a binding for afb-daemon.
 
 Excepting this summary, this document target developers.
 
 Before moving further through an example, here after
-a short overview of binder plugins fundamentals.
+a short overview of binder bindings fundamentals.
 
-### Nature of a plugin
+### Nature of a binding
 
-A plugin is an independent piece of software. A plugin is self contain and exposes application logic as sharable library.
-A plugin is intended to be dynamically loaded by afb-daemon to expose application API.
+A binding is an independent piece of software. A binding is self contain and exposes application logic as sharable library.
+A binding is intended to be dynamically loaded by afb-daemon to expose application API.
 
-Technically, a binder plugin does not reference and is not linked with any afb-daemon library.
+Technically, a binder binding does not reference and is not linked with any afb-daemon library.
 
-### Class of plugins
+### Class of bindings
 
-Application binder supports two kinds of plugins: application plugins and service plugins.
-Technically both class of plugin are equivalent are use the same coding convention. Only sharing mode and security context diverge.
+Application binder supports two kinds of bindings: application bindings and service bindings.
+Technically both class of binding are equivalent are use the same coding convention. Only sharing mode and security context diverge.
 
-#### Application-plugins
+#### Application-bindings
 
-Application-plugins implements the glue in between application's UI and services. Every AGL application
-has a corresponding binder that typically activates one or many plugins to interface the application logic with lower platform services.
-When an application is started by the AGL application framework, a dedicate binder is started that loads/activates application plugin(s). 
-API expose by application-plugin are executed within corresponding application security context.
+Application-bindings implements the glue in between application's UI and services. Every AGL application
+has a corresponding binder that typically activates one or many bindings to interface the application logic with lower platform services.
+When an application is started by the AGL application framework, a dedicate binder is started that loads/activates application binding(s). 
+API expose by application-binding are executed within corresponding application security context.
 
-Application plugins generally handle a unique context for a unique client. As the application framework start
-a dedicated instance of afb_daemon for each AGL application, if a given plugin is used within multiple application each of those
-application get a new and private instance of eventually "shared" plugin.
+Application bindings generally handle a unique context for a unique client. As the application framework start
+a dedicated instance of afb_daemon for each AGL application, if a given binding is used within multiple application each of those
+application get a new and private instance of eventually "shared" binding.
 
-#### Service-plugins
+#### Service-bindings
 
-Service-plugins enable API activation within corresponding service security context and not within calling application context. 
-Service-plugins are intended to run as a unique instance. Service-plugins can be shared in between multiple clients.
+Service-bindings enable API activation within corresponding service security context and not within calling application context. 
+Service-bindings are intended to run as a unique instance. Service-bindings can be shared in between multiple clients.
 
-Service-plugins can either be stateless or manage client context. When managing context each client get a private context.
+Service-bindings can either be stateless or manage client context. When managing context each client get a private context.
 
 Sharing may either be global to the platform (ie: GPS service) or dedicated to a given user (ie: user preferences)
  
-### Live cycle of plugins within afb-daemon
+### Live cycle of bindings within afb-daemon
 
-Application and service plugins are loaded and activated each time a new afb-daemon is started.
+Application and service bindings are loaded and activated each time a new afb-daemon is started.
 
-At launch time, every loaded plugin initialise itself.
-If a single plugin initialisation fail corresponding instance of afb-daemon self aborts.
+At launch time, every loaded binding initialise itself.
+If a single binding initialisation fail corresponding instance of afb-daemon self aborts.
 
-Conversely, when a plugin initialisation succeeds, it should register 
+Conversely, when a binding initialisation succeeds, it should register 
 its unique name as well as the list of verbs attached to the methods it exposes.
 
-When initialised, on request from application clients to the right API/verb, plugin methods
+When initialised, on request from application clients to the right API/verb, binding methods
 are activated by the afb-daemon attached to the application or service.
 
 At exit time, no special action is enforced by afb-daemon. When a specific actions is required at afb-daemon stop,
-developers should use 'atexit/on_exit' during plugin initialisation sequence to register a custom exit function.
+developers should use 'atexit/on_exit' during binding initialisation sequence to register a custom exit function.
 
-### Plugin Contend
+### Binding Contend
 
-Afb-daemon's plugin register two classes of objects: names and functions.
+Afb-daemon's binding register two classes of objects: names and functions.
 
-Plugins declare categories of names:
- - A unique plugin name to access all API expose by this plugin,
- - One name for each methods/verbs provided by this plugin.
+Bindings declare categories of names:
+ - A unique binding name to access all API expose by this binding,
+ - One name for each methods/verbs provided by this binding.
 
-Plugins declare two categories of functions:
+Bindings declare two categories of functions:
  - function use for the initialisation
  - functions implementing exposed API methods
 
-Afb-daemon parses URI requests to extract the API(plugin name) and the VERB(method to activate).
-As an example, URI **foo/bar** translates to plugin named **foo** and method named **bar**.
-To serve such a request, afb-daemon looks for an active plugin named **foo** and then within this plugin for a method named **bar**.
+Afb-daemon parses URI requests to extract the API(binding name) and the VERB(method to activate).
+As an example, URI **foo/bar** translates to binding named **foo** and method named **bar**.
+To serve such a request, afb-daemon looks for an active binding named **foo** and then within this binding for a method named **bar**.
 When find afb-daemon calls corresponding method with attached parameter if any.
 
 Afb-daemon ignores letter case when parsing URI. Thus **TicTacToe/Board** and **tictactoe/board** are equivalent.
 
-#### The name of the plugin
+#### The name of the binding
 
-The name of a given plugin is also known as the name
-of the API prefix that defines the plugin.
+The name of a given binding is also known as the name
+of the API prefix that defines the binding.
 
-The name of a plugin SHOULD be unique within a given afb-daemon instance.
+The name of a binding SHOULD be unique within a given afb-daemon instance.
 
 For example, when a client of afb-daemon calls a URI named **foo/bar**. Afb-daemon
-extracts the prefix **foo** and the suffix **bar**. **foo** must match a plugin name and **bar** a VERB attached to some method.
+extracts the prefix **foo** and the suffix **bar**. **foo** must match a binding name and **bar** a VERB attached to some method.
 
 #### Names of methods
 
-Each plugin exposes a set of methods that can be called
+Each binding exposes a set of methods that can be called
 by the clients of a given afb-daemon.
 
-VERB's name attached to a given plugin (API) MUST be unique within a plugin.
+VERB's name attached to a given binding (API) MUST be unique within a binding.
 
-Plugins static declaration link VERBS to corresponding methods. 
+Bindings static declaration link VERBS to corresponding methods. 
 When clients emit requests on a given API/VERB corresponding method is called by afb-daemon.
 
 #### Initialisation function
 
-Plugin's initialisation function serves several purposes.
+Binding's initialisation function serves several purposes.
 
-1. It allows afb-daemon to control plugin version depending on initialisation function name.
-As today, the only supported initialisation function is **pluginAfbV1Register**. This identifies
-version "one" of plugins.
+1. It allows afb-daemon to control binding version depending on initialisation function name.
+As today, the only supported initialisation function is **afbBindingV1Register**. This identifies
+version "one" of bindings.
 
-2. It allows plugins to initialise itself.
+2. It allows bindings to initialise itself.
 
 3. It enables names declarations: descriptions, requirements and implementations of exposed API/VERB.
 
@@ -124,13 +124,13 @@ version "one" of plugins.
 
 When an API/VERB is called, afb-daemon constructs a request object. Then it 
 passes this request object to the implementation function corresponding to requested method, this
-within attached API plugin.
+within attached API binding.
 
 An implementation function receives a request object that
 is used to: get arguments of the request, send
 answer, store session data.
 
-A plugin MUST set an answer to every received requests.
+A binding MUST set an answer to every received requests.
 
 Nevertheless it is not mandatory to set the answer
 before returning from API/VERB implementing function.
@@ -145,12 +145,12 @@ request time and provide answer to the request only at completion of asynchronou
 The Tic-Tac-Toe example
 -----------------------
 
-This part explains how to write an afb-plugin.
+This part explains how to write an afb-binding.
 For the sake of being practical it uses many
 examples based on tic-tac-toe.
-This plugin example is in *plugins/samples/tic-tac-toe.c*.
+This binding example is in *bindings/samples/tic-tac-toe.c*.
 
-This plugin is named ***tictactoe***.
+This binding is named ***tictactoe***.
 
 Dependencies when compiling
 ---------------------------
@@ -172,49 +172,49 @@ For linking, you should use
 
 Afb-daemon automatically includes dependency to json-c.
 This is activated through **Requires** keyword in pkg-config.
-While almost every plugin replies on **json-c** this is not a must have dependency.
+While almost every binding replies on **json-c** this is not a must have dependency.
 
 Internally, afb-daemon relies on **libsystemd** for its event loop, as well 
 as for its binding to D-Bus.
-Plugins developers are encouraged to leverage **libsystemd** when possible.
+Bindings developers are encouraged to leverage **libsystemd** when possible.
 Nevertheless there is no hard dependency to **libsystemd** if ever
 you rather not use it, feel free to do so.
 
-> Afb-daemon plugin are fully self contain. They do not enforce dependency on any libraries from the application framework.
-> Afb-daemon dependencies requirer to run AGL plugins are given at runtime through pointers leveraging read-only
+> Afb-daemon binding are fully self contain. They do not enforce dependency on any libraries from the application framework.
+> Afb-daemon dependencies requirer to run AGL bindings are given at runtime through pointers leveraging read-only
 > memory feature.
 
 Header files to include
 -----------------------
 
-Plugin *tictactoe* has following includes:
+Binding *tictactoe* has following includes:
 
 ```C
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <json-c/json.h>
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 ```
 
-Header *afb/afb-plugin.h* is the only hard dependency, it includes all features
-that a plugin MUST HAVE. Outside of includes used to support application logic,
-common external headers used within plugins are:
+Header *afb/afb-binding.h* is the only hard dependency, it includes all features
+that a binding MUST HAVE. Outside of includes used to support application logic,
+common external headers used within bindings are:
 
 - *json-c/json.h*: should be include to handle json objects;
 - *systemd/sd-event.h*: should be include to access event main loop;
 - *systemd/sd-bus.h*: should be include for dbus connections.
 
-The *tictactoe* plugin does not leverage systemd features, also only json.h
-is used on top of mandatory afb/afb-plugin.h.
+The *tictactoe* binding does not leverage systemd features, also only json.h
+is used on top of mandatory afb/afb-binding.h.
 
-When including *afb/afb-plugin.h*, the macro **_GNU_SOURCE** MUST be
+When including *afb/afb-binding.h*, the macro **_GNU_SOURCE** MUST be
 defined.
 
 Choosing names
 --------------
 
-Designers of plugins should define a unique name for every API plugin
+Designers of bindings should define a unique name for every API binding
 as well as for methods VERBs. They should also define names for request
 arguments passed as name/value pair in URI.
 
@@ -223,9 +223,9 @@ ensure that created names are valid and easy to use across platforms.
 
 All names and strings are UTF-8 encoded.
 
-### Names for API (plugin)
+### Names for API (binding)
 
-Plugin API name are checked.
+Binding API name are checked.
 All characters are authorised except:
 
 - the control characters (\u0000 .. \u001f)
@@ -244,7 +244,7 @@ and upper case when searching for API/VERB.
 The names of methods VERBs are totally free and not checked.
 
 However, the validity rules for method's VERB name are the
-same as for Plugin API name except that the dot(.) character
+same as for Binding API name except that the dot(.) character
 is forbidden.
 
 Afb-daemon makes no case distinction when searching for an API by name.
@@ -307,7 +307,7 @@ This example shows many aspects of a synchronous
 method implementation. Let summarise it:
 
 1. The function **board_of_req** retrieves the context stored
-for the plugin: the board.
+for the binding: the board.
 
 2. The macro **INFO** sends a message of kind *INFO*
 to the logging system. The global variable named **afbitf**
@@ -330,7 +330,7 @@ The definition of **struct afb_req** is:
 
 ```C
 /*
- * Describes the request by plugins from afb-daemon
+ * Describes the request by bindings from afb-daemon
  */
 struct afb_req {
 	const struct afb_req_itf *itf;	/* the interfacing functions */
@@ -359,31 +359,31 @@ The second time, to send the reply: an object that describes the current board.
 
 ### Associating a client context to a session
 
-When *tic-tac-toe* plugin receives a request, it musts get
+When *tic-tac-toe* binding receives a request, it musts get
 the board describing the game associated to the session.
 
-For a plugin, having data associated to a session is common.
-This data is called "plugin context" for the session.
-Within *tic-tac-toe* plugin the context is the board.
+For a binding, having data associated to a session is common.
+This data is called "binding context" for the session.
+Within *tic-tac-toe* binding the context is the board.
 
 Requests *afb_req* offer four functions for storing and retrieving session associated context.
 
 These functions are:
 
 - **afb_req_context_get**:
-  retrieves context data stored for current plugin.
+  retrieves context data stored for current binding.
 
 - **afb_req_context_set**:
-  store context data of current plugin.
+  store context data of current binding.
 
 - **afb_req_context**:
-  if exist retrieves context data of current plugin.
+  if exist retrieves context data of current binding.
   if context does not yet exist, creates a new context and store it.
 
 - **afb_req_context_clear**:
   reset the stored context data.
 
-The plugin *tictactoe* use a convenient function to retrieve
+The binding *tictactoe* use a convenient function to retrieve
 its context: the board. This function is *board_of_req*:
 
 ```C
@@ -405,7 +405,7 @@ Here is the definition of the function **afb_req_context**
 
 ```C
 /*
- * Gets the pointer stored by the plugin for the session of 'req'.
+ * Gets the pointer stored by the binding for the session of 'req'.
  * If the stored pointer is NULL, indicating that no pointer was
  * already stored, afb_req_context creates a new context by calling
  * the function 'create_context' and stores it with the freeing function
@@ -423,12 +423,12 @@ static inline void *afb_req_context(struct afb_req req, void *(*create_context)(
 ```
 
 The second argument if the function that creates the context.
-For plugin *tic-tac-toe* (function **get_new_board**).
+For binding *tic-tac-toe* (function **get_new_board**).
 The function **get_new_board** creates a new board and set usage its count to 1.
 The boards are checking usage count to free resources when not used.
 
 The third argument is a function that frees context resources.
-For plugin *tic-tac-toe* (function **release_board**).
+For binding *tic-tac-toe* (function **release_board**).
 The function **release_board** decrease usage count of the board passed in argument.
 When usage count falls to zero, data board are freed.
 
@@ -436,20 +436,20 @@ Definition of other functions dealing with contexts:
 
 ```C
 /*
- * Gets the pointer stored by the plugin for the session of 'req'.
- * When the plugin has not yet recorded a pointer, NULL is returned.
+ * Gets the pointer stored by the binding for the session of 'req'.
+ * When the binding has not yet recorded a pointer, NULL is returned.
  */
 void *afb_req_context_get(struct afb_req req);
 
 /*
- * Stores for the plugin the pointer 'context' to the session of 'req'.
+ * Stores for the binding the pointer 'context' to the session of 'req'.
  * The function 'free_context' will be called when the session is closed
- * or if plugin stores an other pointer.
+ * or if binding stores an other pointer.
  */
 void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*));
 
 /*
- * Frees the pointer stored by the plugin for the session of 'req'
+ * Frees the pointer stored by the binding for the session of 'req'
  * and sets it to NULL.
  *
  * Shortcut for: afb_req_context_set(req, NULL, NULL)
@@ -529,13 +529,13 @@ void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ..
 Getting argument of invocation
 ------------------------------
 
-Many methods expect arguments. Afb-daemon's plugins
+Many methods expect arguments. Afb-daemon's bindings
 retrieve arguments by name and not by position.
 
 Arguments are passed by requests through either HTTP
 or WebSockets.
 
-For example, the method **join** of plugin **tic-tac-toe**
+For example, the method **join** of binding **tic-tac-toe**
 expects one argument: the *boardid* to join. Here is an extract:
 
 ```C
@@ -676,14 +676,14 @@ The path is the effective path of saved file on the temporary local storage
 area of the application. This is a randomly generated and unique filename. 
 It is not linked with the original filename as used on client side.
 
-After success the plugin can use the uploaded file directly from local storage path with no restriction:
+After success the binding can use the uploaded file directly from local storage path with no restriction:
 read, write, remove, copy, rename...
 Nevertheless when request reply is set and query terminated, the uploaded temporary file at
 path is destroyed.
 
 ### Arguments as a JSON object
 
-Plugins may also request every arguments of a given call as one single object.
+Bindings may also request every arguments of a given call as one single object.
 This feature is provided by the function **afb_req_json** defined here after:
 
 ```C
@@ -705,54 +705,54 @@ Values are either string for common arguments or object ie: { "file": "...", "pa
 > can be seen as a shortcut to
 > ***json_object_get_string(json_object_object_get(afb_req_json(req), name))***
 
-Initialisation of the plugin and declaration of methods
+Initialisation of the binding and declaration of methods
 -----------------------------------------------------
 
-To be active, plugin's methods should be declared to
-afb-daemon. Furthermore, the plugin itself must be recorded.
+To be active, binding's methods should be declared to
+afb-daemon. Furthermore, the binding itself must be recorded.
 
 The registration mechanism is very basic: when afb-need starts,
-it loads all plugins listed in: command line or configuration file.
+it loads all bindings listed in: command line or configuration file.
 
-Loading a plugin follows the following steps:
+Loading a binding follows the following steps:
 
-1. Afb-daemon loads the plugin with *dlopen*.
+1. Afb-daemon loads the binding with *dlopen*.
 
-2. Afb-daemon searches for a symbol named **pluginAfbV1Register** using *dlsym*.
-This symbol is assumed to be the exported initialisation function of the plugin.
+2. Afb-daemon searches for a symbol named **afbBindingV1Register** using *dlsym*.
+This symbol is assumed to be the exported initialisation function of the binding.
 
-3. Afb-daemon builds an interface object for the plugin.
+3. Afb-daemon builds an interface object for the binding.
 
-4. Afb-daemon calls the found function **pluginAfbV1Register** with interface pointer
+4. Afb-daemon calls the found function **afbBindingV1Register** with interface pointer
 as parameter.
 
-5. Function **pluginAfbV1Register** setups the plugin and initialises it.
+5. Function **afbBindingV1Register** setups the binding and initialises it.
 
-6. Function **pluginAfbV1Register** returns the pointer to a structure
-describing the plugin: version, name (prefix or API name), and list of methods.
+6. Function **afbBindingV1Register** returns the pointer to a structure
+describing the binding: version, name (prefix or API name), and list of methods.
 
 7. Afb-daemon checks that the returned version and name can be managed.
-If so, plugin and its methods are register to become usable as soon as
+If so, binding and its methods are register to become usable as soon as
 afb-daemon initialisation is finished.
 
-Here after the code used for **pluginAfbV1Register** from plugin *tic-tac-toe*:
+Here after the code used for **afbBindingV1Register** from binding *tic-tac-toe*:
 
 ```C
 /*
- * activation function for registering the plugin called by afb-daemon
+ * activation function for registering the binding called by afb-daemon
  */
-const struct AFB_plugin *pluginAfbV1Register(const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register(const struct afb_binding_interface *itf)
 {
    afbitf = itf;         // records the interface for accessing afb-daemon
-   return &plugin_description;  // returns the description of the plugin
+   return &binding_description;  // returns the description of the binding
 }
 ```
 
-It is a very minimal initialisation function because *tic-tac-toe* plugin doesn't
+It is a very minimal initialisation function because *tic-tac-toe* binding doesn't
 have any application related initialisation step. It merely record daemon's interface
 and returns its description.
 
-The variable **afbitf** is a plugin global variable. It keeps the
+The variable **afbitf** is a binding global variable. It keeps the
 interface to afb-daemon that should be used for logging and pushing events.
 Here is its declaration:
 
@@ -760,16 +760,16 @@ Here is its declaration:
 /*
  * the interface to afb-daemon
  */
-const struct AFB_interface *afbitf;
+const struct afb_binding_interface *afbitf;
 ```
 
-The description of the plugin is defined here after.
+The description of the binding is defined here after.
 
 ```C
 /*
  * array of the methods exported to afb-daemon
  */
-static const struct AFB_method_desc_v1 plugin_methods[] = {
+static const struct afb_verb_desc_v1 binding_methods[] = {
    /* VERB'S NAME     SESSION MANAGEMENT          FUNCTION TO CALL  SHORT DESCRIPTION */
    { .name= "new",   .session= AFB_SESSION_NONE, .callback= new,   .info= "Starts a new game" },
    { .name= "play",  .session= AFB_SESSION_NONE, .callback= play,  .info= "Asks the server to play" },
@@ -783,27 +783,27 @@ static const struct AFB_method_desc_v1 plugin_methods[] = {
 };
 
 /*
- * description of the plugin for afb-daemon
+ * description of the binding for afb-daemon
  */
-static const struct AFB_plugin plugin_description =
+static const struct afb_binding binding_description =
 {
    /* description conforms to VERSION 1 */
-   .type= AFB_PLUGIN_VERSION_1,
-   .v1= {				/* fills the v1 field of the union when AFB_PLUGIN_VERSION_1 */
-      .prefix= "tictactoe",		/* the API name (or plugin name or prefix) */
-      .info= "Sample tac-tac-toe game",	/* short description of of the plugin */
-      .methods = plugin_methods		/* the array describing the methods of the API */
+   .type= AFB_BINDING_VERSION_1,
+   .v1= {				/* fills the v1 field of the union when AFB_BINDING_VERSION_1 */
+      .prefix= "tictactoe",		/* the API name (or binding name or prefix) */
+      .info= "Sample tac-tac-toe game",	/* short description of of the binding */
+      .methods = binding_methods		/* the array describing the methods of the API */
    }
 };
 ```
 
-The structure **plugin_description** describes the plugin.
-It declares the type and version of the plugin, its name, a short description
+The structure **binding_description** describes the binding.
+It declares the type and version of the binding, its name, a short description
 and its methods list.
 
 The list of methods is an array of structures describing the methods and terminated by a NULL marker.
 
-In version one of afb-damon plugin, a method description contains 4 fields:
+In version one of afb-damon binding, a method description contains 4 fields:
 
 - the name of the method,
 
@@ -817,10 +817,10 @@ The structure describing methods is defined as follows:
 
 ```C
 /*
- * Description of one method of the API provided by the plugin
- * This enumeration is valid for plugins of type 1
+ * Description of one method of the API provided by the binding
+ * This enumeration is valid for bindings of type 1
  */
-struct AFB_method_desc_v1
+struct afb_verb_desc_v1
 {
        const char *name;                       /* name of the method */
        enum AFB_session_v1 session;            /* authorisation and session requirements of the method */
@@ -867,7 +867,7 @@ Sending messages to the log system
 Afb-daemon provides 4 levels of verbosity and 5 methods for logging messages.
 
 The verbosity is managed. Options allow the change the verbosity of afb-daemon
-and the verbosity of the plugins can be set plugin by plugin.
+and the verbosity of the bindings can be set binding by binding.
 
 The methods for logging messages are defined as macros that test the
 verbosity level and that call the real logging function only if the
@@ -893,11 +893,11 @@ they are output with a different level on the logging system.
 All of these methods have the same signature:
 
 ```C
-void ERROR(const struct AFB_interface *afbitf, const char *message, ...);
+void ERROR(const struct afb_binding_interface *afbitf, const char *message, ...);
 ```
 
 The first argument **afbitf** is the interface to afb daemon that the
-plugin received at initialisation time when **pluginAfbV1Register** is called.
+binding received at initialisation time when **afbBindingV1Register** is called.
 
 The second argument **message** is a formatting string compatible with printf/sprintf.
 
@@ -941,11 +941,11 @@ journal, syslog or kmsg. (See man sd-daemon).
 Sending events
 --------------
 
-Since version 0.5, plugins can broadcast events to any potential listener.
+Since version 0.5, bindings can broadcast events to any potential listener.
 As today only unattended even are supported. Targeted events are expected for next
 coming version.
 
-The plugin *tic-tac-toe* broadcasts events when the board changes.
+The binding *tic-tac-toe* broadcasts events when the board changes.
 This is done in the function **changed**:
 
 ```C
@@ -968,7 +968,7 @@ static void changed(struct board *board, const char *reason)
 
 The description of the changed board is pushed via the daemon interface.
 
-Within plugin *tic-tac-toe*, *reason* indicates the origin of
+Within binding *tic-tac-toe*, *reason* indicates the origin of
 the change. In function **afb_daemon_broadcast_event** the second
 parameter is the name of broadcasted event. The third argument is the
 object that is transmitted with the event.
@@ -979,7 +979,7 @@ Function **afb_daemon_broadcast_event** is defined here after:
 /*
  * Broadcasts widely the event of 'name' with the data 'object'.
  * 'object' can be NULL.
- * 'daemon' MUST be the daemon given in interface when activating the plugin.
+ * 'daemon' MUST be the daemon given in interface when activating the binding.
  *
  * For conveniency, the function calls 'json_object_put' for 'object'.
  * Thus, in the case where 'object' should remain available after
@@ -993,12 +993,12 @@ void afb_daemon_broadcast_event(struct afb_daemon daemon, const char *name, stru
 > calling **afb_daemon_broadcast_event** to keep **object** available
 > after function returns.
 
-Event name received by listeners is prefixed with plugin name.
+Event name received by listeners is prefixed with binding name.
 So when a change occurs after a move, the reason is **move** and every clients
 receive an event **tictactoe/move**.
 
 > Note that nothing is said about case sensitivity of event names.
-> However, the event is always prefixed with the name that the plugin
+> However, the event is always prefixed with the name that the binding
 > declared, with the same case, followed with a slash /.
 > Thus it is safe to compare event using a case sensitive comparison.
 
@@ -1031,7 +1031,7 @@ See the diagram below:
 	   |              |                  |                    .
 	   |<-------------|------------------+ success of wait  <
 
-Here, this is an invocation of the plugin by an other client that
+Here, this is an invocation of the binding by an other client that
 unblock the suspended *wait* call.
 Nevertheless in most case this should be a timer, a hardware event, a sync with
 a concurrent process or thread, ...
@@ -1108,13 +1108,13 @@ is decremented using **afb_req_unref** to allow resources to be freed.
 > This usage count decrement should happen **AFTER** setting reply or 
 > bad things may happen.
 
-How to build a plugin
+How to build a binding
 ---------------------
 
 Afb-daemon provides a *pkg-config* configuration file that can be
 queried by providing **afb-daemon** in command line arguments.
 This configuration file provides data that should be used
-for plugins compilation. Examples:
+for bindings compilation. Examples:
 
 ```bash
 $ pkg-config --cflags afb-daemon
@@ -1123,23 +1123,23 @@ $ pkg-config --libs afb-daemon
 
 ### Example for cmake meta build system
 
-This example is the extract for building the plugin *afm-main* using *CMAKE*.
+This example is the extract for building the binding *afm-main* using *CMAKE*.
 
 ```cmake
 pkg_check_modules(afb afb-daemon)
 if(afb_FOUND)
-	message(STATUS "Creation afm-main-plugin for AFB-DAEMON")
-	add_library(afm-main-plugin MODULE afm-main-plugin.c)
-	target_compile_options(afm-main-plugin PRIVATE ${afb_CFLAGS})
-	target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
-	target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
-	set_target_properties(afm-main-plugin PROPERTIES
+	message(STATUS "Creation afm-main-binding for AFB-DAEMON")
+	add_library(afm-main-binding MODULE afm-main-binding.c)
+	target_compile_options(afm-main-binding PRIVATE ${afb_CFLAGS})
+	target_include_directories(afm-main-binding PRIVATE ${afb_INCLUDE_DIRS})
+	target_link_libraries(afm-main-binding utils ${afb_LIBRARIES})
+	set_target_properties(afm-main-binding PROPERTIES
 		PREFIX ""
-		LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+		LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-binding.export-map"
 	)
-	install(TARGETS afm-main-plugin LIBRARY DESTINATION ${plugin_dir})
+	install(TARGETS afm-main-binding LIBRARY DESTINATION ${binding_dir})
 else()
-	message(STATUS "Not creating the plugin for AFB-DAEMON")
+	message(STATUS "Not creating the binding for AFB-DAEMON")
 endif()
 ```
 
@@ -1154,64 +1154,64 @@ This first lines searches to the *pkg-config* configuration file for
 
 Variable          | Meaning
 ------------------|------------------------------------------------
-afb_FOUND         | Set to 1 if afb-daemon plugin development files exist
-afb_LIBRARIES     | Only the libraries (w/o the '-l') for compiling afb-daemon plugins
-afb_LIBRARY_DIRS  | The paths of the libraries (w/o the '-L') for compiling afb-daemon plugins
-afb_LDFLAGS       | All required linker flags for compiling afb-daemon plugins
-afb_INCLUDE_DIRS  | The '-I' preprocessor flags (w/o the '-I') for compiling afb-daemon plugins
-afb_CFLAGS        | All required cflags for compiling afb-daemon plugins
+afb_FOUND         | Set to 1 if afb-daemon binding development files exist
+afb_LIBRARIES     | Only the libraries (w/o the '-l') for compiling afb-daemon bindings
+afb_LIBRARY_DIRS  | The paths of the libraries (w/o the '-L') for compiling afb-daemon bindings
+afb_LDFLAGS       | All required linker flags for compiling afb-daemon bindings
+afb_INCLUDE_DIRS  | The '-I' preprocessor flags (w/o the '-I') for compiling afb-daemon bindings
+afb_CFLAGS        | All required cflags for compiling afb-daemon bindings
 
-If development files are found, the plugin can be added to the set of
+If development files are found, the binding can be added to the set of
 target to build.
 
 ```cmake
-add_library(afm-main-plugin MODULE afm-main-plugin.c)
+add_library(afm-main-binding MODULE afm-main-binding.c)
 ```
 
 This line asks to create a shared library having a single
-source file named afm-main-plugin.c to be compiled.
+source file named afm-main-binding.c to be compiled.
 The default name of the created shared object is
-**libafm-main-plugin.so**.
+**libafm-main-binding.so**.
 
 ```cmake
-set_target_properties(afm-main-plugin PROPERTIES
+set_target_properties(afm-main-binding PROPERTIES
 	PREFIX ""
-	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-plugin.export-map"
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/afm-main-binding.export-map"
 )
 ```
 
 This lines are doing two things:
 
-1. It renames the built library from **libafm-main-plugin.so** to **afm-main-plugin.so**
+1. It renames the built library from **libafm-main-binding.so** to **afm-main-binding.so**
 by removing the implicitly added prefix *lib*. This step is not mandatory
 because afb-daemon doesn't check names of files at load time.
 The only filename convention used by afb-daemon relates to **.so** termination.
-*.so pattern is used when afb-daemon automatically discovers plugin from a directory hierarchy.
+*.so pattern is used when afb-daemon automatically discovers binding from a directory hierarchy.
 
 2. It applies a version script at link time to only export the reserved name
-**pluginAfbV1Register** for registration entry point. By default, when building 
+**afbBindingV1Register** for registration entry point. By default, when building 
 a shared library linker exports all the public symbols (C functions that are not **static**).
 
 Next line are:
 
 ```cmake
-target_include_directories(afm-main-plugin PRIVATE ${afb_INCLUDE_DIRS})
-target_link_libraries(afm-main-plugin utils ${afb_LIBRARIES})
+target_include_directories(afm-main-binding PRIVATE ${afb_INCLUDE_DIRS})
+target_link_libraries(afm-main-binding utils ${afb_LIBRARIES})
 ```
 
 As you can see it uses the variables computed by ***pkg_check_modules(afb afb-daemon)***
 to configure the compiler and the linker.
 
-### Exporting the function pluginAfbV1Register
+### Exporting the function afbBindingV1Register
 
-The function **pluginAfbV1Register** MUST be exported. This can be achieved
+The function **afbBindingV1Register** MUST be exported. This can be achieved
 using a version script at link time. Here after is a version script used for
-*tic-tac-toe* (plugins/samples/export.map).
+*tic-tac-toe* (bindings/samples/export.map).
 
-	{ global: pluginAfbV1Register; local: *; };
+	{ global: afbBindingV1Register; local: *; };
 
 This sample [version script](https://sourceware.org/binutils/docs-2.26/ld/VERSION.html#VERSION)
-exports as global the symbol *pluginAfbV1Register* and hides any
+exports as global the symbol *afbBindingV1Register* and hides any
 other symbols.
 
 This version script is added to the link options using the

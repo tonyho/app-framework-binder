@@ -63,11 +63,11 @@ SET(link_libraries
 	${json-c_LIBRARIES}
 	)
 
-SET(plugin_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
+SET(binding_install_dir ${CMAKE_INSTALL_FULL_LIBDIR}/afb)
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(include)
-ADD_SUBDIRECTORY(plugins)
+ADD_SUBDIRECTORY(bindings)
 
 ############################################################
 # installs the pkgconfig files

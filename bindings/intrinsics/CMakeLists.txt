@@ -11,5 +11,5 @@ SET_TARGET_PROPERTIES(afb-dbus-binding PROPERTIES
 )
 TARGET_LINK_LIBRARIES(afb-dbus-binding ${link_libraries})
 INSTALL(TARGETS afb-dbus-binding
-        LIBRARY DESTINATION ${plugin_install_dir})
+        LIBRARY DESTINATION ${binding_install_dir})
 

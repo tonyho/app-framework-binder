@@ -5,6 +5,13 @@ Vocabulary for AFB-DAEMON
     Author:  José Bollo
 
 
+## Binding
+
+A shared library object intended to be add a functionnality to an afb-daemon
+instance. It implements an API. It may provide a service.
+
+Binding made for services can have specific entry point called after
+initialisation and before serving.
 
 ## Event
 
@@ -23,12 +30,11 @@ how to use it remains to be achived.
 
 ## Plugin
 
-A shared library object intended to be plug to an afb-daemon instance
-to implement an API.
+Old name for binding, see binding.
 
 ## Request
 
-A request is an invocation by a client to a method of a plugin using a message
+A request is an invocation by a client to a method of a binding using a message
 transfered through some protocol: HTTP, WebSocket, DBUS... served by afb-daemon
 
 ## Reply/Response
@@ -37,11 +43,11 @@ This is a message sent to client as the result of the request.
 
 ## Service
 
-Service are made of plugins runnning by their side on their binder.
+Service are made of binding runnning by their side on their binder.
 It can serve many client. Each one being attached to one session.
 
 The framework establishes the connection between the services and
-the clients. Using DBus currently.
+the clients. Using DBus currently but other protocols are considered.
 
 ## Session
 

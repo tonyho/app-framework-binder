@@ -34,7 +34,7 @@ of afb-daemon:
 	.   +-------------------+----------------------+  .
 	.   |                            :             |  .
 	.   |        b i n d e r         :             |  .
-	.   |    A F B - D A E M O N     :   PLUGINS   |  .
+	.   |    A F B - D A E M O N     :  BINDINGS   |  .
 	.   |                            :             |  .
 	.   +-------------------+----------------------+  .
 	.                       |                         .
@@ -97,7 +97,7 @@ when the application is run remotely:
 	.                           |                           .
 	.       +-------------------+----------------------+    .
 	.       |                            :             |    .
-	.       |    A F B - D A E M O N     :   PLUGINS   |    .
+	.       |    A F B - D A E M O N     :   BINDINGS  |    .
 	.       |                            :             |    .
 	.       +-------------------+----------------------+    .
 	.                           |                           .
@@ -108,15 +108,15 @@ when the application is run remotely:
 
 ### Adding native features to HTML5/QML applications
 
-Applications can provide with their packaged delivery a plugin.
-That plugin will be instanciated for each application instance.
-The methods of the plugin will be accessible by applications and
+Applications can provide with their packaged delivery a binding.
+That binding will be instanciated for each application instance.
+The methods of the binding will be accessible by applications and
 will be excuted within the security context.
 
 ### Offering services to the system
 
 It is possible to run the binder afb-daemon as a daemon that provides the
-API of its plugins.
+API of its bindings.
 
 This will be used for:
 
@@ -141,7 +141,7 @@ In that case, the figure showing the whole aspects is
 	. +-----------------+------------------+  .     . +------------------------------------+  .
 	. |                        :           |  .     . |                        :           |  .
 	. |      b i n d e r       :           |  .     . |      b i n d e r       :  service  |  .
-	. |  A F B - D A E M O N   :  PLUGINS  |  .     . |  A F B - D A E M O N   :  PLUGINS  |  .
+	. |  A F B - D A E M O N   : BINDINGS  |  .     . |  A F B - D A E M O N   : BINDINGS  |  .
 	. |                        :           |  .     . |                        :     A     |  .
 	. +-----------------+------------------+  .     . +-----------------+------------------+  .
 	.                   |                     .     .                   |                     .
@@ -158,7 +158,7 @@ In that case, the figure showing the whole aspects is
 	. +-----------------+------------------+  .     . +-----------------+------------------+  .
 	. |                        :           |  .     . |                        :           |  .
 	. |      b i n d e r       :  service  |  .     . |      b i n d e r       :  service  |  .
-	. |  A F B - D A E M O N   :  PLUGINS  |  .     . |  A F B - D A E M O N   :  PLUGINS  |  .
+	. |  A F B - D A E M O N   : BINDINGS  |  .     . |  A F B - D A E M O N   : BINDINGS  |  .
 	. |                        :     B     |  .     . |                        :     C     |  .
 	. +------------------------------------+  .     . +------------------------------------+  .
 	.                                         .     .                                         .
@@ -167,13 +167,13 @@ In that case, the figure showing the whole aspects is
 
 
 For this case, the binder afb-daemon takes care to attribute one single session
-context to each client instance. It allows plugins to store and retrieve data
+context to each client instance. It allows bindings to store and retrieve data
 associated to each of its client.
 
-The plugins of the binder afb-daemon
+The bindings of the binder afb-daemon
 ------------------------------------
 
-The binder can instanciate plugins. The primary use of plugins
+The binder can instanciate bindings. The primary use of bindings
 is to add native methods that can be accessed by applications
 written with any language through web technologies ala JSON RPC.
 
@@ -185,8 +185,8 @@ This simple idea is declined to serves multiple purposes:
 
 3. provide customers services
 
-A specific document explains how to write an afb-daemon binder plugin:
-[HOWTO WRITE a PLUGIN for AFB-DAEMON](afb-plugin-writing.html)
+A specific document explains how to write an afb-daemon binder binding:
+[HOWTO WRITE a BINDING for AFB-DAEMON](afb-binding-writing.html)
 
 
 Launching the binder afb-daemon
@@ -226,7 +226,7 @@ The launch options for binder **afb-daemon** are:
 
 		HTML Root API URL [default /api]
 
-		The plugins are available within that url.
+		The bindings are available within that url.
 
 	  --alias=xxxx
 
@@ -241,7 +241,7 @@ The launch options for binder **afb-daemon** are:
 
 	  --apitimeout=xxxx
 
-		Plugin API timeout in seconds [default 20]
+		binding API timeout in seconds [default 20]
 
 		Defines how many seconds maximum a method is allowed to run.
 		0 means no limit.
@@ -264,19 +264,19 @@ The launch options for binder **afb-daemon** are:
 
 	  --ldpaths=xxxx
 
-		Load Plugins from given paths separated by colons
-		as for dir1:dir2:plugin1.so:... [default = $libdir/afb]
+		Load bindings from given paths separated by colons
+		as for dir1:dir2:binding1.so:... [default = $libdir/afb]
 
-		You can mix path to directories and to plugins.
+		You can mix path to directories and to bindings.
 		The sub-directories of the given directories are searched
 		recursively.
 
-		The plugins are the files terminated by '.so' (the extension
+		The bindings are the files terminated by '.so' (the extension
 		so denotes shared object) that contain the public entry symbol.
 
-	  --plugin=xxxx
+	  --binding=xxxx
 
-		Load the plugin of given path.
+		Load the binding of given path.
 
 	  --token=xxxx
 
@@ -311,7 +311,7 @@ The launch options for binder **afb-daemon** are:
 
 		Provides a binder afb-daemon service through dbus.
 
-		The name xxxx must be the name of an API defined by a plugin.
+		The name xxxx must be the name of an API defined by a binding.
 		This API is exported through DBUS.
 
 	  --foreground

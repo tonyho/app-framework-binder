@@ -35,7 +35,7 @@ struct afb_event_itf {
 };
 
 /*
- * Describes the request by plugins from afb-daemon
+ * Describes the request of afb-daemon for bindings
  */
 struct afb_event {
 	const struct afb_event_itf *itf;	/* the interface to use */

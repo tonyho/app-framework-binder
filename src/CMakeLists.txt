@@ -1,7 +1,7 @@
 
 INCLUDE(FindPkgConfig)
 
-ADD_DEFINITIONS(-DPLUGIN_INSTALL_DIR="${plugin_install_dir}")
+ADD_DEFINITIONS(-DBINDING_INSTALL_DIR="${binding_install_dir}")
 
 CHECK_INCLUDE_FILES(magic.h HAVE_MAGIC_H)
 CHECK_LIBRARY_EXISTS(magic magic_load "" HAVE_LIBMAGIC_SO)

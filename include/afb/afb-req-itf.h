@@ -75,7 +75,7 @@ struct afb_req_itf {
 };
 
 /*
- * Describes the request by plugins from afb-daemon
+ * Describes the request by bindings from afb-daemon
  */
 struct afb_req {
 	const struct afb_req_itf *itf;	/* the interface to use */
@@ -206,8 +206,8 @@ static inline void afb_req_fail_f(struct afb_req req, const char *status, const 
 }
 
 /*
- * Gets the pointer stored by the plugin for the session of 'req'.
- * When the plugin has not yet recorded a pointer, NULL is returned.
+ * Gets the pointer stored by the binding for the session of 'req'.
+ * When the binding has not yet recorded a pointer, NULL is returned.
  */
 static inline void *afb_req_context_get(struct afb_req req)
 {
@@ -215,9 +215,9 @@ static inline void *afb_req_context_get(struct afb_req req)
 }
 
 /*
- * Stores for the plugin the pointer 'context' to the session of 'req'.
+ * Stores for the binding the pointer 'context' to the session of 'req'.
  * The function 'free_context' will be called when the session is closed
- * or if plugin stores an other pointer.
+ * or if binding stores an other pointer.
  */
 static inline void afb_req_context_set(struct afb_req req, void *context, void (*free_context)(void*))
 {
@@ -225,7 +225,7 @@ static inline void afb_req_context_set(struct afb_req req, void *context, void (
 }
 
 /*
- * Gets the pointer stored by the plugin for the session of 'req'.
+ * Gets the pointer stored by the binding for the session of 'req'.
  * If the stored pointer is NULL, indicating that no pointer was
  * already stored, afb_req_context creates a new context by calling
  * the function 'create_context' and stores it with the freeing function
@@ -242,7 +242,7 @@ static inline void *afb_req_context(struct afb_req req, void *(*create_context)(
 }
 
 /*
- * Frees the pointer stored by the plugin for the session of 'req'
+ * Frees the pointer stored by the binding for the session of 'req'
  * and sets it to NULL.
  *
  * Shortcut for: afb_req_context_set(req, NULL, NULL)

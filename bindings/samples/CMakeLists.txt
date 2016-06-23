@@ -11,7 +11,7 @@ SET_TARGET_PROPERTIES(authLogin PROPERTIES
 )
 TARGET_LINK_LIBRARIES(authLogin ${link_libraries})
 INSTALL(TARGETS authLogin
-        LIBRARY DESTINATION ${plugin_install_dir})
+        LIBRARY DESTINATION ${binding_install_dir})
 
 ##################################################
 # DemoContext
@@ -23,7 +23,7 @@ SET_TARGET_PROPERTIES(demoContext PROPERTIES
 )
 TARGET_LINK_LIBRARIES(demoContext ${link_libraries})
 INSTALL(TARGETS demoContext
-        LIBRARY DESTINATION ${plugin_install_dir})
+        LIBRARY DESTINATION ${binding_install_dir})
 
 ##################################################
 # DemoPost
@@ -35,7 +35,7 @@ SET_TARGET_PROPERTIES(demoPost PROPERTIES
 )
 TARGET_LINK_LIBRARIES(demoPost ${link_libraries})
 INSTALL(TARGETS demoPost
-        LIBRARY DESTINATION ${plugin_install_dir})
+        LIBRARY DESTINATION ${binding_install_dir})
 
 ##################################################
 # HelloWorld
@@ -47,7 +47,7 @@ SET_TARGET_PROPERTIES(helloWorld PROPERTIES
 )
 TARGET_LINK_LIBRARIES(helloWorld ${link_libraries})
 INSTALL(TARGETS helloWorld
-        LIBRARY DESTINATION ${plugin_install_dir})
+        LIBRARY DESTINATION ${binding_install_dir})
 
 ##################################################
 # tic-tac-toe
@@ -59,5 +59,5 @@ SET_TARGET_PROPERTIES(tic-tac-toe PROPERTIES
 )
 TARGET_LINK_LIBRARIES(tic-tac-toe ${link_libraries})
 INSTALL(TARGETS tic-tac-toe
-        LIBRARY DESTINATION ${plugin_install_dir})
+        LIBRARY DESTINATION ${binding_install_dir})
 

@@ -3,7 +3,7 @@ PKG_CHECK_MODULES(librtlsdr librtlsdr>=0.5.0)
 
 IF(librtlsdr_FOUND)
 
-  MESSAGE(STATUS "librtlsdr found ; will compile Radio plugin... (PLUGIN)")
+  MESSAGE(STATUS "librtlsdr found ; will compile Radio binding... (binding)")
   INCLUDE_DIRECTORIES(${include_dirs} ${librtlsdr_INCLUDE_DIRS})
   ADD_LIBRARY(radio-api MODULE radio-api.c radio-rtlsdr.c)
   SET_TARGET_PROPERTIES(radio-api PROPERTIES
@@ -12,6 +12,6 @@ IF(librtlsdr_FOUND)
   )
   TARGET_LINK_LIBRARIES(radio-api ${link_libraries} ${librtlsdr_LIBRARIES} -lm)
   INSTALL(TARGETS radio-api
-          LIBRARY DESTINATION ${plugin_install_dir})
+          LIBRARY DESTINATION ${binding_install_dir})
 
 ENDIF(librtlsdr_FOUND)

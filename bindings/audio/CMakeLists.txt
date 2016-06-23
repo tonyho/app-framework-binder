@@ -6,10 +6,10 @@ FIND_PACKAGE(Threads)
 
 IF(alsa_FOUND)
 
-  MESSAGE(STATUS "ALSA found ; will compile Audio plugin... (PLUGIN)")
+  MESSAGE(STATUS "ALSA found ; will compile Audio binding... (BINDING)")
 
   IF(pulseaudio_FOUND)
-    MESSAGE(STATUS "PulseAudio found ; Audio plugin will have PulseAudio support")
+    MESSAGE(STATUS "PulseAudio found ; Audio binding will have PulseAudio support")
     ADD_DEFINITIONS(-DHAVE_PULSE=1)
     SET(pulse_sources audio-pulse.c)
   ENDIF(pulseaudio_FOUND)
@@ -22,6 +22,6 @@ IF(alsa_FOUND)
   )
   TARGET_LINK_LIBRARIES(audio-api ${link_libraries} ${alsa_LIBRARIES} ${pulseaudio_LIBRARIES})
   INSTALL(TARGETS audio-api
-          LIBRARY DESTINATION ${plugin_install_dir})
+          LIBRARY DESTINATION ${binding_install_dir})
 
 ENDIF(alsa_FOUND)

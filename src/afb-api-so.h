@@ -20,7 +20,7 @@
 
 extern void afb_api_so_set_timeout(int to);
 
-extern int afb_api_so_add_plugin(const char *path);
+extern int afb_api_so_add_binding(const char *path);
 
 extern int afb_api_so_add_directory(const char *path);
 

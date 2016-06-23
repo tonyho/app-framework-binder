@@ -18,7 +18,7 @@
 ##
 
 includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
-plugin_install_dir=@plugin_install_dir@
+binding_install_dir=@binding_install_dir@
 
 Name: @PROJECT_PRETTY_NAME@
 Description: @PROJECT_DESCRIPTION@

@@ -31,9 +31,9 @@ struct afb_service
 	void *closure;
 };
 
-extern int pluginAfbV1ServiceInit(struct afb_service service);
+extern int afbBindingV1ServiceInit(struct afb_service service);
 
-extern void pluginAfbV1ServiceEvent(const char *event, struct json_object *object);
+extern void afbBindingV1ServiceEvent(const char *event, struct json_object *object);
 
 static inline void afb_service_call(struct afb_service service, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *callback_closure)
 {

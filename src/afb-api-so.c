@@ -16,7 +16,7 @@
  */
 
 #define _GNU_SOURCE
-#define NO_PLUGIN_VERBOSE_MACRO
+#define NO_BINDING_VERBOSE_MACRO
 
 #include <stdio.h>
 #include <assert.h>
@@ -28,7 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 #include <afb/afb-req-itf.h>
 #include <afb/afb-event-itf.h>
 
@@ -43,14 +43,14 @@
 #include "verbose.h"
 
 /*
- * Description of a plugin
+ * Description of a binding
  */
 struct api_so_desc {
-	struct AFB_plugin *plugin;	/* descriptor */
+	struct afb_binding *binding;	/* descriptor */
 	size_t apilength;		/* length of the API name */
 	void *handle;			/* context of dlopen */
 	struct afb_svc *service;	/* handler for service started */
-	struct AFB_interface interface;	/* interface for the plugin */
+	struct afb_binding_interface interface;	/* interface for the binding */
 };
 
 struct monitoring {
@@ -58,9 +58,9 @@ struct monitoring {
 	void (*action)(struct afb_req);
 };
 
-static const char plugin_register_function_v1[] = "pluginAfbV1Register";
-static const char plugin_service_init_function_v1[] = "pluginAfbV1ServiceInit";
-static const char plugin_service_event_function_v1[] = "pluginAfbV1ServiceEvent";
+static const char binding_register_function_v1[] = "afbBindingV1Register";
+static const char binding_service_init_function_v1[] = "afbBindingV1ServiceInit";
+static const char binding_service_event_function_v1[] = "afbBindingV1ServiceEvent";
 
 static int api_timeout = 15;
 
@@ -83,10 +83,10 @@ static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const ch
 	char *event;
 
 	/* makes the event name */
-	assert(desc->plugin != NULL);
+	assert(desc->binding != NULL);
 	length = strlen(name);
 	event = alloca(length + 2 + desc->apilength);
-	memcpy(event, desc->plugin->v1.prefix, desc->apilength);
+	memcpy(event, desc->binding->v1.prefix, desc->apilength);
 	event[desc->apilength] = '/';
 	memcpy(event + desc->apilength + 1, name, length + 1);
 
@@ -100,10 +100,10 @@ static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name
 	char *event;
 
 	/* makes the event name */
-	assert(desc->plugin != NULL);
+	assert(desc->binding != NULL);
 	length = strlen(name);
 	event = alloca(length + 2 + desc->apilength);
-	memcpy(event, desc->plugin->v1.prefix, desc->apilength);
+	memcpy(event, desc->binding->v1.prefix, desc->apilength);
 	event[desc->apilength] = '/';
 	memcpy(event + desc->apilength + 1, name, length + 1);
 
@@ -117,7 +117,7 @@ static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char 
 	if (vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, fmt, args);
 	else {
-		verbose(level, file, line, "%s {plugin %s}", p, desc->plugin->v1.prefix);
+		verbose(level, file, line, "%s {binding %s}", p, desc->binding->v1.prefix);
 		free(p);
 	}
 }
@@ -130,7 +130,7 @@ static void monitored_call(int signum, struct monitoring *data)
 		data->action(data->req);
 }
 
-static void call_check(struct afb_req req, struct afb_context *context, const struct AFB_verb_desc_v1 *verb)
+static void call_check(struct afb_req req, struct afb_context *context, const struct afb_verb_desc_v1 *verb)
 {
 	struct monitoring data;
 
@@ -184,15 +184,15 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 
 static void call(struct api_so_desc *desc, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
 {
-	const struct AFB_verb_desc_v1 *v;
+	const struct afb_verb_desc_v1 *v;
 
-	v = desc->plugin->v1.verbs;
+	v = desc->binding->v1.verbs;
 	while (v->name && (strncasecmp(v->name, verb, lenverb) || v->name[lenverb]))
 		v++;
 	if (v->name)
 		call_check(req, context, v);
 	else
-		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->plugin->v1.prefix);
+		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->binding->v1.prefix);
 }
 
 static int service_start(struct api_so_desc *desc, int share_session, int onneed)
@@ -207,28 +207,28 @@ static int service_start(struct api_so_desc *desc, int share_session, int onneed
 			return 0;
 
 		/* already started: it is an error */
-		ERROR("Service %s already started", desc->plugin->v1.prefix);
+		ERROR("Service %s already started", desc->binding->v1.prefix);
 		return -1;
 	}
 
 	/* get the initialisation */
-	init = dlsym(desc->handle, plugin_service_init_function_v1);
+	init = dlsym(desc->handle, binding_service_init_function_v1);
 	if (init == NULL) {
 		/* not an error when onneed */
 		if (onneed != 0)
 			return 0;
 
 		/* no initialisation method */
-		ERROR("Binding %s is not a service", desc->plugin->v1.prefix);
+		ERROR("Binding %s is not a service", desc->binding->v1.prefix);
 		return -1;
 	}
 
 	/* get the event handler if any */
-	onevent = dlsym(desc->handle, plugin_service_event_function_v1);
+	onevent = dlsym(desc->handle, binding_service_event_function_v1);
 	desc->service = afb_svc_create(share_session, init, onevent);
 	if (desc->service == NULL) {
 		/* starting error */
-		ERROR("Starting service %s failed", desc->plugin->v1.prefix);
+		ERROR("Starting service %s failed", desc->binding->v1.prefix);
 		return -1;
 	}
 
@@ -240,28 +240,28 @@ void afb_api_so_set_timeout(int to)
 	api_timeout = to;
 }
 
-int afb_api_so_add_plugin(const char *path)
+int afb_api_so_add_binding(const char *path)
 {
 	int rc;
 	void *handle;
 	struct api_so_desc *desc;
-	struct AFB_plugin *(*pluginAfbV1RegisterFct) (const struct AFB_interface *interface);
+	struct afb_binding *(*register_function) (const struct afb_binding_interface *interface);
 
-	// This is a loadable library let's check if it's a plugin
+	// This is a loadable library let's check if it's a binding
 	rc = 0;
 	handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 	if (handle == NULL) {
-		ERROR("plugin [%s] not loadable", path);
+		ERROR("binding [%s] not loadable", path);
 		goto error;
 	}
 
 	/* retrieves the register function */
-	pluginAfbV1RegisterFct = dlsym(handle, plugin_register_function_v1);
-	if (!pluginAfbV1RegisterFct) {
-		ERROR("plugin [%s] is not an AFB plugin", path);
+	register_function = dlsym(handle, binding_register_function_v1);
+	if (!register_function) {
+		ERROR("binding [%s] is not an AFB binding", path);
 		goto error2;
 	}
-	INFO("plugin [%s] is a valid AFB plugin", path);
+	INFO("binding [%s] is a valid AFB binding", path);
 	rc = -1;
 
 	/* allocates the description */
@@ -278,46 +278,46 @@ int afb_api_so_add_plugin(const char *path)
 	desc->interface.daemon.itf = &daemon_itf;
 	desc->interface.daemon.closure = desc;
 
-	/* init the plugin */
-	NOTICE("plugin [%s] calling registering function %s", path, plugin_register_function_v1);
-	desc->plugin = pluginAfbV1RegisterFct(&desc->interface);
-	if (desc->plugin == NULL) {
-		ERROR("plugin [%s] register function failed. continuing...", path);
+	/* init the binding */
+	NOTICE("binding [%s] calling registering function %s", path, binding_register_function_v1);
+	desc->binding = register_function(&desc->interface);
+	if (desc->binding == NULL) {
+		ERROR("binding [%s] register function failed. continuing...", path);
 		goto error3;
 	}
 
 	/* check the returned structure */
-	if (desc->plugin->type != AFB_PLUGIN_VERSION_1) {
-		ERROR("plugin [%s] invalid type %d...", path, desc->plugin->type);
+	if (desc->binding->type != AFB_BINDING_VERSION_1) {
+		ERROR("binding [%s] invalid type %d...", path, desc->binding->type);
 		goto error3;
 	}
-	if (desc->plugin->v1.prefix == NULL || *desc->plugin->v1.prefix == 0) {
-		ERROR("plugin [%s] bad prefix...", path);
+	if (desc->binding->v1.prefix == NULL || *desc->binding->v1.prefix == 0) {
+		ERROR("binding [%s] bad prefix...", path);
 		goto error3;
 	}
-	if (!afb_apis_is_valid_api_name(desc->plugin->v1.prefix)) {
-		ERROR("plugin [%s] invalid prefix...", path);
+	if (!afb_apis_is_valid_api_name(desc->binding->v1.prefix)) {
+		ERROR("binding [%s] invalid prefix...", path);
 		goto error3;
 	}
-	if (desc->plugin->v1.info == NULL || *desc->plugin->v1.info == 0) {
-		ERROR("plugin [%s] bad description...", path);
+	if (desc->binding->v1.info == NULL || *desc->binding->v1.info == 0) {
+		ERROR("binding [%s] bad description...", path);
 		goto error3;
 	}
-	if (desc->plugin->v1.verbs == NULL) {
-		ERROR("plugin [%s] no APIs...", path);
+	if (desc->binding->v1.verbs == NULL) {
+		ERROR("binding [%s] no APIs...", path);
 		goto error3;
 	}
 
-	/* records the plugin */
-	desc->apilength = strlen(desc->plugin->v1.prefix);
-	if (afb_apis_add(desc->plugin->v1.prefix, (struct afb_api){
+	/* records the binding */
+	desc->apilength = strlen(desc->binding->v1.prefix);
+	if (afb_apis_add(desc->binding->v1.prefix, (struct afb_api){
 			.closure = desc,
 			.call = (void*)call,
 			.service_start = (void*)service_start }) < 0) {
-		ERROR("plugin [%s] can't be registered...", path);
+		ERROR("binding [%s] can't be registered...", path);
 		goto error3;
 	}
-	NOTICE("plugin %s loaded with API prefix %s", path, desc->plugin->v1.prefix);
+	NOTICE("binding %s loaded with API prefix %s", path, desc->binding->v1.prefix);
 	return 0;
 
 error3:
@@ -337,10 +337,10 @@ static int adddirs(char path[PATH_MAX], size_t end)
 	/* open the DIR now */
 	dir = opendir(path);
 	if (dir == NULL) {
-		ERROR("can't scan plugin directory %s, %m", path);
+		ERROR("can't scan binding directory %s, %m", path);
 		return -1;
 	}
-	INFO("Scanning dir=[%s] for plugins", path);
+	INFO("Scanning dir=[%s] for bindings", path);
 
 	/* scan each entry */
 	if (end)
@@ -352,7 +352,7 @@ static int adddirs(char path[PATH_MAX], size_t end)
 
 		len = strlen(ent.d_name);
 		if (len + end >= PATH_MAX) {
-			ERROR("path too long while scanning plugins for %s", ent.d_name);
+			ERROR("path too long while scanning bindings for %s", ent.d_name);
 			continue;
 		}
 		memcpy(&path[end], ent.d_name, len+1);
@@ -369,7 +369,7 @@ static int adddirs(char path[PATH_MAX], size_t end)
 			/* case of files */
 			if (!strstr(ent.d_name, ".so"))
 				continue;
-			if (afb_api_so_add_plugin(path) < 0)
+			if (afb_api_so_add_binding(path) < 0)
 				return -1;
 		}
 	}
@@ -399,13 +399,13 @@ int afb_api_so_add_path(const char *path)
 
 	rc = stat(path, &st);
 	if (rc < 0)
-		ERROR("Invalid plugin path [%s]: %m", path);
+		ERROR("Invalid binding path [%s]: %m", path);
 	else if (S_ISDIR(st.st_mode))
 		rc = afb_api_so_add_directory(path);
 	else if (strstr(path, ".so"))
-		rc = afb_api_so_add_plugin(path);
+		rc = afb_api_so_add_binding(path);
 	else
-		INFO("not a plugin [%s], skipped", path);
+		INFO("not a binding [%s], skipped", path);
 	return rc;
 }
 

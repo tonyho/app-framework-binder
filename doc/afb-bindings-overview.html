@@ -4,9 +4,8 @@
   <meta charset="utf-8">
   <meta name="generator" content="pandoc">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <meta name="author" content="Manuel Bachmann">
   <meta name="author" content="José Bollo">
-  <title>Overview of plugins shipped with AFB-Daemon</title>
+  <title>Overview of bindings shipped with AFB-Daemon</title>
   <style type="text/css">code{white-space: pre;}</style>
   <!--[if lt IE 9]>
     <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
@@ -15,16 +14,15 @@
 </head>
 <body>
 <header>
-<h1 class="title">Overview of plugins shipped with AFB-Daemon</h1>
-<h2 class="author">Manuel Bachmann</h2>
+<h1 class="title">Overview of bindings shipped with AFB-Daemon</h1>
 <h2 class="author">José Bollo</h2>
-<h3 class="date">09 juin 2016</h3>
+<h3 class="date">23 juin 2016</h3>
 </header>
 <nav id="TOC">
 <ul>
-<li><a href="#overview-of-plugins-shipped-with-afb-daemon">Overview of plugins shipped with AFB-Daemon</a><ul>
-<li><a href="#list-of-plugins">List of plugins</a></li>
-<li><a href="#detail-of-plugins">Detail of plugins</a><ul>
+<li><a href="#overview-of-bindings-shipped-with-afb-daemon">Overview of bindings shipped with AFB-Daemon</a><ul>
+<li><a href="#list-of-bindings">List of bindings</a></li>
+<li><a href="#detail-of-bindings">Detail of bindings</a><ul>
 <li><a href="#hello-world">Hello World</a></li>
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#tic-tac-toe">Tic Tac Toe</a></li>
@@ -35,12 +33,12 @@
 </ul></li>
 </ul>
 </nav>
-<h1 id="overview-of-plugins-shipped-with-afb-daemon">Overview of plugins shipped with AFB-Daemon</h1>
+<h1 id="overview-of-bindings-shipped-with-afb-daemon">Overview of bindings shipped with AFB-Daemon</h1>
 <pre><code>Version: 1
 Date:    09 juin 2016
 Author:  Manuel Bachmann</code></pre>
-<h2 id="list-of-plugins">List of plugins</h2>
-<p>Here are the plugins shipped in the source tree:</p>
+<h2 id="list-of-bindings">List of bindings</h2>
+<p>Here are the bindings shipped in the source tree:</p>
 <ul>
 <li>Hello World</li>
 <li>Authentication</li>
@@ -49,11 +47,11 @@ Author:  Manuel Bachmann</code></pre>
 <li>Radio <em>(1 backend: RTLSDR RTL2832U)</em></li>
 <li>Media <em>(1 backend: Rygel UPnP)</em></li>
 </ul>
-<p>All plugins may not be built, depending on the development libraries present on the system at build time.</p>
-<h2 id="detail-of-plugins">Detail of plugins</h2>
+<p>All bindings may not be built, depending on the development libraries present on the system at build time.</p>
+<h2 id="detail-of-bindings">Detail of bindings</h2>
 <h3 id="hello-world">Hello World</h3>
-<p>A sample Hello World plugin for demonstration and learning purposes.</p>
-<p>This plugin provides a few unauthenticated requests, all beginning with &quot;ping&quot;, to demonstrate basic binder capabilities.</p>
+<p>A sample Hello World binding for demonstration and learning purposes.</p>
+<p>This binding provides a few unauthenticated requests, all beginning with &quot;ping&quot;, to demonstrate basic binder capabilities.</p>
 <p><strong>Verbs</strong>:</p>
 <ul>
 <li><em>ping:</em> returns a success response</li>
@@ -65,8 +63,8 @@ Author:  Manuel Bachmann</code></pre>
 </ul>
 <p><br /></p>
 <h3 id="authentication">Authentication</h3>
-<p>An sample Authentication plugin for demonstration purposes.</p>
-<p>This plugin provides a few requests to demonstrate the binder's token-based security mechanism.</p>
+<p>An sample Authentication binding for demonstration purposes.</p>
+<p>This binding provides a few requests to demonstrate the binder's token-based security mechanism.</p>
 <p>Calling &quot;<em>connect</em>&quot; with a security token will initiate a session, calling &quot;<em>refresh</em>&quot; will issue a new token and invalidate the previous one, calling &quot;<em>logout</em>&quot; will invalidate all tokens and close the session.</p>
 <p><strong>Verbs</strong>:</p>
 <ul>
@@ -78,8 +76,8 @@ Author:  Manuel Bachmann</code></pre>
 </ul>
 <p><br /></p>
 <h3 id="tic-tac-toe">Tic Tac Toe</h3>
-<p>A sample Tic Tac Toe game plugin.</p>
-<p>This plugin provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response.</p>
+<p>A sample Tic Tac Toe game binding.</p>
+<p>This binding provides an interactive Tic Tac Toe game where the binder returns the grid as a JSON response.</p>
 <p><strong>Verbs</strong>:</p>
 <ul>
 <li><em>new:</em> starts a new game</li>
@@ -93,12 +91,12 @@ Author:  Manuel Bachmann</code></pre>
 </ul>
 <p><br /></p>
 <h3 id="audio">Audio</h3>
-<p>A sample Audio plugin with 2 backends:</p>
+<p>A sample Audio binding with 2 backends:</p>
 <ul>
 <li>ALSA (mandatory)</li>
 <li>PulseAudio (optional)</li>
 </ul>
-<p>This plugin is able to initialize a specific soundcard, define volume levels, channels (mono/stereo...), mute sound, and play a 22,050 Hz PCM stream.</p>
+<p>This binding is able to initialize a specific soundcard, define volume levels, channels (mono/stereo...), mute sound, and play a 22,050 Hz PCM stream.</p>
 <p><strong>Verbs</strong>:</p>
 <ul>
 <li><em>ping:</em> returns a success response</li>
@@ -109,15 +107,15 @@ Author:  Manuel Bachmann</code></pre>
 <li><em>play</em>: gets or sets the playing status (on-off)</li>
 </ul>
 <p><em>(if PulseAudio development libraries are not found at build time, only ALSA will be available)</em></p>
-<p><em>(if a PulseAudio server is not found at runtime, the plugin will dynamically fall back to ALSA)</em></p>
+<p><em>(if a PulseAudio server is not found at runtime, the binding will dynamically fall back to ALSA)</em></p>
 <p><em>(a specifc backend can be forced by using this syntax before running afb-daemon : <strong>$ export AFB_AUDIO_OUTPUT=Alsa</strong>)</em></p>
 <p><br /></p>
 <h3 id="radio">Radio</h3>
-<p>A sample AM/FM Radio plugin with 1 backend:</p>
+<p>A sample AM/FM Radio binding with 1 backend:</p>
 <ul>
 <li>RTLSDR - Realtek RTL2832U dongles (mandatory)</li>
 </ul>
-<p>This plugin is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the <strong>audio</strong> plugin).</p>
+<p>This binding is able to initialize specific RTL2832U dongles, switch between AM/FM modes, define frequency, mute sound, and play sound (if combining with the <strong>audio</strong> binding).</p>
 <p><strong>Verbs</strong>:</p>
 <ul>
 <li><em>ping:</em> returns a success response</li>
@@ -128,14 +126,14 @@ Author:  Manuel Bachmann</code></pre>
 <li><em>mute</em>: sets device mute status (on-off)</li>
 <li><em>play</em>: sets device playing status (on-off)</li>
 </ul>
-<p><em>(if rtlsdr development libraries are not found at build time, this plugin will not be built)</em></p>
+<p><em>(if rtlsdr development libraries are not found at build time, this binding will not be built)</em></p>
 <p><br /></p>
 <h3 id="media">Media</h3>
-<p>A sample Media Server plugin with 1 backend:</p>
+<p>A sample Media Server binding with 1 backend:</p>
 <ul>
 <li>Rygel</li>
 </ul>
-<p>This plugin is able to detect a local Rygel UPnP media server, list audio files, select an audio file for playback, play/pause/seek in this file, upload an audio file to the server.</p>
+<p>This binding is able to detect a local Rygel UPnP media server, list audio files, select an audio file for playback, play/pause/seek in this file, upload an audio file to the server.</p>
 <p><strong>Verbs</strong>:</p>
 <ul>
 <li><em>ping:</em> returns a success response</li>
@@ -148,7 +146,7 @@ Author:  Manuel Bachmann</code></pre>
 <li><em>seek:</em> seeks in the currently selected audio file, in seconds</li>
 <li><em>upload:</em> uploads an audio file, with a POST request</li>
 </ul>
-<p><em>(if GUPnP/GSSDP development libraries are not fund at build time, this plugin will not be built)</em></p>
+<p><em>(if GUPnP/GSSDP development libraries are not fund at build time, this binding will not be built)</em></p>
 <p><br /></p>
 <hr />
 <p><br /></p>
