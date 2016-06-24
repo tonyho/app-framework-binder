@@ -48,6 +48,12 @@ void verbose_set_name(const char *name, int authority)
 
 #else
 
+#include <unistd.h>
+
+static const char *appname;
+
+static int appauthority;
+
 static const char *prefixes[] = {
 	"<0> EMERGENCY",
 	"<1> ALERT",
@@ -61,9 +67,11 @@ static const char *prefixes[] = {
 
 void vverbose(int level, const char *file, int line, const char *fmt, va_list args)
 {
-	fprintf(stderr, "%s: ", prefixes[LEVEL(level)]);
+	int tty = isatty(fileno(stderr));
+
+	fprintf(stderr, "%s: ", prefixes[LEVEL(level)] + (tty ? 4 : 0));
 	vfprintf(stderr, fmt, args);
-	if (file != NULL)
+	if (file != NULL && (!tty || verbosity >5))
 		fprintf(stderr, " [%s:%d]\n", file, line);
 	else
 		fprintf(stderr, "\n");
@@ -71,7 +79,8 @@ void vverbose(int level, const char *file, int line, const char *fmt, va_list ar
 
 void verbose_set_name(const char *name, int authority)
 {
-	fprintf(stderr, "%s: application name is '%s' for '%s'\n", prefixes[5], name, authority ? "AUTHORITY" : "USER");
+	appname = name;
+	appauthority = authority;
 }
 
 #endif
