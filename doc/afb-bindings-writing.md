@@ -1,10 +1,6 @@
+
 HOWTO WRITE a BINDING for AFB-DAEMON
 ===================================
-    version: 1
-    Date:    09 juin 2016
-    Author:  José Bollo
-
-
 
 Summary
 -------

@@ -1,10 +1,6 @@
+
 HOWTO WRITE an APPLICATION above AGL FRAMEWORK
 ==============================================
-    version: 1
-    Date:    09 juin 2016
-    Author:  José Bollo
-
-
 
 Programmation Languages for Applications
 -----------------------------------------

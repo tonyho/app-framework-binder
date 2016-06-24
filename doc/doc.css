@@ -19,8 +19,6 @@ pre {
 	outline: #555;
 }
 
-pre:first-of-type { width: 20em; }
-
 blockquote {
 	border-left: solid thick black;
 	background-color: #ff8;
