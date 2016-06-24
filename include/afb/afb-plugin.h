@@ -17,6 +17,10 @@
 
 #pragma once
 
+#pragma GCC warning "\n\n    This header file <afb/afb-plugin.h> is OBSOLETE.\n\
+    It is provided for COMPATIBILITY ONLY.\n\n\
+    Please USE <afb/afb-binding.h> and ADAPT YOUR CODE to new names.\n"
+
 #if defined(NO_PLUGIN_VERBOSE_MACRO)
 #  define NO_BINDING_VERBOSE_MACRO
 #endif
@@ -33,8 +37,7 @@
 #define AFB_plugin                 afb_binding
 #define AFB_interface              afb_binding_interface
 #define pluginAfbV1Register        afbBindingV1Register
-
-
 #define AFB_Mode                   afb_mode
 #define AFB_session_v1             afb_session_v1
 #define AFB_verb_desc_v1           afb_verb_desc_v1
+
