@@ -246,6 +246,8 @@ int afb_api_so_add_binding(const char *path)
 	void *handle;
 	struct api_so_desc *desc;
 	struct afb_binding *(*register_function) (const struct afb_binding_interface *interface);
+	struct afb_verb_desc_v1 fake_verb;
+	struct afb_binding fake_binding;
 
 	// This is a loadable library let's check if it's a binding
 	rc = 0;
@@ -277,6 +279,14 @@ int afb_api_so_add_binding(const char *path)
 	desc->interface.mode = AFB_MODE_LOCAL;
 	desc->interface.daemon.itf = &daemon_itf;
 	desc->interface.daemon.closure = desc;
+
+	/* for log purpose, a fake binding is needed here */
+	desc->binding = &fake_binding;
+	fake_binding.type = AFB_BINDING_VERSION_1;
+	fake_binding.v1.info = path;
+	fake_binding.v1.prefix = path;
+	fake_binding.v1.verbs = &fake_verb;
+	fake_verb.name = NULL;
 
 	/* init the binding */
 	NOTICE("binding [%s] calling registering function %s", path, binding_register_function_v1);
