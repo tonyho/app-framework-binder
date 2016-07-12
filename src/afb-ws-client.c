@@ -29,6 +29,7 @@
 #include <fcntl.h>
 
 #include "afb-wsj1.h"
+#include "afb-common.h"
 
 /**************** WebSocket handshake ****************************/
 
@@ -111,7 +112,7 @@ static char *strjoin(int count, const char **strings, const char *separ)
 /* creates the http message for the request */
 static int make_request(char **request, const char *path, const char *host, const char *key, const char *protocols)
 {
-	int rc = asprintf(request, 
+	int rc = asprintf(request,
 			"GET %s HTTP/1.1\r\n"
 			"Host: %s\r\n"
 			"Upgrade: websocket\r\n"
@@ -314,7 +315,7 @@ invalid:
 	errno = EINVAL;
 error:
 	return -1;
-	
+
 }
 
 
@@ -405,5 +406,16 @@ static char *makequery(const char *path, const char *uuid, const char *token)
 	return result;
 }
 #endif
+
+/*
+ *
+ * Returns the internal event loop coming from afb-common
+ *
+ * Returns the handle to the event loop
+ */
+struct sd_event *afb_ws_client_get_event_loop()
+{
+	return afb_common_get_event_loop();
+}
 
 

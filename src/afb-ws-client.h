@@ -27,3 +27,7 @@ struct afb_wsj1_itf;
  * Returns NULL in case of failure with errno set appriately.
  */
 extern struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf *itf, void *closure);
+
+struct sd_event;
+extern struct sd_event *afb_ws_client_get_event_loop();
+

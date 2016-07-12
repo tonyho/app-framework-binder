@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2015, 2016 "IoT.bzh"
  * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
@@ -30,7 +30,6 @@
 
 #include <systemd/sd-event.h>
 
-#include "afb-common.h"  /* TODO: remove dependency to afb-common.h */
 #include "afb-wsj1.h"
 #include "afb-ws-client.h"
 
@@ -85,7 +84,7 @@ int main(int ac, char **av, char **env)
 	if (ac == 2) {
 		/* get requests from stdin */
 		fcntl(0, F_SETFL, O_NONBLOCK);
-		sd_event_add_io(afb_common_get_event_loop(), &evsrc, 0, EPOLLIN, io_event_callback, NULL);
+		sd_event_add_io(afb_ws_client_get_event_loop(), &evsrc, 0, EPOLLIN, io_event_callback, NULL);
 	} else {
 		/* the request is defined by the arguments */
 		exonrep = 1;
@@ -94,7 +93,7 @@ int main(int ac, char **av, char **env)
 
 	/* loop until end */
 	for(;;)
-		sd_event_run(afb_common_get_event_loop(), 30000000);
+		sd_event_run(afb_ws_client_get_event_loop(), 30000000);
 	return 0;
 }
 
