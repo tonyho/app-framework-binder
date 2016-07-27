@@ -25,7 +25,7 @@ struct json_object;
  * It records the functions to be called for the request.
  * Don't use this structure directly.
  * Use the helper functions documented below.
- */ 
+ */
 struct afb_event_itf {
 	/* CAUTION: respect the order, add at the end */
 

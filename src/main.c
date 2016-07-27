@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2015, 2016 "IoT.bzh"
  * Author "Fulup Ar Foll"
  * Author José Bollo <jose.bollo@iot.bzh>
@@ -102,16 +102,16 @@ static  AFB_options cliOptions [] = {
   {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa]"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api]"},
   {SET_ALIAS        ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
-  
+
   {SET_APITIMEOUT   ,1,"apitimeout"      , "Binding API timeout in seconds [default 10]"},
   {SET_CNTXTIMEOUT  ,1,"cntxtimeout"     , "Client Session Context Timeout [default 900]"},
   {SET_CACHE_TIMEOUT,1,"cache-eol"       , "Client cache end of live [default 3600]"},
-  
+
   {SET_SESSION_DIR  ,1,"sessiondir"      , "Sessions file path [default rootdir/sessions]"},
 
   {SET_LDPATH       ,1,"ldpaths"         , "Load bindingss from dir1:dir2:... [default = "BINDING_INSTALL_DIR"]"},
   {SET_AUTH_TOKEN   ,1,"token"           , "Initial Secret [default=no-session, --token="" for session without authentication]"},
-  
+
   {DISPLAY_VERSION  ,0,"version"         , "Display version and copyright"},
   {DISPLAY_HELP     ,0,"help"            , "Display this help"},
 
@@ -173,11 +173,11 @@ static void config_set_default (struct afb_config * config)
    // default HTTP port
    if (config->httpdPort == 0)
 	config->httpdPort = 1234;
-   
+
    // default binding API timeout
    if (config->apiTimeout == 0)
 	config->apiTimeout = DEFLT_API_TIMEOUT;
-   
+
    // default AUTH_TOKEN
    if (config->token == NULL)
 		config->token = DEFLT_AUTH_TOKEN;
@@ -204,11 +204,11 @@ static void config_set_default (struct afb_config * config)
        // if directory does not exist createit
        mkdir (config->rootdir,  O_RDWR | S_IRWXU | S_IRGRP);
    }
-   
+
    // if no Angular/HTML5 rootbase let's try '/' as default
    if  (config->rootbase == NULL)
        config->rootbase = "/opa";
-   
+
    if  (config->rootapi == NULL)
        config->rootapi = "/api";
 
@@ -289,7 +289,7 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
        if (optarg == 0) goto needValueForOption;
        if (!sscanf (optarg, "%d", &config->httpdPort)) goto notAnInteger;
        break;
-       
+
     case SET_APITIMEOUT:
        if (optarg == 0) goto needValueForOption;
        if (!sscanf (optarg, "%d", &config->apiTimeout)) goto notAnInteger;
@@ -304,8 +304,8 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
        if (optarg == 0) goto needValueForOption;
        config->rootdir   = optarg;
        INFO("Forcing Rootdir=%s",config->rootdir);
-       break;       
-       
+       break;
+
     case SET_ROOT_BASE:
        if (optarg == 0) goto needValueForOption;
        config->rootbase   = optarg;
@@ -317,7 +317,7 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
        config->rootapi   = optarg;
        INFO("Forcing Rootapi=%s",config->rootapi);
        break;
-       
+
     case SET_ALIAS:
        if (optarg == 0) goto needValueForOption;
        if ((unsigned)config->aliascount < sizeof (config->aliasdir) / sizeof (config->aliasdir[0])) {
@@ -331,9 +331,9 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
             }
        } else {
            ERROR("Too many aliases [max:%d] %s ignored", MAX_ALIAS, optarg);
-       }     
+       }
        break;
-       
+
     case SET_AUTH_TOKEN:
        if (optarg == 0) goto needValueForOption;
        config->token   = optarg;
@@ -401,7 +401,7 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
     }
   }
   free(gnuOptions);
- 
+
   config_set_default  (config);
   return;
 

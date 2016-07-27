@@ -22,10 +22,10 @@
 #include <afb/afb-plugin.h>
 
 typedef struct {
-  /* 
+  /*
    * client context is attached a session but private to a each plugin.
    * Context is passed to each API under request->context
-   * 
+   *
    * Note:
    *  -client context is free when a session is closed. Developer should not
    *   forget that even if context is private to each plugin, session is unique
@@ -38,13 +38,13 @@ typedef struct {
    *  -when an API use AFB_SESSION_RESET this close the session and each plugin
    *   will be notified to free ressources.
    */
-    
+
   int  count;
   char *abcd;
-  
+
 } MyClientContextT;
 
-// This function is call at session open time. Any client trying to 
+// This function is call at session open time. Any client trying to
 // call it with an already open session will be denied.
 // Ex: http://localhost:1234/api/context/create?token=123456789
 static void myCreate (struct afb_req request)
@@ -53,7 +53,7 @@ static void myCreate (struct afb_req request)
 
     // store something in our plugin private client context
     ctx->count = 0;
-    ctx->abcd  = "SomeThingUseful";        
+    ctx->abcd  = "SomeThingUseful";
 
     afb_req_context_set(request, ctx, free);
     afb_req_success_f(request, NULL, "SUCCESS: create client context for plugin [%s]", ctx->abcd);
@@ -66,7 +66,7 @@ static void myCreate (struct afb_req request)
 static void myAction (struct afb_req request)
 {
     MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
-    
+
     // store something in our plugin private client context
     ctx->count++;
     afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Check=[%d]\n", ctx->abcd, ctx->count);
@@ -79,7 +79,7 @@ static void myAction (struct afb_req request)
 static void myClose (struct afb_req request)
 {
     MyClientContextT *ctx = (MyClientContextT*) afb_req_context_get(request);
-    
+
     // store something in our plugin private client context
     ctx->count++;
     afb_req_success_f(request, NULL, "SUCCESS: plugin [%s] Close=[%d]\n", ctx->abcd, ctx->count);

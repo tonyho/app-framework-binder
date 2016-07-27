@@ -67,7 +67,7 @@ static void UploadMusic (struct afb_req request)
 }
 
 // PostForm callback is called multiple times (one or each key within form, or once per file buffer)
-// When file has been fully uploaded call is call with item==NULL 
+// When file has been fully uploaded call is call with item==NULL
 static void UploadImage (struct afb_req request)
 {
     Uploads(request, "images");

@@ -38,7 +38,7 @@ static pluginHandleT *the_radio = NULL;
 /* detect new radio devices */
 void updateRadioDevList(pluginHandleT *handle) {
 
-  int idx;  
+  int idx;
 
   // loop on existing radio if any
   for (idx = 0; idx < _radio_dev_count(); idx++) {
@@ -305,7 +305,7 @@ static void mute (struct afb_req request) {        /* AFB_SESSION_CHECK */
         json_object_object_add (jresp, "mute", json_object_new_string ("off"));
     }
 
-    afb_req_success (request, jresp, "Radio - Mute set"); 
+    afb_req_success (request, jresp, "Radio - Mute set");
 }
 
 static void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
@@ -318,7 +318,7 @@ static void play (struct afb_req request) {        /* AFB_SESSION_CHECK */
         afb_req_fail (request, "failed", "you must call 'init' first");
         return;
     }
-    
+
     /* no "?value=" parameter : return current state */
     if (!value || !ctx->radio) {
         ctx->is_playing ?

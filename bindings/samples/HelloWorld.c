@@ -144,16 +144,16 @@ static void pingEvent(struct afb_req request)
 
 // For samples https://linuxprograms.wordpress.com/2010/05/20/json-c-libjson-tutorial/
 static void pingJson (struct afb_req request) {
-    json_object *jresp, *embed;    
-    
+    json_object *jresp, *embed;
+
     jresp = json_object_new_object();
     json_object_object_add(jresp, "myString", json_object_new_string ("Some String"));
     json_object_object_add(jresp, "myInt", json_object_new_int (1234));
-     
+
     embed  = json_object_new_object();
     json_object_object_add(embed, "subObjString", json_object_new_string ("Some String"));
     json_object_object_add(embed, "subObjInt", json_object_new_int (5678));
-    
+
     json_object_object_add(jresp,"eobj", embed);
 
     ping(request, jresp, "pingJson");

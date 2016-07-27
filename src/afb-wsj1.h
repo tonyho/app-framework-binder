@@ -94,7 +94,7 @@ extern int afb_wsj1_send_event_j(struct afb_wsj1 *wsj1, const char *event, struc
 
 /*
  * Sends on 'wsj1' a call to the method of 'api'/'verb' with arguments
- * given by 'object'. If not NULL, 'object' should be a valid JSON string.  
+ * given by 'object'. If not NULL, 'object' should be a valid JSON string.
  * On receiving the reply, the function 'on_reply' is called with 'closure'
  * as its first argument and the message of the reply.
  * Return 0 in case of success. Otherwise, returns -1 and set errno.

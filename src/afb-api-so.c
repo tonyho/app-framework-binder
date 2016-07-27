@@ -141,7 +141,7 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 			afb_context_close(context);
 			afb_req_fail(req, "failed", "invalid token's identity");
 			return;
-		}	
+		}
 	}
 
 	if ((stag & AFB_SESSION_CREATE) != 0) {
@@ -152,7 +152,7 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 		afb_context_change_loa(context, 1);
 		afb_context_refresh(context);
 	}
-	
+
 	if ((stag & (AFB_SESSION_CREATE | AFB_SESSION_RENEW)) != 0)
 		afb_context_refresh(context);
 

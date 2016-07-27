@@ -52,7 +52,7 @@ static int packlist(struct sd_bus_message *msg, const char *signature, struct js
 /*
  * Get the string of 'key' from 'obj'
  * Returns NULL if 'key' isn't in 'obj'
- */ 
+ */
 static const char *strval(struct json_object *obj, const char *key)
 {
 	struct json_object *keyval;
@@ -110,7 +110,7 @@ static int lentype(const char *signature, int allows_dict, int allows_not_basic)
 		}
 		if (rc < 0)
 			break;
-		return 1 + len;		
+		return 1 + len;
 
 	case SD_BUS_TYPE_DICT_ENTRY_BEGIN:
 		if (!allows_not_basic || !allows_dict)

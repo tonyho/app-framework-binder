@@ -146,7 +146,7 @@ json_object* _rygel_list (mediaCtxHandleT *ctx) {
         json_object_object_add (json_i, "title", json_title);
         json_object_array_add (json_a, json_i);
 
-        free (id); free (title); 
+        free (id); free (title);
         i++;
     }
 
@@ -549,7 +549,7 @@ static void _rygel_content_cb (GUPnPServiceProxy *content_dir, GUPnPServiceProxy
         return;
 
     if (number_returned == 1) {
-        found = strstr (result, "id=\"");	
+        found = strstr (result, "id=\"");
         found += 4;
         strncpy (subid, found, 32); subid[32] = '\0';
 

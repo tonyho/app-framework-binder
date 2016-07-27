@@ -37,13 +37,13 @@ static struct dev_ctx **dev_ctx = NULL;
 /* Radio initialization should be done only when user start the radio and not at plugin initialization
    Making this call too early would impose to restart the binder to detect a radio */
 unsigned char _radio_on (unsigned int num, radioCtxHandleT *ctx) {
- 
+
     if (num >= _radio_dev_count())
         return 0;
-    
+
     if (init_dev_count < _radio_dev_count()) {
         init_dev_count = _radio_dev_count();
-        dev_ctx = (dev_ctx_T**) realloc (dev_ctx, init_dev_count * sizeof(dev_ctx_T*));           
+        dev_ctx = (dev_ctx_T**) realloc (dev_ctx, init_dev_count * sizeof(dev_ctx_T*));
     }
 
     dev_ctx[num] = (dev_ctx_T*) malloc (sizeof(dev_ctx_T));
@@ -69,7 +69,7 @@ void _radio_off (unsigned int num) {
         _radio_dev_free (dev_ctx[num]);
         free (dev_ctx[num]);
     }
-    
+
     /* free(dev_ctx); */
 }
 

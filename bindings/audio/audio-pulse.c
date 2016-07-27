@@ -298,7 +298,7 @@ void _pulse_enumerate_cards () {
                 asprintf (&alsa_info[i]->synonyms, "%s:%s", alsa_info[i]->synonyms, alsa_name);
                 new_info = 0;
                 break;
-            }            
+            }
         }
         /* it was not ; create it */
         if (new_info) {

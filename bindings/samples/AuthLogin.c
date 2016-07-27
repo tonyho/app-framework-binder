@@ -23,7 +23,7 @@
 
 // Dummy sample of Client Application Context
 typedef struct {
-  int  something;       
+  int  something;
   void *whateveryouwant;
 } MyClientApplicationHandle;
 
@@ -45,33 +45,33 @@ static void clientContextConnect (struct afb_req request)
 
     // do something intelligent to check if we should or not update level of assurance from 0(anonymous) to 1(logged)
     afb_req_session_set_LOA(request, 1);
-    
+
     // Send response to UI
-    jresp = json_object_new_object();               
+    jresp = json_object_new_object();
     json_object_object_add(jresp, "token", json_object_new_string ("A New Token and Session Context Was Created"));
 
     afb_req_success(request, jresp, NULL);
-    
+
 }
 
 // Before entering here token will be check and renew
 static void clientContextRefresh (struct afb_req request) {
     json_object *jresp;
 
-  
+
     jresp = json_object_new_object();
-    json_object_object_add(jresp, "token", json_object_new_string ("Token was refreshed"));              
-    
+    json_object_object_add(jresp, "token", json_object_new_string ("Token was refreshed"));
+
     afb_req_success(request, jresp, NULL);
 }
 
 
 // Session token will we verified before entering here
 static void clientContextCheck (struct afb_req request) {
-    
-    json_object *jresp = json_object_new_object();    
-    json_object_object_add(jresp, "isvalid", json_object_new_boolean (TRUE));       
-        
+
+    json_object *jresp = json_object_new_object();
+    json_object_object_add(jresp, "isvalid", json_object_new_boolean (TRUE));
+
     afb_req_success(request, jresp, NULL);
 }
 
@@ -79,18 +79,18 @@ static void clientContextCheck (struct afb_req request) {
 // Close and Free context
 static void clientContextLogout (struct afb_req request) {
     json_object *jresp;
-   
+
     /* after this call token will be reset
-     *  - no further access to API will be possible 
+     *  - no further access to API will be possible
      *  - every context from any used plugin will be freed
      */
-    
+
     jresp = json_object_new_object();
     json_object_object_add(jresp, "info", json_object_new_string ("Token and all resources are released"));
-    
-    // WARNING: if you free context resource manually here do not forget to set *request.context=NULL; 
+
+    // WARNING: if you free context resource manually here do not forget to set *request.context=NULL;
     afb_req_success(request, jresp, NULL);
-    
+
     afb_req_session_set_LOA(request, 0);
 }
 // Close and Free context
@@ -100,7 +100,7 @@ static void clientGetPing (struct afb_req request) {
 
     jresp = json_object_new_object();
     json_object_object_add(jresp, "count", json_object_new_int (count ++));
-    
+
     afb_req_success(request, jresp, NULL);
 }
 
