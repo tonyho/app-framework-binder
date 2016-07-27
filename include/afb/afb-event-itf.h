@@ -46,7 +46,7 @@ struct afb_event {
  * Broadcasts widely the 'event' with the data 'object'.
  * 'object' can be NULL.
  *
- * For conveniency, the function calls 'json_object_put' for 'object'.
+ * For convenience, the function calls 'json_object_put' for 'object'.
  * Thus, in the case where 'object' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  *
@@ -58,10 +58,10 @@ static inline int afb_event_broadcast(struct afb_event event, struct json_object
 }
 
 /*
- * Pushes the 'event' with the data 'object' to its obeservers.
+ * Pushes the 'event' with the data 'object' to its observers.
  * 'object' can be NULL.
  *
- * For conveniency, the function calls 'json_object_put' for 'object'.
+ * For convenience, the function calls 'json_object_put' for 'object'.
  * Thus, in the case where 'object' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  *

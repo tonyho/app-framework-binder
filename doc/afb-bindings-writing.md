@@ -471,7 +471,7 @@ It exists two functions for "success" replies: **afb_req_success** and **afb_req
  * Its send the object 'obj' (can be NULL) with an
  * informationnal comment 'info (can also be NULL).
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
@@ -481,7 +481,7 @@ void afb_req_success(struct afb_req req, struct json_object *obj, const char *in
  * Same as 'afb_req_success' but the 'info' is a formatting
  * string followed by arguments.
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
@@ -500,7 +500,7 @@ It exists two functions for "failure" replies: **afb_req_fail** and **afb_req_fa
  * to call afb_req_success(NULL, info). Thus even if possible it
  * is strongly recommended to NEVER use "success" for status.
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
@@ -510,14 +510,14 @@ void afb_req_fail(struct afb_req req, const char *status, const char *info);
  * Same as 'afb_req_fail' but the 'info' is a formatting
  * string followed by arguments.
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
 void afb_req_fail_f(struct afb_req req, const char *status, const char *info, ...);
 ```
 
-> For conveniency, these functions automatically call **json_object_put** to release **obj**.
+> For convenience, these functions automatically call **json_object_put** to release **obj**.
 > Because **obj** usage count is null after being passed to a reply function, it SHOULD not be used anymore.
 > If exceptionally **obj** needs to remain usable after reply function then using **json_object_get** on **obj**
 > to increase usage count and cancels the effect the **json_object_put** is possible.
@@ -977,7 +977,7 @@ Function **afb_daemon_broadcast_event** is defined here after:
  * 'object' can be NULL.
  * 'daemon' MUST be the daemon given in interface when activating the binding.
  *
- * For conveniency, the function calls 'json_object_put' for 'object'.
+ * For convenience, the function calls 'json_object_put' for 'object'.
  * Thus, in the case where 'object' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */

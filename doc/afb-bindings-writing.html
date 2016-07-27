@@ -318,7 +318,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * Its send the object &#39;obj&#39; (can be NULL) with an</span>
 <span class="co"> * informationnal comment &#39;info (can also be NULL).</span>
 <span class="co"> *</span>
-<span class="co"> * For conveniency, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
 <span class="co"> * Thus, in the case where &#39;obj&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
@@ -328,7 +328,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * Same as &#39;afb_req_success&#39; but the &#39;info&#39; is a formatting</span>
 <span class="co"> * string followed by arguments.</span>
 <span class="co"> *</span>
-<span class="co"> * For conveniency, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
 <span class="co"> * Thus, in the case where &#39;obj&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
@@ -343,7 +343,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * to call afb_req_success(NULL, info). Thus even if possible it</span>
 <span class="co"> * is strongly recommended to NEVER use &quot;success&quot; for status.</span>
 <span class="co"> *</span>
-<span class="co"> * For conveniency, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
 <span class="co"> * Thus, in the case where &#39;obj&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
@@ -353,13 +353,13 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * Same as &#39;afb_req_fail&#39; but the &#39;info&#39; is a formatting</span>
 <span class="co"> * string followed by arguments.</span>
 <span class="co"> *</span>
-<span class="co"> * For conveniency, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;obj&#39;.</span>
 <span class="co"> * Thus, in the case where &#39;obj&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
 <span class="dt">void</span> afb_req_fail_f(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *status, <span class="dt">const</span> <span class="dt">char</span> *info, ...);</code></pre>
 <blockquote>
-<p>For conveniency, these functions automatically call <strong>json_object_put</strong> to release <strong>obj</strong>. Because <strong>obj</strong> usage count is null after being passed to a reply function, it SHOULD not be used anymore. If exceptionally <strong>obj</strong> needs to remain usable after reply function then using <strong>json_object_get</strong> on <strong>obj</strong> to increase usage count and cancels the effect the <strong>json_object_put</strong> is possible.</p>
+<p>For convenience, these functions automatically call <strong>json_object_put</strong> to release <strong>obj</strong>. Because <strong>obj</strong> usage count is null after being passed to a reply function, it SHOULD not be used anymore. If exceptionally <strong>obj</strong> needs to remain usable after reply function then using <strong>json_object_get</strong> on <strong>obj</strong> to increase usage count and cancels the effect the <strong>json_object_put</strong> is possible.</p>
 </blockquote>
 <h2 id="getting-argument-of-invocation">Getting argument of invocation</h2>
 <p>Many methods expect arguments. Afb-daemon's bindings retrieve arguments by name and not by position.</p>
@@ -781,7 +781,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * &#39;object&#39; can be NULL.</span>
 <span class="co"> * &#39;daemon&#39; MUST be the daemon given in interface when activating the binding.</span>
 <span class="co"> *</span>
-<span class="co"> * For conveniency, the function calls &#39;json_object_put&#39; for &#39;object&#39;.</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;object&#39;.</span>
 <span class="co"> * Thus, in the case where &#39;object&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>

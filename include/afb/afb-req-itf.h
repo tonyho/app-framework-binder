@@ -138,7 +138,7 @@ static inline struct json_object *afb_req_json(struct afb_req req)
  * Its send the object 'obj' (can be NULL) with an
  * informationnal comment 'info (can also be NULL).
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
@@ -151,7 +151,7 @@ static inline void afb_req_success(struct afb_req req, struct json_object *obj, 
  * Same as 'afb_req_success' but the 'info' is a formatting
  * string followed by arguments.
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
@@ -176,7 +176,7 @@ static inline void afb_req_success_f(struct afb_req req, struct json_object *obj
  * to call afb_req_success(NULL, info). Thus even if possible it
  * is strongly recommanded to NEVER use "success" for status.
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
@@ -189,7 +189,7 @@ static inline void afb_req_fail(struct afb_req req, const char *status, const ch
  * Same as 'afb_req_fail' but the 'info' is a formatting
  * string followed by arguments.
  *
- * For conveniency, the function calls 'json_object_put' for 'obj'.
+ * For convenience, the function calls 'json_object_put' for 'obj'.
  * Thus, in the case where 'obj' should remain available after
  * the function returns, the function 'json_object_get' shall be used.
  */
