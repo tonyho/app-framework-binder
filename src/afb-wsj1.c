@@ -79,7 +79,7 @@ struct afb_wsj1
 	struct wsj1_call *calls;
 };
 
-struct afb_wsj1 *afb_wsj1_create(int fd, struct afb_wsj1_itf *itf, void *closure)
+struct afb_wsj1 *afb_wsj1_create(struct sd_event *eloop, int fd, struct afb_wsj1_itf *itf, void *closure)
 {
 	struct afb_wsj1 *result;
 
@@ -97,7 +97,7 @@ struct afb_wsj1 *afb_wsj1_create(int fd, struct afb_wsj1_itf *itf, void *closure
 	if (result->tokener == NULL)
 		goto error2;
 
-	result->ws = afb_ws_create(fd, &wsj1_itf, result);
+	result->ws = afb_ws_create(eloop, fd, &wsj1_itf, result);
 	if (result->ws == NULL)
 		goto error3;
 

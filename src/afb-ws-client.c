@@ -29,7 +29,6 @@
 #include <fcntl.h>
 
 #include "afb-wsj1.h"
-#include "afb-common.h"
 
 /**************** WebSocket handshake ****************************/
 
@@ -315,7 +314,6 @@ invalid:
 	errno = EINVAL;
 error:
 	return -1;
-
 }
 
 
@@ -323,7 +321,7 @@ error:
 
 static const char *proto_json1[2] = { "x-afb-ws-json1",	NULL };
 
-struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf *itf, void *closure)
+struct afb_wsj1 *afb_ws_client_connect_wsj1(struct sd_event *eloop, const char *uri, struct afb_wsj1_itf *itf, void *closure)
 {
 	int rc, fd;
 	char *host, *service, xhost[32];
@@ -364,7 +362,7 @@ struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf
 			if (rc == 0) {
 				rc = negociate(fd, proto_json1, path, xhost);
 				if (rc == 0) {
-					result = afb_wsj1_create(fd, itf, closure);
+					result = afb_wsj1_create(eloop, fd, itf, closure);
 					if (result != NULL) {
 						fcntl(fd, F_SETFL, O_NONBLOCK);
 						break;
@@ -406,16 +404,5 @@ static char *makequery(const char *path, const char *uuid, const char *token)
 	return result;
 }
 #endif
-
-/*
- *
- * Returns the internal event loop coming from afb-common
- *
- * Returns the handle to the event loop
- */
-struct sd_event *afb_ws_client_get_event_loop()
-{
-	return afb_common_get_event_loop();
-}
 
 

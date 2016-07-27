@@ -135,10 +135,12 @@ static int io_event_callback(sd_event_source *src, int fd, uint32_t revents, voi
  * Creates the afb_ws structure for the file descritor
  * 'fd' and the callbacks described by the interface 'itf'
  * and its 'closure'.
+ * When the creation is a success, the systemd event loop 'eloop' is
+ * used for handling event for 'fd'.
  *
  * Returns the handle for the afb_ws created or NULL on error.
  */
-struct afb_ws *afb_ws_create(int fd, const struct afb_ws_itf *itf, void *closure)
+struct afb_ws *afb_ws_create(struct sd_event *eloop, int fd, const struct afb_ws_itf *itf, void *closure)
 {
 	int rc;
 	struct afb_ws *result;
@@ -164,7 +166,7 @@ struct afb_ws *afb_ws_create(int fd, const struct afb_ws_itf *itf, void *closure
 		goto error2;
 
 	/* creates the evsrc */
-	rc = sd_event_add_io(afb_common_get_event_loop(), &result->evsrc, result->fd, EPOLLIN, io_event_callback, result);
+	rc = sd_event_add_io(eloop, &result->evsrc, result->fd, EPOLLIN, io_event_callback, result);
 	if (rc < 0) {
 		errno = -rc;
 		goto error3;

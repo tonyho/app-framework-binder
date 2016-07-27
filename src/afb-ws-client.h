@@ -19,15 +19,13 @@
 
 struct afb_wsj1;
 struct afb_wsj1_itf;
+struct sd_event;
 
 /*
  * Makes the WebSocket handshake at the 'uri' and if successful
  * instanciate a wsj1 websocket for this connection using 'itf' and 'closure'.
  * (see afb_wsj1_create).
+ * The systemd event loop 'eloop' is used to handle the websocket.
  * Returns NULL in case of failure with errno set appriately.
  */
-extern struct afb_wsj1 *afb_ws_client_connect_wsj1(const char *uri, struct afb_wsj1_itf *itf, void *closure);
-
-struct sd_event;
-extern struct sd_event *afb_ws_client_get_event_loop();
-
+extern struct afb_wsj1 *afb_ws_client_connect_wsj1(struct sd_event *eloop, const char *uri, struct afb_wsj1_itf *itf, void *closure);

@@ -75,7 +75,7 @@ INSTALL(TARGETS afb-daemon
 ###########################################
 # build and install libafbwsc
 ###########################################
-ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c afb-common.c)
+ADD_LIBRARY(afbwsc SHARED afb-ws.c afb-ws-client.c afb-wsj1.c websock.c)
 SET_TARGET_PROPERTIES(afbwsc PROPERTIES
 	VERSION ${LIBAFBWSC_VERSION}
 	SOVERSION ${LIBAFBWSC_SOVERSION})
