@@ -54,24 +54,24 @@ struct websock_itf {
 
 struct websock;
 
-int websock_close_empty(struct websock *ws);
-int websock_close(struct websock *ws, uint16_t code, const void *data, size_t length);
-int websock_error(struct websock *ws, uint16_t code, const void *data, size_t length);
+extern int websock_close_empty(struct websock *ws);
+extern int websock_close(struct websock *ws, uint16_t code, const void *data, size_t length);
+extern int websock_error(struct websock *ws, uint16_t code, const void *data, size_t length);
 
-int websock_ping(struct websock *ws, const void *data, size_t length);
-int websock_pong(struct websock *ws, const void *data, size_t length);
-int websock_text(struct websock *ws, int last, const void *text, size_t length);
-int websock_text_v(struct websock *ws, int last, const struct iovec *iovec, int count);
-int websock_binary(struct websock *ws, int last, const void *data, size_t length);
-int websock_binary_v(struct websock *ws, int last, const struct iovec *iovec, int count);
-int websock_continue(struct websock *ws, int last, const void *data, size_t length);
-int websock_continue_v(struct websock *ws, int last, const struct iovec *iovec, int count);
+extern int websock_ping(struct websock *ws, const void *data, size_t length);
+extern int websock_pong(struct websock *ws, const void *data, size_t length);
+extern int websock_text(struct websock *ws, int last, const void *text, size_t length);
+extern int websock_text_v(struct websock *ws, int last, const struct iovec *iovec, int count);
+extern int websock_binary(struct websock *ws, int last, const void *data, size_t length);
+extern int websock_binary_v(struct websock *ws, int last, const struct iovec *iovec, int count);
+extern int websock_continue(struct websock *ws, int last, const void *data, size_t length);
+extern int websock_continue_v(struct websock *ws, int last, const struct iovec *iovec, int count);
 
-ssize_t websock_read(struct websock *ws, void *buffer, size_t size);
-int websock_drop(struct websock *ws);
+extern ssize_t websock_read(struct websock *ws, void *buffer, size_t size);
+extern int websock_drop(struct websock *ws);
 
-int websock_dispatch(struct websock *ws);
+extern int websock_dispatch(struct websock *ws);
 
-struct websock *websock_create_v13(const struct websock_itf *itf, void *closure);
-void websock_destroy(struct websock *ws);
+extern struct websock *websock_create_v13(const struct websock_itf *itf, void *closure);
+extern void websock_destroy(struct websock *ws);
 
