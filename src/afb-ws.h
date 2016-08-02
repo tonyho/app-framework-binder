@@ -19,6 +19,7 @@
 
 struct afb_ws;
 struct sd_event;
+struct iovec;
 
 struct afb_ws_itf
 {
@@ -37,4 +38,6 @@ extern int afb_ws_error(struct afb_ws *ws, uint16_t code, const char *reason);
 extern int afb_ws_text(struct afb_ws *ws, const char *text, size_t length);
 extern int afb_ws_texts(struct afb_ws *ws, ...);
 extern int afb_ws_binary(struct afb_ws *ws, const void *data, size_t length);
+extern int afb_ws_text_v(struct afb_ws *ws, const struct iovec *iovec, int count);
+extern int afb_ws_binary_v(struct afb_ws *ws, const struct iovec *iovec, int count);
 

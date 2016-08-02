@@ -282,6 +282,20 @@ int afb_ws_texts(struct afb_ws *ws, ...)
 }
 
 /*
+ * Sends a text data described in the 'count' 'iovec' to the endpoint of 'ws'.
+ * Returns 0 on success or -1 in case of error.
+ */
+int afb_ws_text_v(struct afb_ws *ws, const struct iovec *iovec, int count)
+{
+	if (ws->ws == NULL) {
+		/* disconnected */
+		errno = EPIPE;
+		return -1;
+	}
+	return websock_text_v(ws->ws, 1, iovec, count);
+}
+
+/*
  * Sends a binary 'data' of 'length' to the endpoint of 'ws'.
  * Returns 0 on success or -1 in case of error.
  */
@@ -293,6 +307,20 @@ int afb_ws_binary(struct afb_ws *ws, const void *data, size_t length)
 		return -1;
 	}
 	return websock_binary(ws->ws, 1, data, length);
+}
+
+/*
+ * Sends a binary data described in the 'count' 'iovec' to the endpoint of 'ws'.
+ * Returns 0 on success or -1 in case of error.
+ */
+int afb_ws_binary_v(struct afb_ws *ws, const struct iovec *iovec, int count)
+{
+	if (ws->ws == NULL) {
+		/* disconnected */
+		errno = EPIPE;
+		return -1;
+	}
+	return websock_binary_v(ws->ws, 1, iovec, count);
 }
 
 /*
