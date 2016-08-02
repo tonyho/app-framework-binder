@@ -24,7 +24,7 @@
 #include "media-api.h"
 #include "media-rygel.h"
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 #include <afb/afb-req-itf.h>
 
 json_object* _rygel_list (mediaCtxHandleT *);
@@ -303,7 +303,7 @@ static void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
 }
 
 
-static const struct AFB_verb_desc_v1 verbs[]= {
+static const struct afb_verb_desc_v1 verbs[]= {
   {"init"   , AFB_SESSION_CHECK,  init       , "Media API - init"   },
   {"list"   , AFB_SESSION_CHECK,  list       , "Media API - list"   },
   {"select" , AFB_SESSION_CHECK,  selecting  , "Media API - select" },
@@ -316,8 +316,8 @@ static const struct AFB_verb_desc_v1 verbs[]= {
   {NULL}
 };
 
-static const struct AFB_plugin pluginDesc = {
-    .type   = AFB_PLUGIN_VERSION_1,
+static const struct afb_binding pluginDesc = {
+    .type   = AFB_BINDING_VERSION_1,
     .v1 = {
         .info   = "Application Framework Binder - Media plugin",
         .prefix = "media",
@@ -325,7 +325,7 @@ static const struct AFB_plugin pluginDesc = {
     }
 };
 
-const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
 {
     return &pluginDesc;
 }

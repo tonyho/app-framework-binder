@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 
 typedef struct {
   /*
@@ -121,7 +121,7 @@ static void clientCheckLOA(struct afb_req request)
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application most APIs should be protected with AFB_SESSION_CHECK
-static const struct AFB_verb_desc_v1 verbs[]= {
+static const struct afb_verb_desc_v1 verbs[]= {
   {"create", AFB_SESSION_CREATE, myCreate  , "Create a new session"},
   {"action", AFB_SESSION_CHECK , myAction  , "Use Session Context"},
   {"close" , AFB_SESSION_CLOSE , myClose   , "Free Context"},
@@ -144,8 +144,8 @@ static const struct AFB_verb_desc_v1 verbs[]= {
   {NULL}
 };
 
-static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_VERSION_1,
+static const struct afb_binding plugin_desc = {
+	.type = AFB_BINDING_VERSION_1,
 	.v1 = {
 		.info = "Sample of Client Context Usage",
 		.prefix = "context",
@@ -153,7 +153,7 @@ static const struct AFB_plugin plugin_desc = {
 	}
 };
 
-const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
 {
 	return &plugin_desc;
 }

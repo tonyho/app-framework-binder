@@ -20,7 +20,7 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 
 
 // Sample Generic Ping Debug API
@@ -76,7 +76,7 @@ static void UploadImage (struct afb_req request)
 
 // NOTE: this sample does not use session to keep test a basic as possible
 //       in real application upload-xxx should be protected with AFB_SESSION_CHECK
-static const struct AFB_verb_desc_v1 verbs[]= {
+static const struct afb_verb_desc_v1 verbs[]= {
   {"ping"         , AFB_SESSION_NONE  , getPingTest    ,"Ping Rest Test Service"},
   {"upload-json"  , AFB_SESSION_NONE  , GetJsonByPost  ,"Demo for Json Buffer on Post"},
   {"upload-image" , AFB_SESSION_NONE  , UploadImage    ,"Demo for file upload"},
@@ -85,8 +85,8 @@ static const struct AFB_verb_desc_v1 verbs[]= {
   {NULL}
 };
 
-static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_VERSION_1,
+static const struct afb_binding plugin_desc = {
+	.type = AFB_BINDING_VERSION_1,
 	.v1 = {
 		.info = "Sample with Post Upload Files",
 		.prefix = "post",
@@ -94,7 +94,7 @@ static const struct AFB_plugin plugin_desc = {
 	}
 };
 
-const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
 {
     return &plugin_desc;
 };

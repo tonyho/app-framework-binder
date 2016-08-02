@@ -22,7 +22,7 @@
 #include "radio-api.h"
 #include "radio-rtlsdr.h"
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 #include <afb/afb-req-itf.h>
 
 /* ********************************************************
@@ -350,7 +350,7 @@ static void ping (struct afb_req request) {         /* AFB_SESSION_NONE */
 }
 
 
-static const struct AFB_verb_desc_v1 verbs[] = {
+static const struct afb_verb_desc_v1 verbs[] = {
   {"init"   , AFB_SESSION_CHECK,  init       , "Radio API - init"},
   {"power"  , AFB_SESSION_CHECK,  power      , "Radio API - power"},
   {"mode"   , AFB_SESSION_CHECK,  mode       , "Radio API - mode"},
@@ -361,8 +361,8 @@ static const struct AFB_verb_desc_v1 verbs[] = {
   {NULL}
 };
 
-static const struct AFB_plugin pluginDesc = {
-    .type  = AFB_PLUGIN_VERSION_1,
+static const struct afb_binding pluginDesc = {
+    .type  = AFB_BINDING_VERSION_1,
     .v1 = {
         .info  = "Application Framework Binder - Radio plugin",
         .prefix  = "radio",
@@ -370,7 +370,7 @@ static const struct AFB_plugin pluginDesc = {
     }
 };
 
-const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
 {
 	return &pluginDesc;
 }

@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
-#include <afb/afb-plugin.h>
+#include <afb/afb-binding.h>
 
 // Dummy sample of Client Application Context
 typedef struct {
@@ -105,7 +105,7 @@ static void clientGetPing (struct afb_req request) {
 }
 
 
-static const struct AFB_verb_desc_v1 verbs[]= {
+static const struct afb_verb_desc_v1 verbs[]= {
   {"ping"    , AFB_SESSION_NONE                        , clientGetPing       ,"Ping Rest Test Service"},
   {"connect" , AFB_SESSION_LOA_EQ_0 | AFB_SESSION_RENEW, clientContextConnect,"Connect/Login Client"},
   {"refresh" , AFB_SESSION_LOA_GE_1 | AFB_SESSION_RENEW, clientContextRefresh,"Refresh Client Authentication Token"},
@@ -114,8 +114,8 @@ static const struct AFB_verb_desc_v1 verbs[]= {
   {NULL}
 };
 
-static const struct AFB_plugin plugin_desc = {
-	.type = AFB_PLUGIN_VERSION_1,
+static const struct afb_binding plugin_desc = {
+	.type = AFB_BINDING_VERSION_1,
 	.v1 = {
 		.info = "Application Framework Binder Authentication sample",
 		.prefix = "auth",
@@ -123,7 +123,7 @@ static const struct AFB_plugin plugin_desc = {
 	}
 };
 
-const struct AFB_plugin *pluginAfbV1Register (const struct AFB_interface *itf)
+const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *itf)
 {
 	return &plugin_desc;
 }
