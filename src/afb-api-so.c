@@ -38,6 +38,7 @@
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-sig-handler.h"
+#include "afb-thread.h"
 #include "afb-evt.h"
 #include "afb-svc.h"
 #include "verbose.h"
@@ -139,33 +140,22 @@ static int afb_api_so_rootdir_open_locale(void *closure, const char *filename, i
 	return afb_common_rootdir_open_locale(filename, flags, locale);
 }
 
-static void monitored_call(int signum, void *arg)
+static int call_check(struct afb_req req, struct afb_context *context, const struct afb_verb_desc_v1 *verb)
 {
-	struct monitoring *data = arg;
-	if (signum != 0)
-		afb_req_fail_f(data->req, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
-	else
-		data->action(data->req);
-}
-
-static void call_check(struct afb_req req, struct afb_context *context, const struct afb_verb_desc_v1 *verb)
-{
-	struct monitoring data;
-
 	int stag = (int)verb->session;
 
 	if ((stag & (AFB_SESSION_CREATE|AFB_SESSION_CLOSE|AFB_SESSION_RENEW|AFB_SESSION_CHECK|AFB_SESSION_LOA_EQ)) != 0) {
 		if (!afb_context_check(context)) {
 			afb_context_close(context);
 			afb_req_fail(req, "failed", "invalid token's identity");
-			return;
+			return 0;
 		}
 	}
 
 	if ((stag & AFB_SESSION_CREATE) != 0) {
 		if (afb_context_check_loa(context, 1)) {
 			afb_req_fail(req, "failed", "invalid creation state");
-			return;
+			return 0;
 		}
 		afb_context_change_loa(context, 1);
 		afb_context_refresh(context);
@@ -183,7 +173,7 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 		int loa = (stag >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
 		if (!afb_context_check_loa(context, loa)) {
 			afb_req_fail(req, "failed", "invalid LOA");
-			return;
+			return 0;
 		}
 	}
 
@@ -191,27 +181,30 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 		int loa = (stag >> AFB_SESSION_LOA_SHIFT) & AFB_SESSION_LOA_MASK;
 		if (afb_context_check_loa(context, loa + 1)) {
 			afb_req_fail(req, "failed", "invalid LOA");
-			return;
+			return 0;
 		}
 	}
-
-	data.req = req;
-	data.action = verb->callback;
-	afb_sig_monitor(monitored_call, &data, api_timeout);
+	return 1;
 }
 
-static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
+static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *strverb, size_t lenverb)
 {
-	const struct afb_verb_desc_v1 *v;
+	const struct afb_verb_desc_v1 *verb;
 	struct api_so_desc *desc = closure;
 
-	v = desc->binding->v1.verbs;
-	while (v->name && (strncasecmp(v->name, verb, lenverb) || v->name[lenverb]))
-		v++;
-	if (v->name)
-		call_check(req, context, v);
-	else
-		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->binding->v1.prefix);
+	verb = desc->binding->v1.verbs;
+	while (verb->name && (strncasecmp(verb->name, strverb, lenverb) || verb->name[lenverb]))
+		verb++;
+	if (!verb->name)
+		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, strverb, desc->binding->v1.prefix);
+	else if (call_check(req, context, verb)) {
+		if (0)
+			/* not threaded */
+			afb_sig_req_timeout(req, verb->callback, api_timeout);
+		else
+			/* threaded */
+			afb_thread_call(req, verb->callback, api_timeout, desc);
+	}
 }
 
 static int service_start_cb(void *closure, int share_session, int onneed)

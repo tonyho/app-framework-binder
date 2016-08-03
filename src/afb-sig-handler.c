@@ -21,12 +21,12 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/syscall.h>
 #include <setjmp.h>
 
+#include <afb/afb-req-itf.h>
+
 #include "afb-sig-handler.h"
+#include "afb-thread.h"
 #include "verbose.h"
 
 static _Thread_local sigjmp_buf *error_handler;
@@ -75,15 +75,39 @@ int afb_sig_handler_init()
 	return (install(on_signal_error, sigerr) & install(on_signal_terminate, sigterm)) - 1;
 }
 
+int afb_sig_req(struct afb_req req, void (*callback)(struct afb_req req))
+{
+	volatile int signum;
+	sigjmp_buf jmpbuf, *older;
+
+	older = error_handler;
+	signum = setjmp(jmpbuf);
+	if (signum != 0)
+		afb_req_fail_f(req, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
+	else {
+		error_handler = &jmpbuf;
+		callback(req);
+	}
+	error_handler = older;
+	return signum;
+}
+
+int afb_sig_req_timeout(struct afb_req req, void (*callback)(struct afb_req req), int timeout)
+{
+	int rc;
+
+	if (timeout)
+		afb_thread_timer_arm(timeout);
+	rc = afb_sig_req(req, callback);
+	afb_thread_timer_disarm();
+	return rc;
+}
+
 void afb_sig_monitor(void (*function)(int sig, void*), void *closure, int timeout)
 {
-	volatile int signum, timerset;
-	timer_t timerid;
+	volatile int signum;
 	sigjmp_buf jmpbuf, *older;
-	struct sigevent sevp;
-	struct itimerspec its;
 
-	timerset = 0;
 	older = error_handler;
 	signum = setjmp(jmpbuf);
 	if (signum != 0) {
@@ -91,28 +115,11 @@ void afb_sig_monitor(void (*function)(int sig, void*), void *closure, int timeou
 	}
 	else {
 		error_handler = &jmpbuf;
-		if (timeout > 0) {
-			timerset = 1; /* TODO: check statuses */
-			sevp.sigev_notify = SIGEV_THREAD_ID;
-			sevp.sigev_signo = SIGALRM;
-			sevp.sigev_value.sival_ptr = NULL;
-#if defined(sigev_notify_thread_id)
-			sevp.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
-#else
-			sevp._sigev_un._tid = (pid_t)syscall(SYS_gettid);
-#endif
-			timer_create(CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid);
-			its.it_interval.tv_sec = 0;
-			its.it_interval.tv_nsec = 0;
-			its.it_value.tv_sec = timeout;
-			its.it_value.tv_nsec = 0;
-			timer_settime(timerid, 0, &its, NULL);
-		}
-
+		if (timeout)
+			afb_thread_timer_arm(timeout);
 		function(0, closure);
 	}
-	if (timerset)
-		timer_delete(timerid);
+	afb_thread_timer_disarm();
 	error_handler = older;
 }
 

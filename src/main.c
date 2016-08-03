@@ -39,6 +39,7 @@
 #include "afb-context.h"
 #include "afb-hreq.h"
 #include "afb-sig-handler.h"
+#include "afb-thread.h"
 #include "session.h"
 #include "verbose.h"
 #include "afb-common.h"
@@ -650,12 +651,17 @@ int main(int argc, char *argv[])  {
   }
 
   if (afb_sig_handler_init() < 0) {
-     ERROR("main fail to initialise signal handlers");
+     ERROR("failed to initialise signal handlers");
      return 1;
   }
 
   if (afb_common_rootdir_set(config->rootdir) < 0) {
-     ERROR("main fail to set common root directory");
+     ERROR("failed to set common root directory");
+     return 1;
+  }
+
+  if (afb_thread_init(3, 1, 20) < 0) {
+     ERROR("failed to initialise threading");
      return 1;
   }
 

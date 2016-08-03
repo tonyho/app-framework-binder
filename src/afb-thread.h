@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2015, 2016 "IoT.bzh"
- * Author "Fulup Ar Foll"
+ * Copyright (C) 2016 "IoT.bzh"
  * Author José Bollo <jose.bollo@iot.bzh>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +19,13 @@
 
 struct afb_req;
 
-extern int afb_sig_handler_init();
+extern void afb_thread_call(struct afb_req req, void (*callback)(struct afb_req req), int timeout, void *group);
 
-extern void afb_sig_monitor(void (*function)(int sig, void*), void *closure, int timeout);
-extern int afb_sig_req(struct afb_req req, void (*callback)(struct afb_req req));
-extern int afb_sig_req_timeout(struct afb_req req, void (*callback)(struct afb_req req), int timeout);
+extern int afb_thread_init(int allowed_count, int start_count, int waiter_count);
+extern void afb_thread_terminate();
+
+extern int afb_thread_timer_create();
+extern int afb_thread_timer_arm(int timeout);
+extern void afb_thread_timer_disarm();
+extern void afb_thread_timer_delete();
 
