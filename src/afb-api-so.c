@@ -64,23 +64,24 @@ static const char binding_service_event_function_v1[] = "afbBindingV1ServiceEven
 
 static int api_timeout = 15;
 
-static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const char *name);
-static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object);
-static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char *file, int line, const char *fmt, va_list args);
+static struct afb_event afb_api_so_event_make_cb(void *closure, const char *name);
+static int afb_api_so_event_broadcast_cb(void *closure, const char *name, struct json_object *object);
+static void afb_api_so_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args);
 
 static const struct afb_daemon_itf daemon_itf = {
-	.event_broadcast = (void*)afb_api_so_event_broadcast,
-	.get_event_loop = (void*)afb_common_get_event_loop,
-	.get_user_bus = (void*)afb_common_get_user_bus,
-	.get_system_bus = (void*)afb_common_get_system_bus,
-	.vverbose = (void*)afb_api_so_vverbose,
-	.event_make = (void*)afb_api_so_event_make
+	.event_broadcast = afb_api_so_event_broadcast_cb,
+	.get_event_loop = afb_common_get_event_loop,
+	.get_user_bus = afb_common_get_user_bus,
+	.get_system_bus = afb_common_get_system_bus,
+	.vverbose = afb_api_so_vverbose_cb,
+	.event_make = afb_api_so_event_make_cb
 };
 
-static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const char *name)
+static struct afb_event afb_api_so_event_make_cb(void *closure, const char *name)
 {
 	size_t length;
 	char *event;
+	struct api_so_desc *desc = closure;
 
 	/* makes the event name */
 	assert(desc->binding != NULL);
@@ -94,10 +95,11 @@ static struct afb_event afb_api_so_event_make(struct api_so_desc *desc, const ch
 	return afb_evt_create_event(event);
 }
 
-static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name, struct json_object *object)
+static int afb_api_so_event_broadcast_cb(void *closure, const char *name, struct json_object *object)
 {
 	size_t length;
 	char *event;
+	struct api_so_desc *desc = closure;
 
 	/* makes the event name */
 	assert(desc->binding != NULL);
@@ -110,9 +112,10 @@ static int afb_api_so_event_broadcast(struct api_so_desc *desc, const char *name
 	return afb_evt_broadcast(event, object);
 }
 
-static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char *file, int line, const char *fmt, va_list args)
+static void afb_api_so_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args)
 {
 	char *p;
+	struct api_so_desc *desc = closure;
 
 	if (vasprintf(&p, fmt, args) < 0)
 		vverbose(level, file, line, fmt, args);
@@ -122,8 +125,9 @@ static void afb_api_so_vverbose(struct api_so_desc *desc, int level, const char 
 	}
 }
 
-static void monitored_call(int signum, struct monitoring *data)
+static void monitored_call(int signum, void *arg)
 {
+	struct monitoring *data = arg;
 	if (signum != 0)
 		afb_req_fail_f(data->req, "aborted", "signal %s(%d) caught", strsignal(signum), signum);
 	else
@@ -179,12 +183,13 @@ static void call_check(struct afb_req req, struct afb_context *context, const st
 
 	data.req = req;
 	data.action = verb->callback;
-	afb_sig_monitor((void*)monitored_call, &data, api_timeout);
+	afb_sig_monitor(monitored_call, &data, api_timeout);
 }
 
-static void call(struct api_so_desc *desc, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
+static void call_cb(void *closure, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
 {
 	const struct afb_verb_desc_v1 *v;
+	struct api_so_desc *desc = closure;
 
 	v = desc->binding->v1.verbs;
 	while (v->name && (strncasecmp(v->name, verb, lenverb) || v->name[lenverb]))
@@ -195,10 +200,12 @@ static void call(struct api_so_desc *desc, struct afb_req req, struct afb_contex
 		afb_req_fail_f(req, "unknown-verb", "verb %.*s unknown within api %s", (int)lenverb, verb, desc->binding->v1.prefix);
 }
 
-static int service_start(struct api_so_desc *desc, int share_session, int onneed)
+static int service_start_cb(void *closure, int share_session, int onneed)
 {
 	int (*init)(struct afb_service service);
 	void (*onevent)(const char *event, struct json_object *object);
+
+	struct api_so_desc *desc = closure;
 
 	/* check state */
 	if (desc->service != NULL) {
@@ -322,8 +329,8 @@ int afb_api_so_add_binding(const char *path)
 	desc->apilength = strlen(desc->binding->v1.prefix);
 	if (afb_apis_add(desc->binding->v1.prefix, (struct afb_api){
 			.closure = desc,
-			.call = (void*)call,
-			.service_start = (void*)service_start }) < 0) {
+			.call = call_cb,
+			.service_start = service_start_cb }) < 0) {
 		ERROR("binding [%s] can't be registered...", path);
 		goto error3;
 	}
