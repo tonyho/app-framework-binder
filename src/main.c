@@ -34,6 +34,7 @@
 #include "afb-apis.h"
 #include "afb-api-so.h"
 #include "afb-api-dbus.h"
+#include "afb-api-ws.h"
 #include "afb-hsrv.h"
 #include "afb-context.h"
 #include "afb-hreq.h"
@@ -81,6 +82,9 @@
 
 #define SET_SESSIONMAX     23
 
+#define WS_CLIENT          24
+#define WS_SERVICE         25
+
 // Command line structure hold cli --command + help text
 typedef struct {
   int  val;        // command number within application
@@ -120,6 +124,8 @@ static  AFB_options cliOptions [] = {
 
   {DBUS_CLIENT      ,1,"dbus-client"     , "bind to an afb service through dbus"},
   {DBUS_SERVICE     ,1,"dbus-server"     , "provides an afb service through dbus"},
+  {WS_CLIENT        ,1,"ws-client"       , "bind to an afb service through websocket"},
+  {WS_SERVICE       ,1,"ws-server"       , "provides an afb service through websockets"},
   {SO_BINDING       ,1,"binding"         , "load the binding of path"},
 
   {SET_SESSIONMAX   ,1,"session-max"     , "max count of session simultaneously [default 10]"},
@@ -384,6 +390,8 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
 
     case DBUS_CLIENT:
     case DBUS_SERVICE:
+    case WS_CLIENT:
+    case WS_SERVICE:
     case SO_BINDING:
        if (optarg == 0) goto needValueForOption;
        add_item(config, optc, optarg);
@@ -556,6 +564,18 @@ static void start_items(struct afb_config_item *item)
     case DBUS_SERVICE:
       if (afb_api_dbus_add_server(item->value) < 0) {
         ERROR("can't start the afb-dbus service of path %s",item->value);
+	exit(1);
+      }
+      break;
+    case WS_CLIENT:
+      if (afb_api_ws_add_client(item->value) < 0) {
+        ERROR("can't start the afb-websocket client of path %s",item->value);
+	exit(1);
+      }
+      break;
+    case WS_SERVICE:
+      if (afb_api_ws_add_server(item->value) < 0) {
+        ERROR("can't start the afb-websocket service of path %s",item->value);
 	exit(1);
       }
       break;
