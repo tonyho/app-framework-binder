@@ -799,7 +799,7 @@ static struct json_object *dbus_req_json(struct dbus_req *dreq)
 {
 	if (dreq->json == NULL) {
 		dreq->json = json_tokener_parse(dreq->request);
-		if (dreq->json == NULL) {
+		if (dreq->json == NULL && strcmp(dreq->request, "null")) {
 			/* lazy error detection of json request. Is it to improve? */
 			dreq->json = json_object_new_string(dreq->request);
 		}
@@ -937,6 +937,7 @@ static void afb_api_dbus_server_event_push(void *closure, const char *event, int
 {
 	const char *data = json_object_to_json_string_ext(object, JSON_C_TO_STRING_PLAIN);
 	afb_api_dbus_server_event_send(closure, '!', event, eventid, data, 0);
+	json_object_put(object);
 }
 
 static void afb_api_dbus_server_event_broadcast(void *closure, const char *event, int eventid, struct json_object *object)
