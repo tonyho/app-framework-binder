@@ -201,6 +201,14 @@ void afb_ws_hangup(struct afb_ws *ws)
 }
 
 /*
+ * Is the websocket 'ws' still connected ?
+ */
+int afb_ws_is_connected(struct afb_ws *ws)
+{
+	return ws->ws != NULL;
+}
+
+/*
  * Sends a 'close' command to the endpoint of 'ws' with the 'code' and the
  * 'reason' (that can be NULL and that else should not be greater than 123
  * characters).
