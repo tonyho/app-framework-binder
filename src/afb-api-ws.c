@@ -157,33 +157,36 @@ struct api_ws_server_req {
 };
 
 static struct json_object *api_ws_server_req_json(struct api_ws_server_req *wreq);
-static struct afb_arg api_ws_server_req_get(struct api_ws_server_req *wreq, const char *name);
-static void api_ws_server_req_success(struct api_ws_server_req *wreq, struct json_object *obj, const char *info);
-static void api_ws_server_req_fail(struct api_ws_server_req *wreq, const char *status, const char *info);
-static const char *api_ws_server_req_raw(struct api_ws_server_req *wreq, size_t *size);
-static void api_ws_server_req_send(struct api_ws_server_req *wreq, const char *buffer, size_t size);
-static void api_ws_server_req_addref(struct api_ws_server_req *wreq);
 static void api_ws_server_req_unref(struct api_ws_server_req *wreq);
-static int api_ws_server_req_subscribe(struct api_ws_server_req *wreq, struct afb_event event);
-static int api_ws_server_req_unsubscribe(struct api_ws_server_req *wreq, struct afb_event event);
-static void api_ws_server_req_subcall(struct api_ws_server_req *wreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure);
+
+static struct json_object *api_ws_server_req_json_cb(void *closure);
+static struct afb_arg api_ws_server_req_get_cb(void *closure, const char *name);
+static void api_ws_server_req_success_cb(void *closure, struct json_object *obj, const char *info);
+static void api_ws_server_req_fail_cb(void *closure, const char *status, const char *info);
+static const char *api_ws_server_req_raw_cb(void *closure, size_t *size);
+static void api_ws_server_req_send_cb(void *closure, const char *buffer, size_t size);
+static void api_ws_server_req_addref_cb(void *closure);
+static void api_ws_server_req_unref_cb(void *closure);
+static int api_ws_server_req_subscribe_cb(void *closure, struct afb_event event);
+static int api_ws_server_req_unsubscribe_cb(void *closure, struct afb_event event);
+static void api_ws_server_req_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure);
 
 const struct afb_req_itf afb_api_ws_req_itf = {
-	.json = (void*)api_ws_server_req_json,
-	.get = (void*)api_ws_server_req_get,
-	.success = (void*)api_ws_server_req_success,
-	.fail = (void*)api_ws_server_req_fail,
-	.raw = (void*)api_ws_server_req_raw,
-	.send = (void*)api_ws_server_req_send,
+	.json = api_ws_server_req_json_cb,
+	.get = api_ws_server_req_get_cb,
+	.success = api_ws_server_req_success_cb,
+	.fail = api_ws_server_req_fail_cb,
+	.raw = api_ws_server_req_raw_cb,
+	.send = api_ws_server_req_send_cb,
 	.context_get = (void*)afb_context_get,
 	.context_set = (void*)afb_context_set,
-	.addref = (void*)api_ws_server_req_addref,
-	.unref = (void*)api_ws_server_req_unref,
+	.addref = api_ws_server_req_addref_cb,
+	.unref = api_ws_server_req_unref_cb,
 	.session_close = (void*)afb_context_close,
 	.session_set_LOA = (void*)afb_context_change_loa,
-	.subscribe = (void*)api_ws_server_req_subscribe,
-	.unsubscribe = (void*)api_ws_server_req_unsubscribe,
-	.subcall = (void*)api_ws_server_req_subcall
+	.subscribe = api_ws_server_req_subscribe_cb,
+	.unsubscribe = api_ws_server_req_unsubscribe_cb,
+	.subcall = api_ws_server_req_subcall_cb
 };
 
 /******************* common part **********************************/
@@ -205,7 +208,7 @@ static struct api_ws *api_ws_make(const char *path)
 	}
 
 	/* path is copied after the struct */
-	api->path = (void*)(api+1);
+	api->path = (char*)(api+1);
 	memcpy(api->path, path, length + 1);
 
 	/* api name is at the end of the path */
@@ -281,7 +284,7 @@ static int api_ws_socket_inet(const char *path, int server)
 	rc = getaddrinfo(host, service, &hint, &rai);
 	if (rc != 0) {
 		errno = EINVAL;
-		return NULL;
+		return -1;
 	}
 
 	/* get the socket */
@@ -801,13 +804,14 @@ static void api_ws_client_on_binary(void *closure, char *data, size_t size)
 }
 
 /* on call, propagate it to the ws service */
-static void api_ws_client_call(struct api_ws *api, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
+static void api_ws_client_call_cb(void * closure, struct afb_req req, struct afb_context *context, const char *verb, size_t lenverb)
 {
 	int rc;
 	struct api_ws_memo *memo;
 	struct writebuf wb = { .count = 0 };
 	const char *raw;
 	size_t szraw;
+	struct api_ws *api = closure;
 
 	/* create the recording data */
 	memo = api_ws_client_memo_make(api, req, context);
@@ -848,8 +852,10 @@ clean_memo:
 	api_ws_client_memo_destroy(memo);
 }
 
-static int api_ws_service_start(struct api_ws *api, int share_session, int onneed)
+static int api_ws_service_start_cb(void *closure, int share_session, int onneed)
 {
+	struct api_ws *api = closure;
+
 	/* not an error when onneed */
 	if (onneed != 0)
 		return 0;
@@ -910,8 +916,8 @@ int afb_api_ws_add_client(const char *path)
 
 	/* record it as an API */
 	afb_api.closure = api;
-	afb_api.call = (void*)api_ws_client_call;
-	afb_api.service_start = (void*)api_ws_service_start;
+	afb_api.call = api_ws_client_call_cb;
+	afb_api.service_start = api_ws_service_start_cb;
 	if (afb_apis_add(api->api, afb_api) < 0)
 		goto error3;
 
@@ -1085,12 +1091,18 @@ static void api_ws_server_event_broadcast(void *closure, const char *event, int 
 /******************* ws request part for server *****************/
 
 /* increment the reference count of the request */
-static void api_ws_server_req_addref(struct api_ws_server_req *wreq)
+static void api_ws_server_req_addref_cb(void *closure)
 {
+	struct api_ws_server_req *wreq = closure;
 	wreq->refcount++;
 }
 
 /* decrement the reference count of the request and free/release it on falling to null */
+static void api_ws_server_req_unref_cb(void *closure)
+{
+	api_ws_server_req_unref(closure);
+}
+
 static void api_ws_server_req_unref(struct api_ws_server_req *wreq)
 {
 	if (wreq == NULL || --wreq->refcount)
@@ -1104,6 +1116,11 @@ static void api_ws_server_req_unref(struct api_ws_server_req *wreq)
 }
 
 /* get the object of the request */
+static struct json_object *api_ws_server_req_json_cb(void *closure)
+{
+	return api_ws_server_req_json(closure);
+}
+
 static struct json_object *api_ws_server_req_json(struct api_ws_server_req *wreq)
 {
 	if (wreq->json == NULL) {
@@ -1117,15 +1134,17 @@ static struct json_object *api_ws_server_req_json(struct api_ws_server_req *wreq
 }
 
 /* get the argument of the request of 'name' */
-static struct afb_arg api_ws_server_req_get(struct api_ws_server_req *wreq, const char *name)
+static struct afb_arg api_ws_server_req_get_cb(void *closure, const char *name)
 {
+	struct api_ws_server_req *wreq = closure;
 	return afb_msg_json_get_arg(api_ws_server_req_json(wreq), name);
 }
 
-static void api_ws_server_req_success(struct api_ws_server_req *wreq, struct json_object *obj, const char *info)
+static void api_ws_server_req_success_cb(void *closure, struct json_object *obj, const char *info)
 {
 	int rc;
 	struct writebuf wb = { .count = 0 };
+	struct api_ws_server_req *wreq = closure;
 
 	if (api_ws_write_char(&wb, 'T')
 	 && api_ws_write_uint32(&wb, wreq->msgid)
@@ -1141,10 +1160,11 @@ success:
 	json_object_put(obj);
 }
 
-static void api_ws_server_req_fail(struct api_ws_server_req *wreq, const char *status, const char *info)
+static void api_ws_server_req_fail_cb(void *closure, const char *status, const char *info)
 {
 	int rc;
 	struct writebuf wb = { .count = 0 };
+	struct api_ws_server_req *wreq = closure;
 
 	if (api_ws_write_char(&wb, 'F')
 	 && api_ws_write_uint32(&wb, wreq->msgid)
@@ -1158,18 +1178,20 @@ static void api_ws_server_req_fail(struct api_ws_server_req *wreq, const char *s
 	ERROR("error while sending fail");
 }
 
-static const char *api_ws_server_req_raw(struct api_ws_server_req *wreq, size_t *size)
+static const char *api_ws_server_req_raw_cb(void *closure, size_t *size)
 {
+	struct api_ws_server_req *wreq = closure;
 	if (size != NULL)
 		*size = wreq->lenreq;
 	return wreq->request;
 }
 
-static void api_ws_server_req_send(struct api_ws_server_req *wreq, const char *buffer, size_t size)
+static void api_ws_server_req_send_cb(void *closure, const char *buffer, size_t size)
 {
 	/* TODO: how to put sized buffer as strings? things aren't clear here!!! */
 	int rc;
 	struct writebuf wb = { .count = 0 };
+	struct api_ws_server_req *wreq = closure;
 
 	if (api_ws_write_char(&wb, 'X')
 	 && api_ws_write_uint32(&wb, wreq->msgid)
@@ -1182,10 +1204,11 @@ static void api_ws_server_req_send(struct api_ws_server_req *wreq, const char *b
 	ERROR("error while sending raw");
 }
 
-static int api_ws_server_req_subscribe(struct api_ws_server_req *wreq, struct afb_event event)
+static int api_ws_server_req_subscribe_cb(void *closure, struct afb_event event)
 {
 	int rc, rc2;
 	struct writebuf wb = { .count = 0 };
+	struct api_ws_server_req *wreq = closure;
 
 	rc = afb_evt_add_watch(wreq->client->listener, event);
 	if (rc < 0)
@@ -1204,10 +1227,11 @@ success:
 	return rc;
 }
 
-static int api_ws_server_req_unsubscribe(struct api_ws_server_req *wreq, struct afb_event event)
+static int api_ws_server_req_unsubscribe_cb(void *closure, struct afb_event event)
 {
 	int rc, rc2;
 	struct writebuf wb = { .count = 0 };
+	struct api_ws_server_req *wreq = closure;
 
 	if (api_ws_write_char(&wb, 'U')
 	 && api_ws_write_uint32(&wb, wreq->msgid)
@@ -1223,9 +1247,10 @@ success:
 	return rc;
 }
 
-static void api_ws_server_req_subcall(struct api_ws_server_req *wreq, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *closure)
+static void api_ws_server_req_subcall_cb(void *closure, const char *api, const char *verb, struct json_object *args, void (*callback)(void*, int, struct json_object*), void *cb_closure)
 {
-	afb_subcall(&wreq->context, api, verb, args, callback, closure, (struct afb_req){ .itf = &afb_api_ws_req_itf, .closure = wreq });
+	struct api_ws_server_req *wreq = closure;
+	afb_subcall(&wreq->context, api, verb, args, callback, cb_closure, (struct afb_req){ .itf = &afb_api_ws_req_itf, .closure = wreq });
 }
 
 /******************* server part **********************************/
