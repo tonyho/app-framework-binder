@@ -797,6 +797,7 @@ static void api_ws_client_on_binary(void *closure, char *data, size_t size)
 			break;
 		}
 	}
+	free(data);
 }
 
 /* on call, propagate it to the ws service */
