@@ -133,6 +133,7 @@ struct afb_svc *afb_svc_create(int share_session, int (*init)(struct afb_service
 	}
 
 	/* initialises the listener if needed */
+	svc->on_event = on_event;
 	if (on_event == NULL)
 		svc->listener = NULL;
 	else {
