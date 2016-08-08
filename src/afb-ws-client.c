@@ -51,14 +51,6 @@ static const char *compkeys[32] = {
 	"MHiEc+Qc8w/SJ3zMHEM8pA==", "FVCxLBmoil3gY0jSX3aNJ6kR/t4="
 };
 
-static const char websocket_s[] = "websocket";
-static const char sec_websocket_key_s[] = "Sec-WebSocket-Key";
-static const char sec_websocket_version_s[] = "Sec-WebSocket-Version";
-static const char sec_websocket_accept_s[] = "Sec-WebSocket-Accept";
-static const char sec_websocket_protocol_s[] = "Sec-WebSocket-Protocol";
-
-static const char vseparators[] = " \t,";
-
 /* get randomly a pair of key/accept value */
 static void getkeypair(const char **key, const char **ack)
 {
