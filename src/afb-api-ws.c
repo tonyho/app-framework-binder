@@ -1023,6 +1023,8 @@ static void api_ws_server_accept(struct api_ws *api)
 			lenaddr = (socklen_t)sizeof addr;
 			client->fd = accept(api->fd, &addr, &lenaddr);
 			if (client->fd >= 0) {
+				fcntl(client->fd, F_SETFD, FD_CLOEXEC);
+				fcntl(client->fd, F_SETFL, O_NONBLOCK);
 				client->ws = afb_ws_create(afb_common_get_event_loop(), client->fd, &api_ws_server_ws_itf, client);
 				if (client->ws != NULL) {
 					client->api = api->api;
