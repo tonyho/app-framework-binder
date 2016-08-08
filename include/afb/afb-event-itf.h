@@ -43,6 +43,16 @@ struct afb_event {
 };
 
 /*
+ * Checks wether the 'event' is valid or not.
+ *
+ * Returns 0 if not valid or 1 if valid.
+ */
+static inline int afb_event_is_valid(struct afb_event event)
+{
+	return event.itf != NULL;
+}
+
+/*
  * Broadcasts widely the 'event' with the data 'object'.
  * 'object' can be NULL.
  *

@@ -83,6 +83,16 @@ struct afb_req {
 };
 
 /*
+ * Checks wether the request 'req' is valid or not.
+ *
+ * Returns 0 if not valid or 1 if valid.
+ */
+static inline int afb_req_is_valid(struct afb_req req)
+{
+	return req.itf != NULL;
+}
+
+/*
  * Gets from the request 'req' the argument of 'name'.
  * Returns a PLAIN structure of type 'struct afb_arg'.
  * When the argument of 'name' is not found, all fields of result are set to NULL.
