@@ -166,6 +166,7 @@ error:
 static void svc_on_event(struct afb_svc *svc, const char *event, int eventid, struct json_object *object)
 {
 	svc->on_event(event, object);
+	json_object_put(object);
 }
 
 /*
