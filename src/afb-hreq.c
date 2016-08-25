@@ -40,6 +40,7 @@
 #include "afb-subcall.h"
 #include "session.h"
 #include "verbose.h"
+#include "locale-root.h"
 
 #define SIZE_RESPONSE_BUFFER   8192
 
@@ -482,6 +483,112 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 int afb_hreq_reply_file(struct afb_hreq *hreq, int dirfd, const char *filename)
 {
 	int rc = afb_hreq_reply_file_if_exist(hreq, dirfd, filename);
+	if (rc == 0)
+		afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
+	return 1;
+}
+
+int afb_hreq_reply_locale_file_if_exist(struct afb_hreq *hreq, struct locale_search *search, const char *filename)
+{
+	int rc;
+	int fd;
+	unsigned int status;
+	struct stat st;
+	char etag[1 + 2 * 8];
+	const char *inm;
+	struct MHD_Response *response;
+	const char *mimetype;
+
+	/* Opens the file or directory */
+	fd = locale_search_open(search, filename[0] ? filename : ".", O_RDONLY);
+	if (fd < 0) {
+		if (errno == ENOENT)
+			return 0;
+		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
+		return 1;
+	}
+
+	/* Retrieves file's status */
+	if (fstat(fd, &st) != 0) {
+		close(fd);
+		afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+		return 1;
+	}
+
+	/* serve directory */
+	if (S_ISDIR(st.st_mode)) {
+		rc = afb_hreq_redirect_to_ending_slash_if_needed(hreq);
+		if (rc == 0) {
+			static const char *indexes[] = { "index.html", NULL };
+			int i = 0;
+			size_t length = strlen(filename);
+			char *extname = alloca(length + 30); /* 30 is enough to old data of indexes */
+			memcpy(extname, filename, length);
+			if (length && extname[length - 1] != '/')
+				extname[length++] = '/';
+			while (rc == 0 && indexes[i] != NULL) {
+				strcpy(extname + length, indexes[i++]);
+				rc = afb_hreq_reply_locale_file_if_exist(hreq, search, extname);
+			}
+		}
+		close(fd);
+		return rc;
+	}
+
+	/* Don't serve special files */
+	if (!S_ISREG(st.st_mode)) {
+		close(fd);
+		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
+		return 1;
+	}
+
+	/* Check the method */
+	if ((hreq->method & (afb_method_get | afb_method_head)) == 0) {
+		close(fd);
+		afb_hreq_reply_error(hreq, MHD_HTTP_METHOD_NOT_ALLOWED);
+		return 1;
+	}
+
+	/* computes the etag */
+	sprintf(etag, "%08X%08X", ((int)(st.st_mtim.tv_sec) ^ (int)(st.st_mtim.tv_nsec)), (int)(st.st_size));
+
+	/* checks the etag */
+	inm = MHD_lookup_connection_value(hreq->connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_IF_NONE_MATCH);
+	if (inm && 0 == strcmp(inm, etag)) {
+		/* etag ok, return NOT MODIFIED */
+		close(fd);
+		DEBUG("Not Modified: [%s]", filename);
+		response = MHD_create_response_from_buffer(0, empty_string, MHD_RESPMEM_PERSISTENT);
+		status = MHD_HTTP_NOT_MODIFIED;
+	} else {
+		/* check the size */
+		if (st.st_size != (off_t) (size_t) st.st_size) {
+			close(fd);
+			afb_hreq_reply_error(hreq, MHD_HTTP_INTERNAL_SERVER_ERROR);
+			return 1;
+		}
+
+		/* create the response */
+		response = MHD_create_response_from_fd((size_t) st.st_size, fd);
+		status = MHD_HTTP_OK;
+
+		/* set the type */
+		mimetype = mimetype_fd_name(fd, filename);
+		if (mimetype != NULL)
+			MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mimetype);
+	}
+
+	/* fills the value and send */
+	afb_hreq_reply(hreq, status, response,
+			MHD_HTTP_HEADER_CACHE_CONTROL, hreq->cacheTimeout,
+			MHD_HTTP_HEADER_ETAG, etag,
+			NULL);
+	return 1;
+}
+
+int afb_hreq_reply_locale_file(struct afb_hreq *hreq, struct locale_search *search, const char *filename)
+{
+	int rc = afb_hreq_reply_locale_file_if_exist(hreq, search, filename);
 	if (rc == 0)
 		afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
 	return 1;

@@ -22,6 +22,7 @@ struct json_object;
 struct hreq_data;
 struct afb_hsrv;
 struct afb_req_itf;
+struct locale_search;
 
 extern const struct afb_req_itf afb_hreq_req_itf;
 
@@ -61,6 +62,10 @@ extern void afb_hreq_reply_error(struct afb_hreq *request, unsigned int status);
 extern int afb_hreq_reply_file_if_exist(struct afb_hreq *request, int dirfd, const char *filename);
 
 extern int afb_hreq_reply_file(struct afb_hreq *request, int dirfd, const char *filename);
+
+extern int afb_hreq_reply_locale_file_if_exist(struct afb_hreq *hreq, struct locale_search *search, const char *filename);
+
+extern int afb_hreq_reply_locale_file(struct afb_hreq *hreq, struct locale_search *search, const char *filename);
 
 extern void afb_hreq_redirect_to(struct afb_hreq *request, const char *url, int add_query_part);
 

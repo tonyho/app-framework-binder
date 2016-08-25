@@ -50,6 +50,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-ws-json1.c
 	afb-ws.c
 	afb-wsj1.c
+	locale-root.c
 	session.c
 	verbose.c
 	websock.c

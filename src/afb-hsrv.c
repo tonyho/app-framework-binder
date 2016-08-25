@@ -35,6 +35,7 @@
 #include "afb-hsrv.h"
 #include <afb/afb-req-itf.h>
 #include "verbose.h"
+#include "locale-root.h"
 
 #include "afb-common.h"
 
@@ -54,10 +55,7 @@ struct hsrv_handler {
 };
 
 struct hsrv_alias {
-	const char *alias;
-	const char *directory;
-	size_t lendir;
-	int dirfd;
+	struct locale_root *root;
 	int relax;
 };
 
@@ -142,7 +140,7 @@ static int access_handler(
 		hreq->connection = connection;
 		hreq->method = method;
 		hreq->version = version;
-		hreq->lang = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_ACCEPT_LANGUAGE);
+		hreq->lang = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_ACCEPT_LANGUAGE);
 		hreq->tail = hreq->url = url;
 		hreq->lentail = hreq->lenurl = strlen(url);
 		*recordreq = hreq;
@@ -308,6 +306,7 @@ static int handle_alias(struct afb_hreq *hreq, void *data)
 {
 	int rc;
 	struct hsrv_alias *da = data;
+	struct locale_search *search;
 
 	if (hreq->method != afb_method_get) {
 		if (da->relax)
@@ -316,14 +315,9 @@ static int handle_alias(struct afb_hreq *hreq, void *data)
 		return 1;
 	}
 
-	if (!afb_hreq_valid_tail(hreq)) {
-		if (da->relax)
-			return 0;
-		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
-		return 1;
-	}
-
-	rc = afb_hreq_reply_file_if_exist(hreq, da->dirfd, &hreq->tail[1]);
+	search = locale_root_search(da->root, hreq->lang, 0);
+	rc = afb_hreq_reply_locale_file_if_exist(hreq, search, &hreq->tail[1]);
+	locale_search_unref(search);
 	if (rc == 0) {
 		if (da->relax)
 			return 0;
@@ -350,26 +344,23 @@ int afb_hsrv_add_handler(
 
 int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority, int relax)
 {
+	struct locale_root *root;
 	struct hsrv_alias *da;
-	int dirfd;
 
-	dirfd = open(alias, O_PATH|O_DIRECTORY);
-	if (dirfd < 0) {
+	root = locale_root_create(AT_FDCWD, alias);
+	if (root == NULL) {
 		/* TODO message */
 		return 0;
 	}
 	da = malloc(sizeof *da);
 	if (da != NULL) {
-		da->alias = prefix;
-		da->directory = alias;
-		da->lendir = strlen(da->directory);
-		da->dirfd = dirfd;
+		da->root = root;
 		da->relax = relax;
 		if (afb_hsrv_add_handler(hsrv, prefix, handle_alias, da, priority))
 			return 1;
 		free(da);
 	}
-	close(dirfd);
+	locale_root_unref(root);
 	return 0;
 }
 
