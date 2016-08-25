@@ -142,6 +142,7 @@ static int access_handler(
 		hreq->connection = connection;
 		hreq->method = method;
 		hreq->version = version;
+		hreq->lang = afb_hreq_get_header(hreq, MHD_HTTP_HEADER_ACCEPT_LANGUAGE);
 		hreq->tail = hreq->url = url;
 		hreq->lentail = hreq->lenurl = strlen(url);
 		*recordreq = hreq;

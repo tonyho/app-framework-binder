@@ -41,6 +41,7 @@ struct afb_hreq {
 	int suspended;
 	int replied;
 	const char *version;
+	const char *lang;
 	const char *url;
 	size_t lenurl;
 	const char *tail;
