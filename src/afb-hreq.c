@@ -359,6 +359,22 @@ void afb_hreq_reply_error(struct afb_hreq *hreq, unsigned int status)
 	afb_hreq_reply_empty(hreq, status, NULL);
 }
 
+int afb_hreq_redirect_to_ending_slash_if_needed(struct afb_hreq *hreq)
+{
+	char *tourl;
+
+	if (hreq->url[hreq->lenurl - 1] == '/')
+		return 0;
+
+	/* the redirect is needed for reliability of relative path */
+	tourl = alloca(hreq->lenurl + 2);
+	memcpy(tourl, hreq->url, hreq->lenurl);
+	tourl[hreq->lenurl] = '/';
+	tourl[hreq->lenurl + 1] = 0;
+	afb_hreq_redirect_to(hreq, tourl, 1);
+	return 1;
+}
+
 int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *filename)
 {
 	int rc;
@@ -396,17 +412,10 @@ int afb_hreq_reply_file_if_exist(struct afb_hreq *hreq, int dirfd, const char *f
 
 	/* serve directory */
 	if (S_ISDIR(st.st_mode)) {
-		if (hreq->url[hreq->lenurl - 1] != '/') {
-			/* the redirect is needed for reliability of relative path */
-			char *tourl = alloca(hreq->lenurl + 2);
-			memcpy(tourl, hreq->url, hreq->lenurl);
-			tourl[hreq->lenurl] = '/';
-			tourl[hreq->lenurl + 1] = 0;
-			rc = afb_hreq_redirect_to(hreq, tourl, 1);
-		} else {
+		rc = afb_hreq_redirect_to_ending_slash_if_needed(hreq);
+		if (rc == 0) {
 			static const char *indexes[] = { "index.html", NULL };
 			int i = 0;
-			rc = 0;
 			while (indexes[i] != NULL) {
 				if (faccessat(fd, indexes[i], R_OK, 0) == 0) {
 					rc = afb_hreq_reply_file_if_exist(hreq, fd, indexes[i]);
@@ -564,7 +573,7 @@ static char *url_with_query(struct afb_hreq *hreq, const char *url)
 	return mkq.text;
 }
 
-int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url, int add_query_part)
+void afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url, int add_query_part)
 {
 	const char *to;
 	char *wqp;
@@ -575,7 +584,6 @@ int afb_hreq_redirect_to(struct afb_hreq *hreq, const char *url, int add_query_p
 			MHD_HTTP_HEADER_LOCATION, to, NULL);
 	DEBUG("redirect from [%s] to [%s]", hreq->url, url);
 	free(wqp);
-	return 1;
 }
 
 const char *afb_hreq_get_cookie(struct afb_hreq *hreq, const char *name)
