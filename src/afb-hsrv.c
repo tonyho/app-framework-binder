@@ -58,6 +58,7 @@ struct hsrv_alias {
 	const char *directory;
 	size_t lendir;
 	int dirfd;
+	int relax;
 };
 
 struct afb_hsrv {
@@ -302,34 +303,32 @@ static struct hsrv_handler *new_handler(
 	return head;
 }
 
-static int handle_alias_relax(struct afb_hreq *hreq, void *data)
-{
-	struct hsrv_alias *da = data;
-
-	if (hreq->method != afb_method_get)
-		return 0;
-
-	if (!afb_hreq_valid_tail(hreq))
-		return 0;
-
-	return afb_hreq_reply_file_if_exist(hreq, da->dirfd, &hreq->tail[1]);
-}
-
 static int handle_alias(struct afb_hreq *hreq, void *data)
 {
+	int rc;
 	struct hsrv_alias *da = data;
 
 	if (hreq->method != afb_method_get) {
+		if (da->relax)
+			return 0;
 		afb_hreq_reply_error(hreq, MHD_HTTP_METHOD_NOT_ALLOWED);
 		return 1;
 	}
 
 	if (!afb_hreq_valid_tail(hreq)) {
+		if (da->relax)
+			return 0;
 		afb_hreq_reply_error(hreq, MHD_HTTP_FORBIDDEN);
 		return 1;
 	}
 
-	return afb_hreq_reply_file(hreq, da->dirfd, &hreq->tail[1]);
+	rc = afb_hreq_reply_file_if_exist(hreq, da->dirfd, &hreq->tail[1]);
+	if (rc == 0) {
+		if (da->relax)
+			return 0;
+		afb_hreq_reply_error(hreq, MHD_HTTP_NOT_FOUND);
+	}
+	return 1;
 }
 
 int afb_hsrv_add_handler(
@@ -364,7 +363,8 @@ int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *al
 		da->directory = alias;
 		da->lendir = strlen(da->directory);
 		da->dirfd = dirfd;
-		if (afb_hsrv_add_handler(hsrv, prefix, relax ? handle_alias_relax : handle_alias, da, priority))
+		da->relax = relax;
+		if (afb_hsrv_add_handler(hsrv, prefix, handle_alias, da, priority))
 			return 1;
 		free(da);
 	}
