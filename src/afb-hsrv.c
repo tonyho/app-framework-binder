@@ -342,26 +342,37 @@ int afb_hsrv_add_handler(
 	return 1;
 }
 
-int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority, int relax)
+int afb_hsrv_add_alias_root(struct afb_hsrv *hsrv, const char *prefix, struct locale_root *root, int priority, int relax)
 {
-	struct locale_root *root;
 	struct hsrv_alias *da;
 
-	root = locale_root_create(AT_FDCWD, alias);
-	if (root == NULL) {
-		/* TODO message */
-		return 0;
-	}
 	da = malloc(sizeof *da);
 	if (da != NULL) {
 		da->root = root;
 		da->relax = relax;
-		if (afb_hsrv_add_handler(hsrv, prefix, handle_alias, da, priority))
+		if (afb_hsrv_add_handler(hsrv, prefix, handle_alias, da, priority)) {
+			locale_root_addref(root);
 			return 1;
+		}
 		free(da);
 	}
-	locale_root_unref(root);
 	return 0;
+}
+
+int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority, int relax)
+{
+	struct locale_root *root;
+	int rc;
+
+	root = locale_root_create(AT_FDCWD, alias);
+	if (root == NULL) {
+		/* TODO message */
+		rc = 0;
+	} else {
+		rc = afb_hsrv_add_alias_root(hsrv, prefix, root, priority, relax);
+		locale_root_unref(root);
+	}
+	return rc;
 }
 
 int afb_hsrv_set_cache_timeout(struct afb_hsrv *hsrv, int duration)
