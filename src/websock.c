@@ -537,7 +537,7 @@ int websock_drop(struct websock *ws)
 	char buffer[8000];
 
 	while (ws->length)
-		if (ws_read(ws, buffer, sizeof buffer) < 0)
+		if (websock_read(ws, buffer, sizeof buffer) < 0)
 			return -1;
 	return 0;
 }
