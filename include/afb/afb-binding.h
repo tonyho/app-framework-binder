@@ -236,7 +236,7 @@ static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const
 {
 	va_list args;
 	va_start(args, fmt);
-	return daemon.itf->vverbose(daemon.closure, level, file, line, fmt, args);
+	daemon.itf->vverbose(daemon.closure, level, file, line, fmt, args);
 	va_end(args);
 }
 
