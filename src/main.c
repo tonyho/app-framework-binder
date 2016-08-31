@@ -640,6 +640,11 @@ int main(int argc, char *argv[])  {
      return 1;
   }
 
+  if (afb_common_rootdir_set(config->rootdir) < 0) {
+     ERROR("main fail to set common root directory");
+     return 1;
+  }
+
   // let's run this program with a low priority
   nice (20);
 
@@ -659,6 +664,7 @@ int main(int argc, char *argv[])  {
       INFO("entering foreground mode");
   }
 
+   /* start the HTTP server */
    hsrv = start_http_server(config);
    if (hsrv == NULL)
 	exit(1);

@@ -67,6 +67,8 @@ static int api_timeout = 15;
 static struct afb_event afb_api_so_event_make_cb(void *closure, const char *name);
 static int afb_api_so_event_broadcast_cb(void *closure, const char *name, struct json_object *object);
 static void afb_api_so_vverbose_cb(void *closure, int level, const char *file, int line, const char *fmt, va_list args);
+static int afb_api_so_rootdir_get_fd(void *closure);
+static int afb_api_so_rootdir_open_locale(void *closure, const char *filename, int flags, const char *locale);
 
 static const struct afb_daemon_itf daemon_itf = {
 	.event_broadcast = afb_api_so_event_broadcast_cb,
@@ -74,7 +76,9 @@ static const struct afb_daemon_itf daemon_itf = {
 	.get_user_bus = afb_common_get_user_bus,
 	.get_system_bus = afb_common_get_system_bus,
 	.vverbose = afb_api_so_vverbose_cb,
-	.event_make = afb_api_so_event_make_cb
+	.event_make = afb_api_so_event_make_cb,
+	.rootdir_get_fd = afb_api_so_rootdir_get_fd,
+	.rootdir_open_locale = afb_api_so_rootdir_open_locale
 };
 
 static struct afb_event afb_api_so_event_make_cb(void *closure, const char *name)
@@ -123,6 +127,16 @@ static void afb_api_so_vverbose_cb(void *closure, int level, const char *file, i
 		verbose(level, file, line, "%s {binding %s}", p, desc->binding->v1.prefix);
 		free(p);
 	}
+}
+
+static int afb_api_so_rootdir_get_fd(void *closure)
+{
+	return afb_common_rootdir_get_fd();
+}
+
+static int afb_api_so_rootdir_open_locale(void *closure, const char *filename, int flags, const char *locale)
+{
+	return afb_common_rootdir_open_locale(filename, flags, locale);
 }
 
 static void monitored_call(int signum, void *arg)

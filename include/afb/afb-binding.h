@@ -147,6 +147,8 @@ struct afb_daemon_itf {
        struct sd_bus *(*get_system_bus)(void *closure);        /* gets the common systemd's system d-bus */
        void (*vverbose)(void*closure, int level, const char *file, int line, const char *fmt, va_list args);
        struct afb_event (*event_make)(void *closure, const char *name); /* creates an event of 'name' */
+       int (*rootdir_get_fd)(void *closure);
+       int (*rootdir_open_locale)(void *closure, const char *filename, int flags, const char *locale);
 };
 
 /*
@@ -258,4 +260,24 @@ static inline void afb_daemon_verbose(struct afb_daemon daemon, int level, const
 #  define DEBUG(itf,...)   do{if(itf->verbosity>=3)afb_daemon_verbose(itf->daemon,7,NULL,0,__VA_ARGS__);}while(0)
 # endif
 #endif
+
+/*
+ * Get the root directory file descriptor. This file descriptor can
+ * be used with functions 'openat', 'fstatat', ...
+ */
+static inline int afb_daemon_rootdir_get_fd(struct afb_daemon daemon)
+{
+	return daemon.itf->rootdir_get_fd(daemon.closure);
+}
+
+/*
+ * Opens 'filename' within the root directory with 'flags' (see function openat)
+ * using the 'locale' definition (example: "jp,en-US") that can be NULL.
+ * Returns the file descriptor or -1 in case of error.
+ */
+static inline int afb_daemon_rootdir_open_locale(struct afb_daemon daemon, const char *filename, int flags, const char *locale)
+{
+	return daemon.itf->rootdir_open_locale(daemon.closure, filename, flags, locale);
+}
+
 
