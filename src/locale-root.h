@@ -20,13 +20,23 @@
 struct locale_root;
 struct locale_search;
 
-extern struct locale_root *locale_root_create(int dirfd, const char *pathname);
+extern struct locale_root *locale_root_create(int dirfd);
+extern struct locale_root *locale_root_create_at(int dirfd, const char *path);
 extern struct locale_root *locale_root_addref(struct locale_root *root);
 extern void locale_root_unref(struct locale_root *root);
-extern struct locale_search *locale_root_search(struct locale_root *root, const char *definition, int immediate);
 
-extern int locale_search_open(struct locale_search *search, const char *filename, int mode);
-extern char *locale_search_resolve(struct locale_search *search, const char *filename);
+extern struct locale_search *locale_root_search(struct locale_root *root, const char *definition, int immediate);
 extern struct locale_search *locale_search_addref(struct locale_search *search);
 extern void locale_search_unref(struct locale_search *search);
+
+extern void locale_root_set_default_search(struct locale_root *root, struct locale_search *search);
+
+extern int locale_root_get_dirfd(struct locale_root *root);
+
+extern int locale_root_open(struct locale_root *root, const char *filename, int flags, const char *locale);
+extern char *locale_root_resolve(struct locale_root *root, const char *filename, const char *locale);
+
+extern int locale_search_open(struct locale_search *search, const char *filename, int flags);
+extern char *locale_search_resolve(struct locale_search *search, const char *filename);
+
 

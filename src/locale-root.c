@@ -71,10 +71,11 @@ struct locale_search {
 
 struct locale_root {
 	int refcount;
-	int refcount2;
+	int intcount;
 	int rootfd;
 	struct locale_container container;
 	struct locale_search *lru[LRU_COUNT];
+	struct locale_search *default_search;
 };
 
 /* a valid subpath is a relative path not looking deeper than root using .. */
@@ -284,31 +285,47 @@ static int init_container(struct locale_container *container, int dirfd)
  * Creates a locale root handler and returns it or return NULL
  * in case of memory depletion.
  */
-struct locale_root *locale_root_create(int dirfd, const char *pathname)
+struct locale_root *locale_root_create(int dirfd)
 {
-	int rfd;
 	struct locale_root *root;
 	size_t i;
 
-	rfd = (pathname && *pathname) ? openat(dirfd, pathname, O_PATH|O_DIRECTORY) : dirfd >= 0 ? dup(dirfd) : dirfd;
-	if (rfd >= 0 || (!(pathname && *pathname) && dirfd < 0)) {
-		root = calloc(1, sizeof * root);
-		if (root == NULL)
-			errno = ENOMEM;
-		else {
-			if (init_container(&root->container, rfd) == 0) {
-				root->rootfd = rfd;
-				root->refcount = 1;
-				root->refcount2 = 1;
-				for(i = 0 ; i < LRU_COUNT ; i++)
-					root->lru[i] = NULL;
-				return root;
-			}
-			free(root);
+	root = calloc(1, sizeof * root);
+	if (root == NULL)
+		errno = ENOMEM;
+	else {
+		if (init_container(&root->container, dirfd) == 0) {
+			root->rootfd = dirfd;
+			root->refcount = 1;
+			root->intcount = 1;
+			for(i = 0 ; i < LRU_COUNT ; i++)
+				root->lru[i] = NULL;
+			root->default_search = NULL;
+			return root;
 		}
-		close(rfd);
+		free(root);
 	}
 	return NULL;
+}
+
+/*
+ * Creates a locale root handler and returns it or return NULL
+ * in case of memory depletion.
+ */
+struct locale_root *locale_root_create_at(int dirfd, const char *path)
+{
+	int fd;
+	struct locale_root *root;
+
+	fd = openat(dirfd, path, O_PATH|O_DIRECTORY);
+	if (fd < 0)
+		root =  NULL;
+	else {
+		root = locale_root_create(fd);
+		if (root == NULL)
+			close(fd);
+	}
+	return root;
 }
 
 /*
@@ -321,12 +338,12 @@ struct locale_root *locale_root_addref(struct locale_root *root)
 }
 
 /*
- * Drops a reference to 'root' and destroys it
+ * Drops an internal reference to 'root' and destroys it
  * if not more referenced
  */
-static void locale_root_unref2(struct locale_root *root)
+static void internal_unref(struct locale_root *root)
 {
-	if (!--root->refcount2) {
+	if (!--root->intcount) {
 		clear_container(&root->container);
 		close(root->rootfd);
 		free(root);
@@ -346,8 +363,16 @@ void locale_root_unref(struct locale_root *root)
 		for (i = 0 ; i < LRU_COUNT ; i++)
 			locale_search_unref(root->lru[i]);
 		/* finalize if needed */
-		locale_root_unref2(root);
+		internal_unref(root);
 	}
+}
+
+/*
+ * Get the filedescriptor for the 'root' directory
+ */
+int locale_root_get_dirfd(struct locale_root *root)
+{
+	return root->rootfd;
 }
 
 /*
@@ -393,9 +418,11 @@ static struct locale_search *create_search(struct locale_root *root, const char 
 
 	/* allocate the structure */
 	search = malloc(sizeof *search + length);
-	if (search != NULL) {
+	if (search == NULL) {
+		errno = ENOMEM;
+	} else {
 		/* init */
-		root->refcount2++;
+		root->intcount++;
 		search->root = root;
 		search->head = NULL;
 		search->refcount = 1;
@@ -534,18 +561,33 @@ void locale_search_unref(struct locale_search *search)
 			free(it);
 			it = nx;
 		}
-		locale_root_unref2(search->root);
+		internal_unref(search->root);
 		free(search);
 	}
 }
 
 /*
- * Opens 'filename' after search.
+ * Set the default search of 'root' to 'search'.
+ * This search is used as fallback when other search are failing.
+ */
+void locale_root_set_default_search(struct locale_root *root, struct locale_search *search)
+{
+	struct locale_search *older;
+
+	assert(search == NULL || search->root == root);
+
+	older = root->default_search;
+	root->default_search = search ? locale_search_addref(search) : NULL;
+	locale_search_unref(older);
+}
+
+/*
+ * Opens 'filename' for 'search' and 'root'.
  *
  * Returns the file descriptor as returned by openat
  * system call or -1 in case of error.
  */
-int locale_search_open(struct locale_search *search, const char *filename, int mode)
+static int do_open(struct locale_search *search, const char *filename, int flags, struct locale_root *root)
 {
 	size_t maxlength, length;
 	char *buffer, *p;
@@ -553,21 +595,21 @@ int locale_search_open(struct locale_search *search, const char *filename, int m
 	struct locale_folder *folder;
 	int rootfd, fd;
 
-	/* no creation mode accepted */
-	if ((mode & O_CREAT) != 0)
-		goto inval;
-
 	/* check the path and normalize it */
 	filename = normalsubpath(filename);
 	if (filename == NULL)
 		goto inval;
 
+	/* no creation flags accepted */
+	if ((flags & O_CREAT) != 0)
+		goto inval;
+
 	/* search for folders */
-	rootfd = search->root->rootfd;
-	node = search->head;
+	rootfd = root->rootfd;
+	node = search ? search->head : NULL;
 	if (node != NULL) {
 		/* allocates a buffer big enough */
-		maxlength = search->root->container.maxlength;
+		maxlength = root->container.maxlength;
 		length = strlen(filename);
 		if (length > PATH_MAX)
 			goto inval;
@@ -583,15 +625,19 @@ int locale_search_open(struct locale_search *search, const char *filename, int m
 			p = buffer + maxlength - folder->length;
 			memcpy(p, locales, sizeof locales - 1);
 			memcpy(p + sizeof locales - 1, folder->name, folder->length);
-			fd = openat(rootfd, p, mode);
+			fd = openat(rootfd, p, flags);
 			if (fd >= 0)
 				return fd;
 			node = node->next;
+			if (node == NULL && search != root->default_search) {
+				search = root->default_search;
+				node = search ? search->head : NULL;
+			}
 		}
 	}
 
-	/* default search */
-	return openat(rootfd, filename, mode);
+	/* root search */
+	return openat(rootfd, filename, flags);
 
 inval:
 	errno = EINVAL;
@@ -599,12 +645,40 @@ inval:
 }
 
 /*
- * Resolves 'filename' after search.
+ * Opens 'filename' after search.
+ *
+ * Returns the file descriptor as returned by openat
+ * system call or -1 in case of error.
+ */
+int locale_search_open(struct locale_search *search, const char *filename, int flags)
+{
+	return do_open(search, filename, flags, search->root);
+}
+
+/*
+ * Opens 'filename' for root with default search.
+ *
+ * Returns the file descriptor as returned by openat
+ * system call or -1 in case of error.
+ */
+int locale_root_open(struct locale_root *root, const char *filename, int flags, const char *locale)
+{
+	int result;
+	struct locale_search *search;
+
+	search = locale != NULL ? locale_root_search(root, locale, 0) : NULL;
+	result = do_open(search ? : root->default_search, filename, flags, root);
+	locale_search_unref(search);
+	return result;
+}
+
+/*
+ * Resolves 'filename' for 'root' and 'search'.
  *
  * returns a copy of the filename after search or NULL if not found.
  * the returned string MUST be freed by the caller (using free).
  */
-char *locale_search_resolve(struct locale_search *search, const char *filename)
+static char *do_resolve(struct locale_search *search, const char *filename, struct locale_root *root)
 {
 	size_t maxlength, length;
 	char *buffer, *p;
@@ -618,11 +692,11 @@ char *locale_search_resolve(struct locale_search *search, const char *filename)
 		goto inval;
 
 	/* search for folders */
-	rootfd = search->root->rootfd;
-	node = search->head;
+	rootfd = root->rootfd;
+	node = search ? search->head : NULL;
 	if (node != NULL) {
 		/* allocates a buffer big enough */
-		maxlength = search->root->container.maxlength;
+		maxlength = root->container.maxlength;
 		length = strlen(filename);
 		if (length > PATH_MAX)
 			goto inval;
@@ -643,10 +717,14 @@ char *locale_search_resolve(struct locale_search *search, const char *filename)
 				goto found;
 			}
 			node = node->next;
+			if (node == NULL && search != root->default_search) {
+				search = root->default_search;
+				node = search ? search->head : NULL;
+			}
 		}
 	}
 
-	/* default search */
+	/* root search */
 	if (0 != faccessat(rootfd, filename, F_OK, 0)) {
 		errno = ENOENT;
 		return NULL;
@@ -661,6 +739,34 @@ found:
 inval:
 	errno = EINVAL;
 	return NULL;
+}
+
+/*
+ * Resolves 'filename' at 'root' after default search.
+ *
+ * returns a copy of the filename after search or NULL if not found.
+ * the returned string MUST be freed by the caller (using free).
+ */
+char *locale_root_resolve(struct locale_root *root, const char *filename, const char *locale)
+{
+	char *result;
+	struct locale_search *search;
+
+	search = locale != NULL ? locale_root_search(root, locale, 0) : NULL;
+	result = do_resolve(search ? : root->default_search, filename, root);
+	locale_search_unref(search);
+	return result;
+}
+
+/*
+ * Resolves 'filename' after 'search'.
+ *
+ * returns a copy of the filename after search or NULL if not found.
+ * the returned string MUST be freed by the caller (using free).
+ */
+char *locale_search_resolve(struct locale_search *search, const char *filename)
+{
+	return do_resolve(search, filename, search->root);
 }
 
 #if defined(TEST_locale_root_validsubpath)
@@ -690,7 +796,7 @@ int main() {
 #if defined(TEST_locale_root)
 int main(int ac,char**av)
 {
-	struct locale_root *root = locale_root_create(AT_FDCWD, NULL);
+	struct locale_root *root = locale_root_create(AT_FDCWD);
 	struct locale_search *search = NULL;
 	int fd, rc, i;
 	char buffer[256];

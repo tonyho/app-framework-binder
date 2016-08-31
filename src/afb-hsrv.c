@@ -364,7 +364,7 @@ int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *al
 	struct locale_root *root;
 	int rc;
 
-	root = locale_root_create(AT_FDCWD, alias);
+	root = locale_root_create_at(AT_FDCWD, alias);
 	if (root == NULL) {
 		/* TODO message */
 		rc = 0;
