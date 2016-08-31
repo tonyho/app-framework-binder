@@ -359,12 +359,12 @@ int afb_hsrv_add_alias_root(struct afb_hsrv *hsrv, const char *prefix, struct lo
 	return 0;
 }
 
-int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, const char *alias, int priority, int relax)
+int afb_hsrv_add_alias(struct afb_hsrv *hsrv, const char *prefix, int dirfd, const char *alias, int priority, int relax)
 {
 	struct locale_root *root;
 	int rc;
 
-	root = locale_root_create_at(AT_FDCWD, alias);
+	root = locale_root_create_at(dirfd, alias);
 	if (root == NULL) {
 		/* TODO message */
 		rc = 0;

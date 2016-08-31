@@ -85,6 +85,8 @@
 #define WS_CLIENT          24
 #define WS_SERVICE         25
 
+#define SET_ROOT_HTTP      26
+
 // Command line structure hold cli --command + help text
 typedef struct {
   int  val;        // command number within application
@@ -102,7 +104,8 @@ static  AFB_options cliOptions [] = {
   {SET_BACKGROUND   ,0,"daemon"          , "Get all in background mode"},
 
   {SET_TCP_PORT     ,1,"port"            , "HTTP listening TCP port  [default 1234]"},
-  {SET_ROOT_DIR     ,1,"rootdir"         , "HTTP Root Directory [default $HOME/.AFB]"},
+  {SET_ROOT_DIR     ,1,"rootdir"         , "Root Directory [default $HOME/.AFB]"},
+  {SET_ROOT_HTTP    ,1,"roothttp"        , "HTTP Root Directory [default rootdir]"},
   {SET_ROOT_BASE    ,1,"rootbase"        , "Angular Base Root URL [default /opa]"},
   {SET_ROOT_API     ,1,"rootapi"         , "HTML Root API URL [default /api]"},
   {SET_ALIAS        ,1,"alias"           , "Muliple url map outside of rootdir [eg: --alias=/icons:/usr/share/icons]"},
@@ -212,6 +215,9 @@ static void config_set_default (struct afb_config * config)
    }
 
    // if no Angular/HTML5 rootbase let's try '/' as default
+   if  (config->roothttp == NULL)
+       config->roothttp = ".";
+
    if  (config->rootbase == NULL)
        config->rootbase = "/opa";
 
@@ -310,6 +316,12 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
        if (optarg == 0) goto needValueForOption;
        config->rootdir   = optarg;
        INFO("Forcing Rootdir=%s",config->rootdir);
+       break;
+
+    case SET_ROOT_HTTP:
+       if (optarg == 0) goto needValueForOption;
+       config->roothttp   = optarg;
+       INFO("Forcing Root HTTP=%s",config->roothttp);
        break;
 
     case SET_ROOT_BASE:
@@ -492,7 +504,9 @@ static void daemonize(struct afb_config *config)
  +--------------------------------------------------------- */
 static int init_http_server(struct afb_hsrv *hsrv, struct afb_config * config)
 {
-	int idx;
+	int idx, dfd;
+
+	dfd = afb_common_rootdir_get_fd();
 
 	if (!afb_hsrv_add_handler(hsrv, config->rootapi, afb_hswitch_websocket_switch, NULL, 20))
 		return 0;
@@ -501,10 +515,10 @@ static int init_http_server(struct afb_hsrv *hsrv, struct afb_config * config)
 		return 0;
 
 	for (idx = 0; idx < config->aliascount; idx++)
-		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, config->aliasdir[idx].path, 0, 0))
+		if (!afb_hsrv_add_alias (hsrv, config->aliasdir[idx].url, dfd, config->aliasdir[idx].path, 0, 0))
 			return 0;
 
-	if (!afb_hsrv_add_alias(hsrv, "", config->rootdir, -10, 1))
+	if (!afb_hsrv_add_alias(hsrv, "", dfd, config->roothttp, -10, 1))
 		return 0;
 
 	if (!afb_hsrv_add_handler(hsrv, config->rootbase, afb_hswitch_one_page_api_redirect, NULL, -20))

@@ -44,7 +44,8 @@ struct afb_config
   char *console;           // console device name (can be a file or a tty)
   int   httpdPort;
   char *ldpaths;           // list of plugins directories
-  char *rootdir;           // base dir for httpd file download
+  char *rootdir;           // base dir for files
+  char *roothttp;          // directory for http files
   char *rootbase;          // Angular HTML5 base URL
   char *rootapi;           // Base URL for REST APIs
   char *sessiondir;        // where to store mixer session files
