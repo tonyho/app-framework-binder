@@ -24,6 +24,7 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <poll.h>
 
 #include <systemd/sd-event.h>
 
@@ -337,10 +338,21 @@ int afb_ws_binary_v(struct afb_ws *ws, const struct iovec *iovec, int count)
 static ssize_t aws_writev(struct afb_ws *ws, const struct iovec *iov, int iovcnt)
 {
 	ssize_t rc;
-	do {
+	for (;;) {
 		rc = writev(ws->fd, iov, iovcnt);
-	} while(rc == -1 && errno == EINTR);
-	return rc;
+		if (rc == -1) {
+			if (errno == EINTR)
+				continue;
+			else if (errno == EAGAIN) {
+				struct pollfd pfd;
+				pfd.fd = ws->fd;
+				pfd.events = POLLOUT;
+				poll(&pfd, 1, 10);
+				continue;
+			}
+		}
+		return rc;
+	}
 }
 
 /*
@@ -352,7 +364,9 @@ static ssize_t aws_readv(struct afb_ws *ws, const struct iovec *iov, int iovcnt)
 	do {
 		rc = readv(ws->fd, iov, iovcnt);
 	} while(rc == -1 && errno == EINTR);
-	if (rc == 0) {
+	if (rc == -1 && errno == EAGAIN) {
+		rc = 0;
+	} else if (rc == 0) {
 		errno = EPIPE;
 		rc = -1;
 	}
