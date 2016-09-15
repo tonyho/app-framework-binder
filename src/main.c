@@ -678,6 +678,9 @@ int main(int argc, char *argv[])  {
       INFO("entering foreground mode");
   }
 
+  /* ignore any SIGPIPE */
+  signal(SIGPIPE, SIG_IGN);
+
    /* start the HTTP server */
    hsrv = start_http_server(config);
    if (hsrv == NULL)
