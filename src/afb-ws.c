@@ -364,9 +364,7 @@ static ssize_t aws_readv(struct afb_ws *ws, const struct iovec *iov, int iovcnt)
 	do {
 		rc = readv(ws->fd, iov, iovcnt);
 	} while(rc == -1 && errno == EINTR);
-	if (rc == -1 && errno == EAGAIN) {
-		rc = 0;
-	} else if (rc == 0) {
+	if (rc == 0) {
 		errno = EPIPE;
 		rc = -1;
 	}
@@ -393,6 +391,7 @@ static void aws_on_readable(struct afb_ws *ws)
  */
 static int aws_read(struct afb_ws *ws, size_t size)
 {
+	struct pollfd pfd;
 	ssize_t sz;
 	char *buffer;
 
@@ -401,10 +400,19 @@ static int aws_read(struct afb_ws *ws, size_t size)
 		if (buffer == NULL)
 			return 0;
 		ws->buffer.buffer = buffer;
-		sz = websock_read(ws->ws, &buffer[ws->buffer.size], size);
-		if ((size_t)sz != size)
-			return 0;
-		ws->buffer.size += size;
+		do {
+			sz = websock_read(ws->ws, &buffer[ws->buffer.size], size);
+			if (sz < 0) {
+				if (errno != EAGAIN)
+					return 0;
+				pfd.fd = ws->fd;
+				pfd.events = POLLIN;
+				poll(&pfd, 1, 10);
+			} else {
+				ws->buffer.size += (size_t)sz;
+				size -= (size_t)sz;
+			}
+		} while (size != 0);
 	}
 	return 1;
 }
