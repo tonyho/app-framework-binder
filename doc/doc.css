@@ -35,3 +35,6 @@ table  {
 thead {background-color: #a6f;}
 tr:nth-child(even) {background-color: #aee;}
 td { padding: 0.1em 0.5em; }
+
+figure img {width: 80%;}
+figure {text-align: center;}

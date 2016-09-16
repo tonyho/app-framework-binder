@@ -7,35 +7,53 @@
   <meta name="author" content="José Bollo">
   <title>HOWTO WRITE a BINDING for AFB-DAEMON</title>
   <style type="text/css">code{white-space: pre;}</style>
-  <!--[if lt IE 9]>
-    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-  <![endif]-->
   <style type="text/css">
+div.sourceCode { overflow-x: auto; }
 table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
   margin: 0; padding: 0; vertical-align: baseline; border: none; }
 table.sourceCode { width: 100%; line-height: 100%; }
 td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
 td.sourceCode { padding-left: 5px; }
-code > span.kw { color: #007020; font-weight: bold; }
-code > span.dt { color: #902000; }
-code > span.dv { color: #40a070; }
-code > span.bn { color: #40a070; }
-code > span.fl { color: #40a070; }
-code > span.ch { color: #4070a0; }
-code > span.st { color: #4070a0; }
-code > span.co { color: #60a0b0; font-style: italic; }
-code > span.ot { color: #007020; }
-code > span.al { color: #ff0000; font-weight: bold; }
-code > span.fu { color: #06287e; }
-code > span.er { color: #ff0000; font-weight: bold; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
   </style>
   <link rel="stylesheet" href="doc.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
 </head>
 <body>
 <header>
 <h1 class="title">HOWTO WRITE a BINDING for AFB-DAEMON</h1>
 <h2 class="author">José Bollo</h2>
-<h3 class="date">24 juin 2016</h3>
+<h3 class="date">27 juillet 2016</h3>
 </header>
 <nav id="TOC">
 <ul>
@@ -152,11 +170,11 @@ code > span.er { color: #ff0000; font-weight: bold; }
 </blockquote>
 <h2 id="header-files-to-include">Header files to include</h2>
 <p>Binding <em>tictactoe</em> has following includes:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#define _GNU_SOURCE</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#define _GNU_SOURCE</span>
 <span class="ot">#include &lt;stdio.h&gt;</span>
 <span class="ot">#include &lt;string.h&gt;</span>
 <span class="ot">#include &lt;json-c/json.h&gt;</span>
-<span class="ot">#include &lt;afb/afb-binding.h&gt;</span></code></pre>
+<span class="ot">#include &lt;afb/afb-binding.h&gt;</span></code></pre></div>
 <p>Header <em>afb/afb-binding.h</em> is the only hard dependency, it includes all features that a binding MUST HAVE. Outside of includes used to support application logic, common external headers used within bindings are:</p>
 <ul>
 <li><em>json-c/json.h</em>: should be include to handle json objects;</li>
@@ -196,7 +214,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <p>It is a good practice, even for arguments not to rely on case sensitivity. This may reduce headache strength at debug time, especially with interpreted language like javascript that may not warn you that a variable was not defined.</p>
 <h2 id="writing-a-synchronous-method-implementation">Writing a synchronous method implementation</h2>
 <p>The method <strong>tictactoe/board</strong> is a synchronous implementation. Here is its listing:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * get the board</span>
 <span class="co"> */</span>
 <span class="dt">static</span> <span class="dt">void</span> board(<span class="kw">struct</span> afb_req req)
@@ -213,7 +231,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 
     <span class="co">/* send the board&#39;s description */</span>
     afb_req_success(req, description, NULL);
-}</code></pre>
+}</code></pre></div>
 <p>This example shows many aspects of a synchronous method implementation. Let summarise it:</p>
 <ol type="1">
 <li><p>The function <strong>board_of_req</strong> retrieves the context stored for the binding: the board.</p></li>
@@ -227,13 +245,13 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <p>Note that this is a PLAIN structure, not a pointer to a structure.</p>
 </blockquote>
 <p>The definition of <strong>struct afb_req</strong> is:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Describes the request by bindings from afb-daemon</span>
 <span class="co"> */</span>
 <span class="kw">struct</span> afb_req {
     <span class="dt">const</span> <span class="kw">struct</span> afb_req_itf *itf;  <span class="co">/* the interfacing functions */</span>
     <span class="dt">void</span> *closure;          <span class="co">/* the closure for functions */</span>
-};</code></pre>
+};</code></pre></div>
 <p>It contains two pointers: first one <em>itf</em>, points to functions used to handle internal request. Second one <em>closure</em> point onto function closure.</p>
 <blockquote>
 <p>The structure must never be used directly. Instead developer should use the intended functions provided by afb-daemon as described here after.</p>
@@ -255,16 +273,16 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <li><p><strong>afb_req_context_clear</strong>: reset the stored context data.</p></li>
 </ul>
 <p>The binding <em>tictactoe</em> use a convenient function to retrieve its context: the board. This function is <em>board_of_req</em>:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * retrieves the board of the request</span>
 <span class="co"> */</span>
 <span class="dt">static</span> <span class="kw">inline</span> <span class="kw">struct</span> board *board_of_req(<span class="kw">struct</span> afb_req req)
 {
     <span class="kw">return</span> afb_req_context(req, (<span class="dt">void</span>*)get_new_board, (<span class="dt">void</span>*)release_board);
-}</code></pre>
+}</code></pre></div>
 <p>The function <strong>afb_req_context</strong> ensures an existing context for the session of the request. Its two last arguments are functions to allocate and free context. Note function type casts to avoid compilation warnings.</p>
 <p>Here is the definition of the function <strong>afb_req_context</strong></p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Gets the pointer stored by the binding for the session of &#39;req&#39;.</span>
 <span class="co"> * If the stored pointer is NULL, indicating that no pointer was</span>
 <span class="co"> * already stored, afb_req_context creates a new context by calling</span>
@@ -279,11 +297,11 @@ code > span.er { color: #ff0000; font-weight: bold; }
         afb_req_context_set(req, result, free_context);
     }
     <span class="kw">return</span> result;
-}</code></pre>
+}</code></pre></div>
 <p>The second argument if the function that creates the context. For binding <em>tic-tac-toe</em> (function <strong>get_new_board</strong>). The function <strong>get_new_board</strong> creates a new board and set usage its count to 1. The boards are checking usage count to free resources when not used.</p>
 <p>The third argument is a function that frees context resources. For binding <em>tic-tac-toe</em> (function <strong>release_board</strong>). The function <strong>release_board</strong> decrease usage count of the board passed in argument. When usage count falls to zero, data board are freed.</p>
 <p>Definition of other functions dealing with contexts:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Gets the pointer stored by the binding for the session of &#39;req&#39;.</span>
 <span class="co"> * When the binding has not yet recorded a pointer, NULL is returned.</span>
 <span class="co"> */</span>
@@ -305,14 +323,14 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="dt">static</span> <span class="kw">inline</span> <span class="dt">void</span> afb_req_context_clear(<span class="kw">struct</span> afb_req req)
 {
     afb_req_context_set(req, NULL, NULL);
-}</code></pre>
+}</code></pre></div>
 <h3 id="sending-reply-to-a-request">Sending reply to a request</h3>
 <p>Two kinds of replies: successful or failure.</p>
 <blockquote>
 <p>Sending a reply to a request MUST be done once and only once.</p>
 </blockquote>
 <p>It exists two functions for &quot;success&quot; replies: <strong>afb_req_success</strong> and <strong>afb_req_success_f</strong>.</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Sends a reply of kind success to the request &#39;req&#39;.</span>
 <span class="co"> * The status of the reply is automatically set to &quot;success&quot;.</span>
 <span class="co"> * Its send the object &#39;obj&#39; (can be NULL) with an</span>
@@ -332,9 +350,9 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * Thus, in the case where &#39;obj&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
-<span class="dt">void</span> afb_req_success_f(<span class="kw">struct</span> afb_req req, <span class="kw">struct</span> json_object *obj, <span class="dt">const</span> <span class="dt">char</span> *info, ...);</code></pre>
+<span class="dt">void</span> afb_req_success_f(<span class="kw">struct</span> afb_req req, <span class="kw">struct</span> json_object *obj, <span class="dt">const</span> <span class="dt">char</span> *info, ...);</code></pre></div>
 <p>It exists two functions for &quot;failure&quot; replies: <strong>afb_req_fail</strong> and <strong>afb_req_fail_f</strong>.</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Sends a reply of kind failure to the request &#39;req&#39;.</span>
 <span class="co"> * The status of the reply is set to &#39;status&#39; and an</span>
 <span class="co"> * informational comment &#39;info&#39; (can also be NULL) can be added.</span>
@@ -357,7 +375,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * Thus, in the case where &#39;obj&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
-<span class="dt">void</span> afb_req_fail_f(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *status, <span class="dt">const</span> <span class="dt">char</span> *info, ...);</code></pre>
+<span class="dt">void</span> afb_req_fail_f(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *status, <span class="dt">const</span> <span class="dt">char</span> *info, ...);</code></pre></div>
 <blockquote>
 <p>For convenience, these functions automatically call <strong>json_object_put</strong> to release <strong>obj</strong>. Because <strong>obj</strong> usage count is null after being passed to a reply function, it SHOULD not be used anymore. If exceptionally <strong>obj</strong> needs to remain usable after reply function then using <strong>json_object_get</strong> on <strong>obj</strong> to increase usage count and cancels the effect the <strong>json_object_put</strong> is possible.</p>
 </blockquote>
@@ -365,7 +383,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <p>Many methods expect arguments. Afb-daemon's bindings retrieve arguments by name and not by position.</p>
 <p>Arguments are passed by requests through either HTTP or WebSockets.</p>
 <p>For example, the method <strong>join</strong> of binding <strong>tic-tac-toe</strong> expects one argument: the <em>boardid</em> to join. Here is an extract:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Join a board</span>
 <span class="co"> */</span>
 <span class="dt">static</span> <span class="dt">void</span> join(<span class="kw">struct</span> afb_req req)
@@ -381,14 +399,14 @@ code > span.er { color: #ff0000; font-weight: bold; }
     id = afb_req_value(req, <span class="st">&quot;boardid&quot;</span>);
     <span class="kw">if</span> (id == NULL)
         <span class="kw">goto</span> bad_request;
-    ...</code></pre>
+    ...</code></pre></div>
 <p>The function <strong>afb_req_value</strong> searches in the request <em>req</em> for argument name passed in the second argument. When argument name is not passed, <strong>afb_req_value</strong> returns NULL.</p>
 <blockquote>
 <p>The search is case sensitive and <em>boardid</em> is not equivalent to <em>BoardId</em>. Nevertheless having argument names that only differ by name case is not a good idea.</p>
 </blockquote>
 <h3 id="basic-functions-for-querying-arguments">Basic functions for querying arguments</h3>
 <p>The function <strong>afb_req_value</strong> is defined here after:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Gets from the request &#39;req&#39; the string value of the argument of &#39;name&#39;.</span>
 <span class="co"> * Returns NULL if when there is no argument of &#39;name&#39;.</span>
 <span class="co"> * Returns the value of the argument of &#39;name&#39; otherwise.</span>
@@ -398,9 +416,9 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="dt">static</span> <span class="kw">inline</span> <span class="dt">const</span> <span class="dt">char</span> *afb_req_value(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *name)
 {
     <span class="kw">return</span> afb_req_get(req, name).value;
-}</code></pre>
+}</code></pre></div>
 <p>It is defined as a shortcut to call the function <strong>afb_req_get</strong>. That function is defined here after:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Gets from the request &#39;req&#39; the argument of &#39;name&#39;.</span>
 <span class="co"> * Returns a PLAIN structure of type &#39;struct afb_arg&#39;.</span>
 <span class="co"> * When the argument of &#39;name&#39; is not found, all fields of result are set to NULL.</span>
@@ -412,11 +430,11 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * an HTTP POST of Content-Type &quot;application/json&quot;. In that case, the</span>
 <span class="co"> * argument of name &quot;&quot; receives the value of the body of the HTTP request.</span>
 <span class="co"> */</span>
-<span class="kw">struct</span> afb_arg afb_req_get(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *name);</code></pre>
+<span class="kw">struct</span> afb_arg afb_req_get(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *name);</code></pre></div>
 <p>That function takes 2 parameters: the request and the name of the argument to retrieve. It returns a PLAIN structure of type <strong>struct afb_arg</strong>.</p>
 <p>There is a special name that is defined when the request is of type HTTP/POST with a Content-Type being application/json. This name is <strong>&quot;&quot;</strong> (the empty string). In that case, the value of this argument of empty name is the string received as a body of the post and is supposed to be a JSON string.</p>
 <p>The definition of <strong>struct afb_arg</strong> is:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Describes an argument (or parameter) of a request</span>
 <span class="co"> */</span>
 <span class="kw">struct</span> afb_arg {
@@ -425,9 +443,9 @@ code > span.er { color: #ff0000; font-weight: bold; }
                 <span class="co">/* original filename of the argument if path != NULL */</span>
     <span class="dt">const</span> <span class="dt">char</span> *path;   <span class="co">/* if not NULL, path of the received file for the argument */</span>
                 <span class="co">/* when the request is finalized this file is removed */</span>
-};</code></pre>
+};</code></pre></div>
 <p>The structure returns the data arguments that are known for the request. This data include a field named <strong>path</strong>. This <strong>path</strong> can be accessed using the function <strong>afb_req_path</strong> defined here after:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Gets from the request &#39;req&#39; the path for file attached to the argument of &#39;name&#39;.</span>
 <span class="co"> * Returns NULL if when there is no argument of &#39;name&#39; or when there is no file.</span>
 <span class="co"> * Returns the path of the argument of &#39;name&#39; otherwise.</span>
@@ -437,29 +455,29 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="dt">static</span> <span class="kw">inline</span> <span class="dt">const</span> <span class="dt">char</span> *afb_req_path(<span class="kw">struct</span> afb_req req, <span class="dt">const</span> <span class="dt">char</span> *name)
 {
     <span class="kw">return</span> afb_req_get(req, name).path;
-}</code></pre>
+}</code></pre></div>
 <p>The path is only defined for HTTP/POST requests that send file.</p>
 <h3 id="arguments-for-received-files">Arguments for received files</h3>
 <p>As it is explained above, clients can send files using HTTP/POST requests.</p>
 <p>Received files are attached to &quot;file&quot; argument name. For example, the following HTTP fragment (from test/sample-post.html) will send an HTTP/POST request to the method <strong>post/upload-image</strong> with 2 arguments named <em>file</em> and <em>hidden</em>.</p>
-<pre class="sourceCode html"><code class="sourceCode html"><span class="kw">&lt;h2&gt;</span>Sample Post File<span class="kw">&lt;/h2&gt;</span>
+<div class="sourceCode"><pre class="sourceCode html"><code class="sourceCode html"><span class="kw">&lt;h2&gt;</span>Sample Post File<span class="kw">&lt;/h2&gt;</span>
 <span class="kw">&lt;form</span><span class="ot"> enctype=</span><span class="st">&quot;multipart/form-data&quot;</span><span class="kw">&gt;</span>
     <span class="kw">&lt;input</span><span class="ot"> type=</span><span class="st">&quot;file&quot;</span><span class="ot"> name=</span><span class="st">&quot;file&quot;</span> <span class="kw">/&gt;</span>
     <span class="kw">&lt;input</span><span class="ot"> type=</span><span class="st">&quot;hidden&quot;</span><span class="ot"> name=</span><span class="st">&quot;hidden&quot;</span><span class="ot"> value=</span><span class="st">&quot;bollobollo&quot;</span> <span class="kw">/&gt;</span>
     <span class="kw">&lt;br&gt;</span>
     <span class="kw">&lt;button</span><span class="ot"> formmethod=</span><span class="st">&quot;POST&quot;</span><span class="ot"> formaction=</span><span class="st">&quot;api/post/upload-image&quot;</span><span class="kw">&gt;</span>Post File<span class="kw">&lt;/button&gt;</span>
-<span class="kw">&lt;/form&gt;</span></code></pre>
+<span class="kw">&lt;/form&gt;</span></code></pre></div>
 <p>Argument named <strong>file</strong> should have both its value and path defined.</p>
 <p>The value is the name of the file as it was set by the HTTP client. Generally it is the filename on client side.</p>
 <p>The path is the effective path of saved file on the temporary local storage area of the application. This is a randomly generated and unique filename. It is not linked with the original filename as used on client side.</p>
 <p>After success the binding can use the uploaded file directly from local storage path with no restriction: read, write, remove, copy, rename... Nevertheless when request reply is set and query terminated, the uploaded temporary file at path is destroyed.</p>
 <h3 id="arguments-as-a-json-object">Arguments as a JSON object</h3>
 <p>Bindings may also request every arguments of a given call as one single object. This feature is provided by the function <strong>afb_req_json</strong> defined here after:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Gets from the request &#39;req&#39; the json object hashing the arguments.</span>
 <span class="co"> * The returned object must not be released using &#39;json_object_put&#39;.</span>
 <span class="co"> */</span>
-<span class="kw">struct</span> json_object *afb_req_json(<span class="kw">struct</span> afb_req req);</code></pre>
+<span class="kw">struct</span> json_object *afb_req_json(<span class="kw">struct</span> afb_req req);</code></pre></div>
 <p>It returns a json object. This object depends on how the request was built:</p>
 <ul>
 <li><p>For HTTP requests, this json object uses key names mapped on argument name. Values are either string for common arguments or object ie: { &quot;file&quot;: &quot;...&quot;, &quot;path&quot;: &quot;...&quot; }</p></li>
@@ -482,22 +500,22 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <li><p>Afb-daemon checks that the returned version and name can be managed. If so, binding and its methods are register to become usable as soon as afb-daemon initialisation is finished.</p></li>
 </ol>
 <p>Here after the code used for <strong>afbBindingV1Register</strong> from binding <em>tic-tac-toe</em>:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * activation function for registering the binding called by afb-daemon</span>
 <span class="co"> */</span>
 <span class="dt">const</span> <span class="kw">struct</span> afb_binding *afbBindingV1Register(<span class="dt">const</span> <span class="kw">struct</span> afb_binding_interface *itf)
 {
    afbitf = itf;         <span class="co">// records the interface for accessing afb-daemon</span>
    <span class="kw">return</span> &amp;binding_description;  <span class="co">// returns the description of the binding</span>
-}</code></pre>
+}</code></pre></div>
 <p>It is a very minimal initialisation function because <em>tic-tac-toe</em> binding doesn't have any application related initialisation step. It merely record daemon's interface and returns its description.</p>
 <p>The variable <strong>afbitf</strong> is a binding global variable. It keeps the interface to afb-daemon that should be used for logging and pushing events. Here is its declaration:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * the interface to afb-daemon</span>
 <span class="co"> */</span>
-<span class="dt">const</span> <span class="kw">struct</span> afb_binding_interface *afbitf;</code></pre>
+<span class="dt">const</span> <span class="kw">struct</span> afb_binding_interface *afbitf;</code></pre></div>
 <p>The description of the binding is defined here after.</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * array of the methods exported to afb-daemon</span>
 <span class="co"> */</span>
 <span class="dt">static</span> <span class="dt">const</span> <span class="kw">struct</span> afb_verb_desc_v1 binding_methods[] = {
@@ -525,7 +543,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
       .info= <span class="st">&quot;Sample tac-tac-toe game&quot;</span>, <span class="co">/* short description of of the binding */</span>
       .methods = binding_methods        <span class="co">/* the array describing the methods of the API */</span>
    }
-};</code></pre>
+};</code></pre></div>
 <p>The structure <strong>binding_description</strong> describes the binding. It declares the type and version of the binding, its name, a short description and its methods list.</p>
 <p>The list of methods is an array of structures describing the methods and terminated by a NULL marker.</p>
 <p>In version one of afb-damon binding, a method description contains 4 fields:</p>
@@ -536,7 +554,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <li><p>a short description.</p></li>
 </ul>
 <p>The structure describing methods is defined as follows:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Description of one method of the API provided by the binding</span>
 <span class="co"> * This enumeration is valid for bindings of type 1</span>
 <span class="co"> */</span>
@@ -546,10 +564,14 @@ code > span.er { color: #ff0000; font-weight: bold; }
        <span class="kw">enum</span> AFB_session_v1 session;            <span class="co">/* authorisation and session requirements of the method */</span>
        <span class="dt">void</span> (*callback)(<span class="kw">struct</span> afb_req req);   <span class="co">/* callback function implementing the method */</span>
        <span class="dt">const</span> <span class="dt">char</span> *info;                       <span class="co">/* textual description of the method */</span>
-};</code></pre>
+};</code></pre></div>
 <p>For technical reasons, the enumeration <strong>enum AFB_session_v1</strong> is not exactly an enumeration but the wrapper of constant definitions that can be mixed using bitwise or (the C operator |).</p>
 <p>The constants that can bit mixed are:</p>
-<table>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 70%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th style="text-align: left;">Constant name</th>
@@ -678,7 +700,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 </table>
 <p>You can note that the 2 methods <strong>WARNING</strong> and <strong>INFO</strong> have the same level of verbosity. But they don't have the same <em>syslog level</em>. It means that they are output with a different level on the logging system.</p>
 <p>All of these methods have the same signature:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="dt">void</span> ERROR(<span class="dt">const</span> <span class="kw">struct</span> afb_binding_interface *afbitf, <span class="dt">const</span> <span class="dt">char</span> *message, ...);</code></pre>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="dt">void</span> ERROR(<span class="dt">const</span> <span class="kw">struct</span> afb_binding_interface *afbitf, <span class="dt">const</span> <span class="dt">char</span> *message, ...);</code></pre></div>
 <p>The first argument <strong>afbitf</strong> is the interface to afb daemon that the binding received at initialisation time when <strong>afbBindingV1Register</strong> is called.</p>
 <p>The second argument <strong>message</strong> is a formatting string compatible with printf/sprintf.</p>
 <p>The remaining arguments are arguments of the formating message like with printf.</p>
@@ -758,7 +780,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <h2 id="sending-events">Sending events</h2>
 <p>Since version 0.5, bindings can broadcast events to any potential listener. As today only unattended even are supported. Targeted events are expected for next coming version.</p>
 <p>The binding <em>tic-tac-toe</em> broadcasts events when the board changes. This is done in the function <strong>changed</strong>:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * signals a change of the board</span>
 <span class="co"> */</span>
 <span class="dt">static</span> <span class="dt">void</span> changed(<span class="kw">struct</span> board *board, <span class="dt">const</span> <span class="dt">char</span> *reason)
@@ -772,11 +794,11 @@ code > span.er { color: #ff0000; font-weight: bold; }
     ...
 
     afb_daemon_broadcast_event(afbitf-&gt;daemon, reason, description);
-}</code></pre>
+}</code></pre></div>
 <p>The description of the changed board is pushed via the daemon interface.</p>
 <p>Within binding <em>tic-tac-toe</em>, <em>reason</em> indicates the origin of the change. In function <strong>afb_daemon_broadcast_event</strong> the second parameter is the name of broadcasted event. The third argument is the object that is transmitted with the event.</p>
 <p>Function <strong>afb_daemon_broadcast_event</strong> is defined here after:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * Broadcasts widely the event of &#39;name&#39; with the data &#39;object&#39;.</span>
 <span class="co"> * &#39;object&#39; can be NULL.</span>
 <span class="co"> * &#39;daemon&#39; MUST be the daemon given in interface when activating the binding.</span>
@@ -785,7 +807,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <span class="co"> * Thus, in the case where &#39;object&#39; should remain available after</span>
 <span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
 <span class="co"> */</span>
-<span class="dt">void</span> afb_daemon_broadcast_event(<span class="kw">struct</span> afb_daemon daemon, <span class="dt">const</span> <span class="dt">char</span> *name, <span class="kw">struct</span> json_object *object);</code></pre>
+<span class="dt">void</span> afb_daemon_broadcast_event(<span class="kw">struct</span> afb_daemon daemon, <span class="dt">const</span> <span class="dt">char</span> *name, <span class="kw">struct</span> json_object *object);</code></pre></div>
 <blockquote>
 <p>Be aware, as with reply functions <strong>object</strong> is automatically released using <strong>json_object_put</strong> when using this function. Call <strong>json_object_get</strong> before calling <strong>afb_daemon_broadcast_event</strong> to keep <strong>object</strong> available after function returns.</p>
 </blockquote>
@@ -812,7 +834,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <p>Here, this is an invocation of the binding by an other client that unblock the suspended <em>wait</em> call. Nevertheless in most case this should be a timer, a hardware event, a sync with a concurrent process or thread, ...</p>
 <p>Common case of an asynchronous implementation.</p>
 <p>Here is the listing of the function <strong>wait</strong>:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="dt">static</span> <span class="dt">void</span> wait(<span class="kw">struct</span> afb_req req)
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="dt">static</span> <span class="dt">void</span> wait(<span class="kw">struct</span> afb_req req)
 {
     <span class="kw">struct</span> board *board;
     <span class="kw">struct</span> waiter *waiter;
@@ -827,7 +849,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
     waiter-&gt;next = board-&gt;waiters;
     afb_req_addref(req);
     board-&gt;waiters = waiter;
-}</code></pre>
+}</code></pre></div>
 <p>After retrieving the board, the function adds a new waiter to waiters list and returns without setting a reply.</p>
 <p>Before returning, it increases <strong>req</strong> request's reference count using <strong>afb_req_addref</strong> function.</p>
 <blockquote>
@@ -835,7 +857,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 </blockquote>
 <p>Later, when a board changes, it calls <em>tic-tac-toe</em> <strong>changed</strong> function with reason of change in parameter.</p>
 <p>Here is the full listing of the function <strong>changed</strong>:</p>
-<pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
 <span class="co"> * signals a change of the board</span>
 <span class="co"> */</span>
 <span class="dt">static</span> <span class="dt">void</span> changed(<span class="kw">struct</span> board *board, <span class="dt">const</span> <span class="dt">char</span> *reason)
@@ -857,18 +879,18 @@ code > span.er { color: #ff0000; font-weight: bold; }
     }
 
     afb_event_sender_push(afb_daemon_get_event_sender(afbitf-&gt;daemon), reason, description);
-}</code></pre>
+}</code></pre></div>
 <p>The list of waiters is walked and a reply is sent to each waiter. After sending the reply, the reference count of the request is decremented using <strong>afb_req_unref</strong> to allow resources to be freed.</p>
 <blockquote>
 <p>The reference count <strong>MUST</strong> be decremented using <strong>afb_req_unref</strong> to free resources and avoid memory leaks. This usage count decrement should happen <strong>AFTER</strong> setting reply or bad things may happen.</p>
 </blockquote>
 <h2 id="how-to-build-a-binding">How to build a binding</h2>
 <p>Afb-daemon provides a <em>pkg-config</em> configuration file that can be queried by providing <strong>afb-daemon</strong> in command line arguments. This configuration file provides data that should be used for bindings compilation. Examples:</p>
-<pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">pkg-config</span> --cflags afb-daemon
-$ <span class="kw">pkg-config</span> --libs afb-daemon</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="kw">pkg-config</span> --cflags afb-daemon
+$ <span class="kw">pkg-config</span> --libs afb-daemon</code></pre></div>
 <h3 id="example-for-cmake-meta-build-system">Example for cmake meta build system</h3>
 <p>This example is the extract for building the binding <em>afm-main</em> using <em>CMAKE</em>.</p>
-<pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="fu">pkg_check_modules</span>(afb afb-daemon)
+<div class="sourceCode"><pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="fu">pkg_check_modules</span>(afb afb-daemon)
 <span class="kw">if</span>(afb_FOUND)
     <span class="kw">message</span>(<span class="ot">STATUS</span> <span class="st">&quot;Creation afm-main-binding for AFB-DAEMON&quot;</span>)
     <span class="kw">add_library</span>(afm-main-binding <span class="ot">MODULE</span> afm-main-binding.c)
@@ -882,11 +904,15 @@ $ <span class="kw">pkg-config</span> --libs afb-daemon</code></pre>
     <span class="kw">install</span>(<span class="ot">TARGETS</span> afm-main-binding <span class="ot">LIBRARY</span> <span class="ot">DESTINATION</span> <span class="dv">${binding_dir}</span>)
 <span class="kw">else</span>()
     <span class="kw">message</span>(<span class="ot">STATUS</span> <span class="st">&quot;Not creating the binding for AFB-DAEMON&quot;</span>)
-<span class="kw">endif</span>()</code></pre>
+<span class="kw">endif</span>()</code></pre></div>
 <p>Let now describe some of these lines.</p>
-<pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="fu">pkg_check_modules</span>(afb afb-daemon)</code></pre>
+<div class="sourceCode"><pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="fu">pkg_check_modules</span>(afb afb-daemon)</code></pre></div>
 <p>This first lines searches to the <em>pkg-config</em> configuration file for <strong>afb-daemon</strong>. Resulting data are stored in the following variables:</p>
-<table>
+<table style="width:94%;">
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 68%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th style="text-align: left;">Variable</th>
@@ -921,20 +947,20 @@ $ <span class="kw">pkg-config</span> --libs afb-daemon</code></pre>
 </tbody>
 </table>
 <p>If development files are found, the binding can be added to the set of target to build.</p>
-<pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="kw">add_library</span>(afm-main-binding <span class="ot">MODULE</span> afm-main-binding.c)</code></pre>
+<div class="sourceCode"><pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="kw">add_library</span>(afm-main-binding <span class="ot">MODULE</span> afm-main-binding.c)</code></pre></div>
 <p>This line asks to create a shared library having a single source file named afm-main-binding.c to be compiled. The default name of the created shared object is <strong>libafm-main-binding.so</strong>.</p>
-<pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="kw">set_target_properties</span>(afm-main-binding <span class="ot">PROPERTIES</span>
+<div class="sourceCode"><pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="kw">set_target_properties</span>(afm-main-binding <span class="ot">PROPERTIES</span>
     <span class="ot">PREFIX</span> <span class="st">&quot;&quot;</span>
     <span class="ot">LINK_FLAGS</span> <span class="st">&quot;-Wl,--version-script=</span><span class="dv">${CMAKE_CURRENT_SOURCE_DIR}</span><span class="st">/afm-main-binding.export-map&quot;</span>
-)</code></pre>
+)</code></pre></div>
 <p>This lines are doing two things:</p>
 <ol type="1">
 <li><p>It renames the built library from <strong>libafm-main-binding.so</strong> to <strong>afm-main-binding.so</strong> by removing the implicitly added prefix <em>lib</em>. This step is not mandatory because afb-daemon doesn't check names of files at load time. The only filename convention used by afb-daemon relates to <strong>.so</strong> termination. *.so pattern is used when afb-daemon automatically discovers binding from a directory hierarchy.</p></li>
 <li><p>It applies a version script at link time to only export the reserved name <strong>afbBindingV1Register</strong> for registration entry point. By default, when building a shared library linker exports all the public symbols (C functions that are not <strong>static</strong>).</p></li>
 </ol>
 <p>Next line are:</p>
-<pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="kw">target_include_directories</span>(afm-main-binding <span class="ot">PRIVATE</span> <span class="dv">${afb_INCLUDE_DIRS}</span>)
-<span class="kw">target_link_libraries</span>(afm-main-binding utils <span class="dv">${afb_LIBRARIES}</span>)</code></pre>
+<div class="sourceCode"><pre class="sourceCode cmake"><code class="sourceCode cmake"><span class="kw">target_include_directories</span>(afm-main-binding <span class="ot">PRIVATE</span> <span class="dv">${afb_INCLUDE_DIRS}</span>)
+<span class="kw">target_link_libraries</span>(afm-main-binding utils <span class="dv">${afb_LIBRARIES}</span>)</code></pre></div>
 <p>As you can see it uses the variables computed by <strong><em>pkg_check_modules(afb afb-daemon)</em></strong> to configure the compiler and the linker.</p>
 <h3 id="exporting-the-function-afbbindingv1register">Exporting the function afbBindingV1Register</h3>
 <p>The function <strong>afbBindingV1Register</strong> MUST be exported. This can be achieved using a version script at link time. Here after is a version script used for <em>tic-tac-toe</em> (bindings/samples/export.map).</p>

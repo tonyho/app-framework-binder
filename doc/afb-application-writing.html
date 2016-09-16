@@ -8,29 +8,47 @@
   <meta name="author" content="Fulup Ar Foll">
   <title>HOWTO WRITE an APPLICATION above AGL FRAMEWORK</title>
   <style type="text/css">code{white-space: pre;}</style>
-  <!--[if lt IE 9]>
-    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-  <![endif]-->
   <style type="text/css">
+div.sourceCode { overflow-x: auto; }
 table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
   margin: 0; padding: 0; vertical-align: baseline; border: none; }
 table.sourceCode { width: 100%; line-height: 100%; }
 td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
 td.sourceCode { padding-left: 5px; }
-code > span.kw { color: #007020; font-weight: bold; }
-code > span.dt { color: #902000; }
-code > span.dv { color: #40a070; }
-code > span.bn { color: #40a070; }
-code > span.fl { color: #40a070; }
-code > span.ch { color: #4070a0; }
-code > span.st { color: #4070a0; }
-code > span.co { color: #60a0b0; font-style: italic; }
-code > span.ot { color: #007020; }
-code > span.al { color: #ff0000; font-weight: bold; }
-code > span.fu { color: #06287e; }
-code > span.er { color: #ff0000; font-weight: bold; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
   </style>
   <link rel="stylesheet" href="doc.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
 </head>
 <body>
 <header>
@@ -184,7 +202,7 @@ ON-REPLY 1:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&qu
 <p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>request</strong> and one optional field of name <strong>response</strong>.</p>
 <h3 id="template">Template</h3>
 <p>This is a template of replies:</p>
-<pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
+<div class="sourceCode"><pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
    <span class="dt">&quot;jtype&quot;</span><span class="fu">:</span> <span class="st">&quot;afb-reply&quot;</span><span class="fu">,</span>
    <span class="dt">&quot;request&quot;</span><span class="fu">:</span> <span class="fu">{</span>
       <span class="dt">&quot;status&quot;</span><span class="fu">:</span> <span class="st">&quot;success&quot;</span><span class="fu">,</span>
@@ -194,7 +212,7 @@ ON-REPLY 1:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&qu
       <span class="dt">&quot;reqid&quot;</span><span class="fu">:</span> <span class="st">&quot;application-generated-id-23456&quot;</span>
    <span class="fu">},</span>
    <span class="dt">&quot;response&quot;</span><span class="fu">:</span> <span class="er">....any</span> <span class="er">response</span> <span class="er">object....</span>
-<span class="fu">}</span></code></pre>
+<span class="fu">}</span></code></pre></div>
 <h3 id="field-jtype">Field jtype</h3>
 <p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&quot;afb-reply&quot;</strong>.</p>
 <h3 id="field-request">Field request</h3>
@@ -216,11 +234,11 @@ ON-REPLY 1:auth/check: {&quot;jtype&quot;:&quot;afb-reply&quot;,&quot;request&qu
 <p>This object contains at least 2 mandatory fields of name <strong>jtype</strong> and <strong>event</strong> and one optional field of name <strong>data</strong>.</p>
 <h3 id="template-1">Template</h3>
 <p>Here is a template of event:</p>
-<pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
+<div class="sourceCode"><pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
    <span class="dt">&quot;jtype&quot;</span><span class="fu">:</span> <span class="st">&quot;afb-event&quot;</span><span class="fu">,</span>
    <span class="dt">&quot;event&quot;</span><span class="fu">:</span> <span class="st">&quot;sample_api_name/sample_event_name&quot;</span><span class="fu">,</span>
    <span class="dt">&quot;data&quot;</span><span class="fu">:</span> <span class="er">...any</span> <span class="er">event</span> <span class="er">data...</span>
-<span class="fu">}</span></code></pre>
+<span class="fu">}</span></code></pre></div>
 <h3 id="field-jtype-1">Field jtype</h3>
 <p>The field <strong>jtype</strong> must have a value of type string equal to <strong>&quot;afb-event&quot;</strong>.</p>
 <h3 id="field-event">Field event</h3>

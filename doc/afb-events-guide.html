@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="José Bollo">
+  <title>Guid for developing with events</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+  </style>
+  <link rel="stylesheet" href="doc.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Guid for developing with events</h1>
+<h2 class="author">José Bollo</h2>
+<h3 class="date">16 septembre 2016</h3>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#guid-for-developing-with-events">Guid for developing with events</a><ul>
+<li><a href="#subscribing-and-unsubscribing">Subscribing and unsubscribing</a></li>
+<li><a href="#generating-and-pushing-signals-and-data">Generating and pushing signals and data</a></li>
+<li><a href="#receiving-the-signals">Receiving the signals</a></li>
+<li><a href="#the-exceptional-case-of-wide-broadcast">The exceptional case of wide broadcast</a></li>
+</ul></li>
+<li><a href="#reference-of-functions">Reference of functions</a><ul>
+<li><a href="#function-afb_event-afb_daemon_make_event">Function afb_event afb_daemon_make_event</a></li>
+<li><a href="#function-afb_event_push">Function afb_event_push</a></li>
+<li><a href="#function-afb_event_drop">Function afb_event_drop</a></li>
+<li><a href="#function-afb_req_subscribe">Function afb_req_subscribe</a></li>
+<li><a href="#function-afb_req_unsubscribe">Function afb_req_unsubscribe</a></li>
+<li><a href="#function-afb_event_broadcast">Function afb_event_broadcast</a></li>
+<li><a href="#function-afb_daemon_broadcast_event">Function afb_daemon_broadcast_event</a></li>
+</ul></li>
+<li><a href="#architectural-digressions">Architectural digressions</a><ul>
+<li><a href="#strict-separation">Strict separation</a></li>
+<li><a href="#soft-composition">Soft composition</a></li>
+</ul></li>
+</ul>
+</nav>
+<h2 id="guid-for-developing-with-events">Guid for developing with events</h2>
+<p>Signaling agents are services that send events to any clients that subscribed for receiving it. The sent events carry any data.</p>
+<p>To have a good understanding of how to write a signaling agent, the actions of subscribing, unsubscribing, producing, sending, receiving events must be described and explained.</p>
+<p>The basis of a signaling agent is shown on the following figure:</p>
+<figure>
+<img src="signaling-basis.svg" alt="scenario of using events" /><figcaption>scenario of using events</figcaption>
+</figure>
+<p>This figure shows the main role of the signaling framework for the propagation of events.</p>
+<p>For people not familiar with the framework, a signaling agent and a “binding” are similar.</p>
+<h3 id="subscribing-and-unsubscribing">Subscribing and unsubscribing</h3>
+<p>Subscribing and subscription is the action that makes a client able to receive data from a signaling agent. Subscription must create resources for generating the data and for delivering the data to the client. These two aspects are not handled by the same piece of software: generating the data is the responsibility of the developer of the signaling agent while delivering the data is handled by the framework.</p>
+<p>When a client subscribes for data, the agent must:</p>
+<ol type="1">
+<li>check that the subscription request is correct;</li>
+<li>establish the computation chain of the required data, if not already done;</li>
+<li>create a named event for the computed data, if not already done;</li>
+<li>ask the framework to establish the subscription to the event for the request;</li>
+<li>optionally give indications about the event in the reply to the client.</li>
+</ol>
+<p>The first two steps are not involving the framework. They are linked to the business logic of the binding. The request can be any description of the requested data and the computing stream can be of any nature, this is specific to the binding.</p>
+<p>As said before, the framework uses and integrates “libsystemd” and its event loop. Within the framework, &quot;libsystemd&quot; is the standard API/library for bindings expecting to setup and handle I/O, timer or signal events.</p>
+<p>Steps 3 and 4 are bound to the framework.</p>
+<p>The agent must create an object for handling the propagation of produced data to its clients. That object is called “event” in the framework. An event has a name that allows clients to distinguish it from other events.</p>
+<p>Events are created using the <strong><em>afb_daemon_make_event</em></strong> function that takes the name of the event. Example:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    event = afb_daemon_make_event(afb_daemon, name);</code></pre></div>
+<p>Once created, the event can be used either to push data to its subscribers or to broadcast data to any listener.</p>
+<p>The event must be used to establish the subscription for the requesting client. This is done using the <strong><em>afb_req_subscribe</em></strong> function that takes the current request object and event and associates them together. Example:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    rc = afb_req_subscribe(afb_req, event);</code></pre></div>
+<p>When successful, this function make the connection between the event and the client that emitted the request. The client becomes a subscriber of the event until it unsubscribes or disconnects. The <strong><em>afb_req_subscribe</em></strong> function will fail if the client connection is weak: if the request comes from a HTTP link. To receive signals, the client must be connected. The AGL framework allows connections using WebSocket.</p>
+<p>The name of the event is either a well known name or an ad hoc name forged for the usecase.</p>
+<p>Let's see a basic example: client A expects to receive the speed in km/h every second while client B expects the speed in mph twice a second. In that case, there are two different events because it is not the same unit and it is not the same frequency. Having two different events allows to associate clients to the correct event. But this doesn't tell any word about the name of these events. The designer of the signaling agent has two options for naming:</p>
+<ol type="1">
+<li>names can be the same (“speed” for example) with sent data self-describing itself or having a specific tag (requiring from clients awareness about requesting both kinds of speed isn't safe).</li>
+<li>names of the event include the variations (by example: “speed-km/h-1Hz” and “speed-mph-2Hz”) and, in that case, sent data can self-describe itself or not.</li>
+</ol>
+<p>In both cases, the signaling agent might have to send the name of the event and/or an associated tag to its client in the reply of the subscription. This is part of the step 5 above.</p>
+<p>The framework only uses the event (not its name) for subscription, unsubscription and pushing.</p>
+<p>When the requested data is already generated and the event used for pushing it already exists, the signaling agent must not instantiate a new processing chain and must not create a new event object for pushing data. The signaling agent must reuse the existing chain and event.</p>
+<p>Unsubscribing is made by the signaling agent on a request of its client. The <strong><em>afb_req_unsubscribe</em></strong> function tells the framework to remove the requesting client from the event's list of subscribers. Example:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    afb_req_unsubscribe(afb_req, event);</code></pre></div>
+<p>Subscription count does not matter to the framework: subscribing the same client several times has the same effect that subscribing only one time. Thus, when unsubscribing is invoked, it becomes immediately effective.</p>
+<h4 id="more-on-naming-events">More on naming events</h4>
+<p>Within the AGL framework, a signaling agent is a binding that has an API prefix. This prefix is meant to be unique and to identify the binding API. The names of the events that this signaling agent creates are automatically prefixed by the framework, using the API prefix of the binding.</p>
+<p>Thus, if a signaling agent of API prefix <strong><em>api</em></strong> creates an event of name <strong><em>event</em></strong> and pushes data to that event, the subscribers will receive an event of name <strong><em>api/event</em></strong>.</p>
+<h3 id="generating-and-pushing-signals-and-data">Generating and pushing signals and data</h3>
+<p>This of the responsibility of the designer of the signaling agent to establish the processing chain for generating events. In many cases, this can be achieved using I/O or timer or signal events inserted in the main loop. For this case, the AGL framework uses “libsystemd” and provide a way to integrates to the main loop of this library using afb_daemon_get_event_loop. Example:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    sdev = afb_daemon_get_event_loop(af_daemon);
+    rc = sd_event_add_io(sdev, &amp;source, fd, EPOLLIN, myfunction, NULL);</code></pre></div>
+<p>In some other cases, the events are coming from D-Bus. In that case, the framework also uses “libsystemd” internally to access D-Bus. It provides two methods to get the available D-Bus objects, already existing and bound to the main libsystemd event loop. Use either <strong><em>afb_daemon_get_system_bus</em></strong> or <strong><em>afb_daemon_get_user_bus</em></strong> to get the required instance. Then use functions of “libsystemd” to handle D-Bus.</p>
+<p>In some rare cases, the generation of the data requires to start a new thread.</p>
+<p>When a data is generated and ready to be pushed, the signaling agent should call the function <strong><em>afb_event_push</em></strong>. Example:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    rc = afb_event_push(event, json);
+    <span class="kw">if</span> (rc == <span class="dv">0</span>) {
+        stop_generating(event);
+        afb_event_drop(event);
+    }</code></pre></div>
+<p>The function <strong><em>afb_event_push</em></strong> pushes json data to all the subscribers. It then returns the count of subscribers. When the count is zero, there is no subscriber listening for the event. The example above shows that in that case, the signaling agent stops to generate data for the event and delete the event using afb_event_drop. This is one possible option. Other valuable options are: do nothing and continue to generate and push the event or just stop to generate and push the data but keep the event existing.</p>
+<h3 id="receiving-the-signals">Receiving the signals</h3>
+<p>Understanding what a client expects when it receives signals, events or data shall be the most important topic of the designer of a signaling agent. The good point here is that because JSON<a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a> is the exchange format, structured data can be sent in a flexible way.</p>
+<p>The good design is to allow as much as possible the client to describe what is needed with the goal to optimize the processing to the requirements only.</p>
+<h3 id="the-exceptional-case-of-wide-broadcast">The exceptional case of wide broadcast</h3>
+<p>Some data or events have so much importance that they can be widely broadcasted to alert any listening client. Examples of such an alert are:</p>
+<ul>
+<li>system is entering/leaving “power safe” mode</li>
+<li>system is shutting down</li>
+<li>the car starts/stops moving</li>
+<li>...</li>
+</ul>
+<p>An event can be broadcasted using one of the two following methods: <strong><em>afb_daemon_broadcast_event</em></strong> or <strong><em>afb_event_broadcast</em></strong>.</p>
+<p>Example 1:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    afb_daemon_broadcast_event(afb_daemon, name, json);</code></pre></div>
+<p>Example 2:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c">    event = afb_daemon_make_event(afb_daemon, name);
+    . . . .
+    afb_event_broadcast(event, json);</code></pre></div>
+<p>As for other events, the name of events broadcasted using <strong><em>afb_daemon_broadcast_event</em></strong> are automatically prefixed by the framework with API prefix of the binding (signaling agent).</p>
+<h2 id="reference-of-functions">Reference of functions</h2>
+<h3 id="function-afb_event-afb_daemon_make_event">Function afb_event afb_daemon_make_event</h3>
+<p>The function <strong><em>afb_daemon_make_event</em></strong> that is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Creates an event of &#39;name&#39; and returns it.</span>
+<span class="co"> * &#39;daemon&#39; MUST be the daemon given in interface when activating the binding.</span>
+<span class="co"> */</span>
+<span class="kw">struct</span> afb_event afb_daemon_make_event(<span class="kw">struct</span> afb_daemon daemon, <span class="dt">const</span> <span class="dt">char</span> *name);</code></pre></div>
+<p>The daemon is the handler to the application framework binder daemon received during initialisation steps of the binding.</p>
+<p>Calling the function <strong><em>afb_daemon_make_event</em></strong> within the initialisation function <strong><em>afbBindingV1Register</em></strong> will <em>fail</em> because the plugin name is not known at this time.</p>
+<p>The correct way to create the event at initialisation is to call the function <strong><em>afb_daemon_make_event</em></strong> within the initialisation function <strong><em>afbBindingV1ServiceInit</em></strong>.</p>
+<h3 id="function-afb_event_push">Function afb_event_push</h3>
+<p>The function <strong><em>afb_event_push</em></strong> is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Pushes the &#39;event&#39; with the data &#39;object&#39; to its observers.</span>
+<span class="co"> * &#39;object&#39; can be NULL.</span>
+<span class="co"> *</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for object&#39;.</span>
+<span class="co"> * Thus, in the case where &#39;object&#39; should remain available after</span>
+<span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
+<span class="co"> *</span>
+<span class="co"> * Returns the count of clients that received the event.</span>
+<span class="co"> */</span>
+<span class="dt">int</span> afb_event_push(<span class="kw">struct</span> afb_event event, <span class="kw">struct</span> json_object *object);</code></pre></div>
+<p>As the function <strong><em>afb_event_push</em></strong> returns 0 when there is no more subscriber, a binding can remove such unexpected event using the function <strong><em>afb_event_drop</em></strong>.</p>
+<h3 id="function-afb_event_drop">Function afb_event_drop</h3>
+<p>The function <strong><em>afb_event_drop</em></strong> is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Drops the data associated to the event</span>
+<span class="co"> * After calling this function, the event</span>
+<span class="co"> * MUST NOT BE USED ANYMORE.</span>
+<span class="co"> */</span>
+<span class="dt">void</span> afb_event_drop(<span class="kw">struct</span> afb_event event);</code></pre></div>
+<h3 id="function-afb_req_subscribe">Function afb_req_subscribe</h3>
+<p>The function <strong><em>afb_req_subscribe</em></strong> is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Establishes for the client link identified by &#39;req&#39; a subscription</span>
+<span class="co"> * to the &#39;event&#39;.</span>
+<span class="co"> * Returns 0 in case of successful subscription or -1 in case of error.</span>
+<span class="co"> */</span>
+<span class="dt">int</span> afb_req_subscribe(<span class="kw">struct</span> afb_req req, <span class="kw">struct</span> afb_event event);</code></pre></div>
+<p>The subscription adds the client of the request to the list of subscribers to the event.</p>
+<h3 id="function-afb_req_unsubscribe">Function afb_req_unsubscribe</h3>
+<p>The function <strong><em>afb_req_unsubscribe</em></strong> is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Revokes the subscription established to the &#39;event&#39; for the client</span>
+<span class="co"> * link identified by &#39;req&#39;.</span>
+<span class="co"> * Returns 0 in case of successful unsubscription or -1 in case of error.</span>
+<span class="co"> */</span>
+<span class="dt">int</span> afb_req_unsubscribe(<span class="kw">struct</span> afb_req req, <span class="kw">struct</span> afb_event event);</code></pre></div>
+<p>The unsubscription removes the client of the request of the list of subscribers to the event. When the list of subscribers to the event becomes empty, the function <strong><em>afb_event_push</em></strong> will return zero.</p>
+<h3 id="function-afb_event_broadcast">Function afb_event_broadcast</h3>
+<p>The function <strong><em>afb_event_broadcast</em></strong> is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Broadcasts widely the &#39;event&#39; with the data &#39;object&#39;.</span>
+<span class="co"> * &#39;object&#39; can be NULL.</span>
+<span class="co"> *</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;object&#39;.</span>
+<span class="co"> * Thus, in the case where &#39;object&#39; should remain available after</span>
+<span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
+<span class="co"> *</span>
+<span class="co"> * Returns the count of clients that received the event.</span>
+<span class="co"> */</span>
+<span class="dt">int</span> afb_event_broadcast(<span class="kw">struct</span> afb_event event, <span class="kw">struct</span> json_object *object);</code></pre></div>
+<p>This uses an existing event (created with <strong><em>afb_daemon_make_event</em></strong>) for broadcasting an event having its name.</p>
+<h3 id="function-afb_daemon_broadcast_event">Function afb_daemon_broadcast_event</h3>
+<p>The function <strong><em>afb_daemon_broadcast_event</em></strong> is defined as below:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="co">/*</span>
+<span class="co"> * Broadcasts widely the event of &#39;name&#39; with the data &#39;object&#39;.</span>
+<span class="co"> * &#39;object&#39; can be NULL.</span>
+<span class="co"> * &#39;daemon&#39; MUST be the daemon given in interface when activating the binding.</span>
+<span class="co"> *</span>
+<span class="co"> * For convenience, the function calls &#39;json_object_put&#39; for &#39;object&#39;.</span>
+<span class="co"> * Thus, in the case where &#39;object&#39; should remain available after</span>
+<span class="co"> * the function returns, the function &#39;json_object_get&#39; shall be used.</span>
+<span class="co"> *</span>
+<span class="co"> * Returns the count of clients that received the event.</span>
+<span class="co"> */</span>
+<span class="dt">int</span> afb_daemon_broadcast_event(<span class="kw">struct</span> afb_daemon daemon, <span class="dt">const</span> <span class="dt">char</span> *name, <span class="kw">struct</span> json_object *object);</code></pre></div>
+<p>The name is given here explicitely. The name is automatically prefixed with the name of the binding. For example, a binding of prefix &quot;xxx&quot; would broadcat the event &quot;xxx/name&quot;.</p>
+<h2 id="architectural-digressions">Architectural digressions</h2>
+<p>Based on their dependencies to hardware, signaling agents can be split into 2 categories: low-level signaling agents and high-level signaling agents.</p>
+<p>Low-level signaling agents are bound to the hardware and focused on interfacing and driving.</p>
+<p>High-level signaling agent are independent of the hardware and ocused on providing service.</p>
+<p>This separation (that may in the corner look artificial) aim to help in the systems design. The main idea here is that high-level signaling agents are providing “business logic”, also known as “application logic”, that is proper to the car industry and that can be reused and that can evolve as a foundation for the future of the industry.</p>
+<p>The implementation of this decomposition may follow 2 paths: strict separation or soft composition.</p>
+<h3 id="strict-separation">Strict separation</h3>
+<p>The strict separation implements the modularity composition of signaling agent through the framework. The high-level signaling agent subscribes to the low level signaling agent using the standard client API.</p>
+<p>Advantages:</p>
+<ul>
+<li>Modularity</li>
+<li>Separation of responsibilities</li>
+<li>Possible aggregation of multiple sources</li>
+<li>Soft binding of agent good for maintenance</li>
+</ul>
+<p>Drawbacks:</p>
+<ul>
+<li>Cost of propagation of data (might serialize)</li>
+<li>Difficulties to abstract low-level signaling agent or to find a trade-of between abstracting and specializing</li>
+</ul>
+<p>The key is modularity versus cost of propagation. It can be partly solved when logical group of signaling agent are launched together in the same binder process. In that particular case, the cost of propagation of data between agents is reduced<a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a> because there is no serialization.</p>
+<p>This reduction of the propagation cost (and of the resources used) precludes implementation of strong security between the agents because they share the same memory.</p>
+<h3 id="soft-composition">Soft composition</h3>
+<p>The soft composition implements the business logic of high-level signaling agents as libraries that can then be used directly by the low level signaling agents.</p>
+<p>Advantages:</p>
+<ul>
+<li>No propagation: same memory, sharing of native structures</li>
+</ul>
+<p>Drawbacks:</p>
+<ul>
+<li>Cannot be used for aggregation of several sources</li>
+<li>Difficulties to abstract low-level signaling agent or to find a trade-of between abstracting and specializing</li>
+<li>Source code binding not good for maintenance</li>
+</ul>
+<section class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>There are two aspect in using JSON: the first is the flexible data structure that mixes common types (booleans, numbers, strings, arrays, dictionaries, nulls), the second, is the streaming specification. Streaming is often seen as the bottleneck of using JSON (see http://bjson.org). When the agent share the same process, there is no streaming at all.<a href="#fnref1">↩</a></p></li>
+<li id="fn2"><p>Within the same process, there is not serialization, the propagation has the cost of wrapping a json data and calling callbacks with the benefit of having a powerful callback manager: the event mechanism of the framework.<a href="#fnref2">↩</a></p></li>
+</ol>
+</section>
+</body>
+</html>
