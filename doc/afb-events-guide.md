@@ -1,5 +1,5 @@
-Guid for developing with events
--------------------------------
+Guide for developing with events
+================================
 
 Signaling agents are services that send events to any clients that
 subscribed for receiving it. The sent events carry any data.
@@ -7,6 +7,9 @@ subscribed for receiving it. The sent events carry any data.
 To have a good understanding of how to write a signaling agent, the
 actions of subscribing, unsubscribing, producing, sending, receiving
 events must be described and explained.
+
+Overview of events
+------------------
 
 The basis of a signaling agent is shown on the following figure:
 

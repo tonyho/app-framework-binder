@@ -172,6 +172,23 @@ struct afb_binding_interface
 
 /*
  * Function for registering the binding
+ *
+ * A binding V1 MUST have a function of this name and signature.
+ * This function is called during loading of the binding. It
+ * receives an 'interface' that should be recorded for later access to
+ * functions provided by the framework.
+ *
+ * This function MUST return the address of a structure that describes
+ * the binding and its implemented verbs.
+ *
+ * In case of initialisation error, NULL must be returned.
+ *
+ * Be aware that the given 'interface' is not fully functionnal
+ * because no provision is given to the name and description
+ * of the binding. Check the function 'afbBindingV1ServiceInit'
+ * defined in the file <afb/afb-service-itf.h> because when
+ * the function 'afbBindingV1ServiceInit' is called, the 'interface'
+ * is fully functionnal.
  */
 extern const struct afb_binding *afbBindingV1Register (const struct afb_binding_interface *interface);
 

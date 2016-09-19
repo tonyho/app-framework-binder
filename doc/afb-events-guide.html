@@ -5,7 +5,7 @@
   <meta name="generator" content="pandoc">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <meta name="author" content="José Bollo">
-  <title>Guid for developing with events</title>
+  <title>Guide for developing with events</title>
   <style type="text/css">code{white-space: pre;}</style>
   <style type="text/css">
 div.sourceCode { overflow-x: auto; }
@@ -51,13 +51,14 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 </head>
 <body>
 <header>
-<h1 class="title">Guid for developing with events</h1>
+<h1 class="title">Guide for developing with events</h1>
 <h2 class="author">José Bollo</h2>
-<h3 class="date">16 septembre 2016</h3>
+<h3 class="date">19 septembre 2016</h3>
 </header>
 <nav id="TOC">
 <ul>
-<li><a href="#guid-for-developing-with-events">Guid for developing with events</a><ul>
+<li><a href="#guide-for-developing-with-events">Guide for developing with events</a><ul>
+<li><a href="#overview-of-events">Overview of events</a><ul>
 <li><a href="#subscribing-and-unsubscribing">Subscribing and unsubscribing</a></li>
 <li><a href="#generating-and-pushing-signals-and-data">Generating and pushing signals and data</a></li>
 <li><a href="#receiving-the-signals">Receiving the signals</a></li>
@@ -76,11 +77,13 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <li><a href="#strict-separation">Strict separation</a></li>
 <li><a href="#soft-composition">Soft composition</a></li>
 </ul></li>
+</ul></li>
 </ul>
 </nav>
-<h2 id="guid-for-developing-with-events">Guid for developing with events</h2>
+<h1 id="guide-for-developing-with-events">Guide for developing with events</h1>
 <p>Signaling agents are services that send events to any clients that subscribed for receiving it. The sent events carry any data.</p>
 <p>To have a good understanding of how to write a signaling agent, the actions of subscribing, unsubscribing, producing, sending, receiving events must be described and explained.</p>
+<h2 id="overview-of-events">Overview of events</h2>
 <p>The basis of a signaling agent is shown on the following figure:</p>
 <figure>
 <img src="signaling-basis.svg" alt="scenario of using events" /><figcaption>scenario of using events</figcaption>
