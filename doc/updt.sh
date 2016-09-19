@@ -41,6 +41,7 @@ meta() {
 mkhtml() {
   local x=$1
   local h=${x%%.md}.html
+  echo updating $h from $x
   meta "$x" |
   pandoc --css doc.css -f markdown -t html5 --toc > "$h"
 }
