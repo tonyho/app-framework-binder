@@ -131,7 +131,7 @@ static void pingNull (struct afb_req request)
 
 static void pingBug (struct afb_req request)
 {
-	ping((struct afb_req){NULL,NULL,NULL}, NULL, "pingBug");
+	ping((struct afb_req){NULL,NULL}, NULL, "pingBug");
 }
 
 static void pingEvent(struct afb_req request)
