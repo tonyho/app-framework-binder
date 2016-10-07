@@ -1,3 +1,6 @@
+if (CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
+    message(FATAL_ERROR "Require at least gcc-4.9")
+endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
 
 INCLUDE(FindPkgConfig)
 
