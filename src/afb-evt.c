@@ -94,12 +94,14 @@ struct afb_evt_watch {
 static int evt_broadcast(struct afb_evt_event *evt, struct json_object *obj);
 static int evt_push(struct afb_evt_event *evt, struct json_object *obj);
 static void evt_destroy(struct afb_evt_event *evt);
+static const char *evt_name(struct afb_evt_event *evt);
 
 /* the interface for events */
 static struct afb_event_itf afb_evt_event_itf = {
 	.broadcast = (void*)evt_broadcast,
 	.push = (void*)evt_push,
-	.drop = (void*)evt_destroy
+	.drop = (void*)evt_destroy,
+	.name = (void*)evt_name
 };
 
 /* head of the list of listeners */
@@ -144,8 +146,8 @@ int afb_evt_broadcast(const char *event, struct json_object *object)
 }
 
 /*
- * Broadcasts the event 'evt' with its 'object'
- * 'object' is released (like json_object_put)
+ * Pushes the event 'evt' with 'obj' to its listeners
+ * 'obj' is released (like json_object_put)
  * Returns the count of listener taht received the event.
  */
 static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
@@ -166,6 +168,14 @@ static int evt_push(struct afb_evt_event *evt, struct json_object *obj)
 	}
 	json_object_put(obj);
 	return result;
+}
+
+/*
+ * Returns the name associated to the event 'evt'.
+ */
+static const char *evt_name(struct afb_evt_event *evt)
+{
+	return evt->name;
 }
 
 /*

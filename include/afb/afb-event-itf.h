@@ -32,6 +32,7 @@ struct afb_event_itf {
 	int (*broadcast)(void *closure, struct json_object *obj);
 	int (*push)(void *closure, struct json_object *obj);
 	void (*drop)(void *closure);
+	const char *(*name)(void *closure);
 };
 
 /*
@@ -83,12 +84,20 @@ static inline int afb_event_push(struct afb_event event, struct json_object *obj
 }
 
 /*
- * Drops the data associated to the event
+ * Drops the data associated to the 'event'
  * After calling this function, the event
  * MUST NOT BE USED ANYMORE.
  */
 static inline void afb_event_drop(struct afb_event event)
 {
 	event.itf->drop(event.closure);
+}
+
+/*
+ * Gets the name associated to the 'event'.
+ */
+static inline const char *afb_event_name(struct afb_event event)
+{
+	return event.itf->name(event.closure);
 }
 
