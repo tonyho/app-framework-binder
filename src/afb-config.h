@@ -58,6 +58,7 @@ struct afb_config
   int  nbSessionMax;	// max count of sessions
   int mode;           // mode of listening
   int aliascount;
+  int tracereq;
   struct afb_config_item *items;
   struct {
          char  *url;

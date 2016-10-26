@@ -40,6 +40,7 @@ ADD_LIBRARY(afb-lib STATIC
 	afb-common.c
 	afb-context.c
 	afb-evt.c
+	afb-hook.c
 	afb-hreq.c
 	afb-hsrv.c
 	afb-hswitch.c

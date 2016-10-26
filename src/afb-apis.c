@@ -26,6 +26,7 @@
 #include "verbose.h"
 #include "afb-apis.h"
 #include "afb-context.h"
+#include "afb-hook.h"
 #include <afb/afb-req-itf.h>
 
 struct api_desc {
@@ -123,6 +124,7 @@ void afb_apis_call(struct afb_req req, struct afb_context *context, const char *
 	int i;
 	const struct api_desc *a;
 
+	req = afb_hook_req_call(req, context, api, lenapi, verb, lenverb);
 	a = apis_array;
 	for (i = 0 ; i < apis_count ; i++, a++) {
 		if (a->namelen == lenapi && !strncasecmp(a->name, api, lenapi)) {

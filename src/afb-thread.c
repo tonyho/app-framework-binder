@@ -293,6 +293,7 @@ void afb_thread_call(struct afb_req req, void (*callback)(struct afb_req req), i
 	job->callback = callback;
 	job->req = req;
 	job->timeout = timeout;
+	job->blocked = 0;
 	job->group = group;
 	afb_req_addref(req);
 	job_add(job);

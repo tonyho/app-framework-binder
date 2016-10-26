@@ -43,12 +43,18 @@
 #include "session.h"
 #include "verbose.h"
 #include "afb-common.h"
+#include "afb-hook.h"
 
 #include <afb/afb-binding.h>
 
 #if !defined(BINDING_INSTALL_DIR)
 #error "you should define BINDING_INSTALL_DIR"
 #endif
+
+#define TRACEREQ_NO     0
+#define TRACEREQ_COMMON 1
+#define TRACEREQ_EXTRA  2
+#define TRACEREQ_ALL    3
 
 #define AFB_VERSION    "0.5"
 
@@ -88,6 +94,8 @@
 
 #define SET_ROOT_HTTP      26
 
+#define SET_TRACEREQ       27
+
 // Command line structure hold cli --command + help text
 typedef struct {
   int  val;        // command number within application
@@ -99,7 +107,7 @@ typedef struct {
 
 // Supported option
 static  AFB_options cliOptions [] = {
-  {SET_VERBOSE      ,0,"verbose"         , "Verbose Mode"},
+  {SET_VERBOSE      ,0,"verbose"         , "Verbose Mode, repeat to increase verbosity"},
 
   {SET_FORGROUND    ,0,"foreground"      , "Get all in foreground mode"},
   {SET_BACKGROUND   ,0,"daemon"          , "Get all in background mode"},
@@ -133,6 +141,8 @@ static  AFB_options cliOptions [] = {
   {SO_BINDING       ,1,"binding"         , "load the binding of path"},
 
   {SET_SESSIONMAX   ,1,"session-max"     , "max count of session simultaneously [default 10]"},
+
+  {SET_TRACEREQ     ,1,"tracereq"        , "log the requests: no, common, extra, all"},
 
   {0, 0, NULL, NULL}
  };
@@ -408,6 +418,15 @@ static void parse_arguments(int argc, char *argv[], struct afb_config *config)
     case SO_BINDING:
        if (optarg == 0) goto needValueForOption;
        add_item(config, optc, optarg);
+       break;
+
+    case SET_TRACEREQ:
+       if (optarg == 0) goto needValueForOption;
+       if (!strcmp(optarg, "no")) config->tracereq = TRACEREQ_NO;
+       else if (!strcmp(optarg, "common")) config->tracereq = TRACEREQ_COMMON;
+       else if (!strcmp(optarg, "extra")) config->tracereq = TRACEREQ_EXTRA;
+       else if (!strcmp(optarg, "all")) config->tracereq = TRACEREQ_ALL;
+       else goto badMode;
        break;
 
     case DISPLAY_VERSION:
@@ -686,6 +705,22 @@ int main(int argc, char *argv[])  {
 
   /* ignore any SIGPIPE */
   signal(SIGPIPE, SIG_IGN);
+
+  /* install trace of requests */
+  switch(config->tracereq) {
+  default:
+  case TRACEREQ_NO:
+	break;
+  case TRACEREQ_COMMON:
+	afb_hook_req_create(NULL, NULL, NULL, afb_hook_flags_req_common, NULL, NULL);
+	break;
+  case TRACEREQ_EXTRA:
+	afb_hook_req_create(NULL, NULL, NULL, afb_hook_flags_req_extra, NULL, NULL);
+	break;
+  case TRACEREQ_ALL:
+	afb_hook_req_create(NULL, NULL, NULL, afb_hook_flags_req_all, NULL, NULL);
+	break;
+  }
 
    /* start the HTTP server */
    hsrv = start_http_server(config);
