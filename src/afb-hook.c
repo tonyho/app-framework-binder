@@ -32,22 +32,25 @@
 #include "verbose.h"
 
 /*
- * Trace 
+ * Definition of a hook
  */
 struct afb_hook {
 	struct afb_hook *next; /* next hook */
 	unsigned refcount; /* reference count */
-	char *api; 
-	char *verb;
-	struct AFB_clientCtx *session;
+	char *api; /* api hooked or NULL for any */
+	char *verb; /* verb hooked or NULL for any */
+	struct AFB_clientCtx *session; /* session hooked or NULL if any */
 	unsigned flags; /* hook flags */
-	struct afb_hook_req_itf *reqitf;
-	void *closure;
+	struct afb_hook_req_itf *reqitf; /* interface of hook */
+	void *closure; /* closure for callbacks */
 };
 
+/*
+ * Link hooks to a hooked request
+ */
 struct hook_req_observer {
-	struct afb_hook *hook;
-	struct hook_req_observer *next;
+	struct afb_hook *hook; /* the hook */
+	struct hook_req_observer *next; /* the next observer */
 };
 
 /*
@@ -70,8 +73,10 @@ struct hook_subcall {
 	void *cb_closure; /* cient closure */
 };
 
+/* counter of hooking */
 static unsigned hook_count = 0;
 
+/* list of hooks */
 static struct afb_hook *list_of_hooks = NULL;
 
 /******************************************************************************
