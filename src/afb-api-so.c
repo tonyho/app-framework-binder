@@ -54,11 +54,6 @@ struct api_so_desc {
 	struct afb_binding_interface interface;	/* interface for the binding */
 };
 
-struct monitoring {
-	struct afb_req req;
-	void (*action)(struct afb_req);
-};
-
 static const char binding_register_function_v1[] = "afbBindingV1Register";
 static const char binding_service_init_function_v1[] = "afbBindingV1ServiceInit";
 static const char binding_service_event_function_v1[] = "afbBindingV1ServiceEvent";
